@@ -1,0 +1,602 @@
+// AI 写小说平台 - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 平台全局配置（单条记录，id 固定为 "default"）
+model PlatformConfig {
+  id              String   @id @default("default")
+  // 平台基础
+  platformName    String   @default("墨灵写作")
+  platformIcon    String   @default("") // URL 或空
+  platformDesc    String   @default("AI 驱动的网文创作平台")
+  // 平台模式
+  mode            String   @default("paid") // paid(付费) / free(免费)
+  // 充值配置
+  rechargeEnabled Boolean  @default(true)
+  // 自定义套餐 JSON: [{"id":"starter","tokens":50000,"price":9.9,"name":"入门","popular":false}]
+  customPackages  String   @default("")
+  // 默认 AI 配置
+  defaultAiProvider String @default("") // deepseek/openai/claude/gemini/grok/minimax
+  defaultAiApiKey  String   @default("")
+  defaultAiBaseUrl String   @default("")
+  defaultAiModel   String   @default("")
+  // 注册赠送
+  registerTokens  Int      @default(10000)
+  // 时间
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ============ 用户与计费 ============
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String   // scrypt 哈希
+  name         String?
+  penName      String?
+  avatar       String?
+  tokens       Int      @default(10000) // Token 余额
+  plan         String   @default("free") // free / pro / year
+  role         String   @default("user") // user / admin
+  banned       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  folders      Folder[]
+  novels       Novel[]
+  characters   Character[]
+  worldviews   Worldview[]
+  items        Item[]
+  chatMessages ChatMessage[]
+  dailyStats   DailyStat[]
+  orders       Order[]
+  autoSerials  AutoSerial[]
+  publications Publication[]
+  likes        PublicationLike[]
+  collects     PublicationCollect[]
+  readRecords  ReadRecord[]
+  aiConfigs    UserAiConfig[]
+}
+
+// 用户第三方 AI API 配置
+model UserAiConfig {
+  id        String   @id @default(cuid())
+  userId    String
+  // 提供商
+  provider  String   // deepseek / openai / claude / gemini / grok / minimax / custom
+  name      String   // 显示名（如"我的 DeepSeek"）
+  // API 配置
+  apiKey    String
+  baseUrl   String   // API 基础地址
+  model     String   // 模型名（如 deepseek-chat, gpt-4o, claude-3-sonnet）
+  // 状态
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false) // 是否为默认使用的 API
+  // 测试状态
+  lastTestAt   DateTime?
+  lastTestOk   Boolean  @default(false)
+  lastTestErr  String?
+  // 元数据
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// 充值订单
+model Order {
+  id        String    @id @default(cuid())
+  userId    String
+  amount    Float     // 金额（元）
+  tokens    Int       // 购买的 Token 数
+  status    String    @default("pending") // pending / paid / failed
+  method    String    @default("alipay") // alipay / wechat / card
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// AI 自动连载任务
+model AutoSerial {
+  id             String   @id @default(cuid())
+  novelId        String
+  userId         String
+  enabled        Boolean  @default(true)
+  intervalMin    Int      @default(60) // 每次生成间隔（分钟）
+  targetWords    Int      @default(2000) // 每章目标字数
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  status         String   @default("idle") // idle / running / paused / error
+  totalGenerated Int      @default(0) // 已自动生成章节数
+  lastError      String?
+  plotDirection  String?  // 剧情走向提示（用户给 AI 的方向）
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  novel          Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 每日创作统计 (热力图用)
+model DailyStat {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // YYYY-MM-DD
+  words     Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ============ 文件夹管理 ============
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("slate")
+  sortOrder Int      @default(0)
+  userId    String
+  parentId  String?  // 支持多级文件夹
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderTree")
+  novels    Novel[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============ 小说 ============
+model Novel {
+  id          String        @id @default(cuid())
+  title       String
+  cover       String?
+  author      String?
+  genre       String        @default("玄幻")
+  tags        String        @default("")
+  synopsis    String?
+  outline     String?
+  status      String        @default("ongoing") // ongoing / completed / hiatus
+  totalWords  Int           @default(0)
+  folderId    String?
+  folder      Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  volumes     Volume[]
+  chapters    Chapter[]
+  autoSerials AutoSerial[]
+  publication Publication?
+  timelineEvents    TimelineEvent[]
+  consistencyIssues ConsistencyIssue[]
+  // 软删除（回收站）
+  deleted     Boolean       @default(false)
+  deletedAt   DateTime?
+  // 字数目标
+  wordGoal   Int           @default(0) // 全书字数目标，0=未设置
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// 卷
+model Volume {
+  id        String   @id @default(cuid())
+  title     String
+  sortOrder Int      @default(0)
+  isOutline Boolean  @default(false)
+  novelId   String
+  novel     Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapters  Chapter[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 章节/节
+model Chapter {
+  id         String   @id @default(cuid())
+  title      String
+  content    String   @default("")
+  summary    String?
+  words      Int      @default(0)
+  status     String   @default("draft") // draft / polishing / final
+  sortOrder  Int      @default(0)
+  autoGen    Boolean  @default(false) // 是否由 AI 自动连载生成
+  volumeId   String
+  volume     Volume   @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  novelId    String
+  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  revisions  ChapterRevision[]
+}
+
+// 章节版本历史
+model ChapterRevision {
+  id         String   @id @default(cuid())
+  chapterId  String
+  content    String
+  words      Int
+  title      String
+  // 创建快照的原因
+  reason     String   @default("manual") // manual / auto / ai
+  createdAt  DateTime @default(now())
+
+  chapter    Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId, createdAt])
+}
+
+// ============ 设定库 ============
+model Character {
+  id         String   @id @default(cuid())
+  name       String
+  avatar     String?
+  appearance String?
+  personality String?
+  background String?
+  abilities  String?
+  relations  String?
+  novelId    String?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Worldview {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("geography")
+  description String?
+  novelId     String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("item")
+  attributes  String?
+  effect      String?
+  novelId     String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============ AI 对话历史 ============
+model ChatMessage {
+  id         String   @id @default(cuid())
+  role       String   // user / assistant / system
+  content    String
+  preset     String?
+  novelId    String?
+  chapterId  String?
+  tokensUsed Int      @default(0)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+// ============ 邮件系统 ============
+// 管理员配置的 SMTP 邮箱（单条记录，全局唯一）
+model EmailConfig {
+  id           String   @id @default(cuid())
+  // SMTP 配置
+  smtpHost     String   // 如 smtp.163.com
+  smtpPort     Int      @default(465)
+  smtpSecure   Boolean  @default(true) // 465 为 true，587 为 false
+  smtpUser     String   // 邮箱地址
+  smtpPass     String   // 邮箱密码或授权码
+  fromName     String   @default("墨灵写作") // 发件人显示名
+  // 状态
+  enabled      Boolean  @default(true)
+  lastTestAt   DateTime?
+  lastTestOk   Boolean  @default(false)
+  lastTestErr  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 邮箱验证码（用于注册、找回密码等场景）
+model EmailCode {
+  id        String   @id @default(cuid())
+  email     String   // 接收邮箱
+  code      String   // 6 位验证码
+  purpose   String   @default("register") // register / reset / login
+  expired   Boolean  @default(false)
+  used      Boolean  @default(false)
+  expiresAt DateTime // 过期时间
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
+}
+
+// ============ 公告与消息系统 ============
+// 平台公告（全站广播，所有用户可见）
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   // 支持 markdown / 纯文本
+  type        String   @default("info") // info / warning / success / maintenance
+  // 状态
+  published   Boolean  @default(false) // false=草稿，true=已发布
+  pinned      Boolean  @default(false) // 是否置顶
+  // 时间
+  publishAt   DateTime? // 计划发布时间（null=立即）
+  expiresAt   DateTime? // 过期时间（null=永久）
+  // 创建信息
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reads       AnnouncementRead[]
+
+  @@index([published, publishAt])
+}
+
+// 用户已读公告记录
+model AnnouncementRead {
+  id              String   @id @default(cuid())
+  announcementId  String
+  userId          String
+  readAt          DateTime @default(now())
+
+  announcement    Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+// 用户消息（管理员群发或单独发送）
+model Message {
+  id          String   @id @default(cuid())
+  // 接收人（userId 为空表示群发，所有用户可见）
+  userId      String?  // null = 全员消息
+  // 发送人
+  senderId    String   // 管理员 id
+  senderName  String   // 冗余存储发送人名
+  // 内容
+  title       String
+  content     String
+  type        String   @default("notice") // notice / system / warning / reward
+  // 状态
+  deleted     Boolean  @default(false) // 软删除（用户主动删除）
+  // 邮件通知
+  emailSent   Boolean  @default(false) // 是否已发送邮件通知
+  emailToSend String?  // 接收邮箱（用于群发邮件记录）
+  // 时间
+  createdAt   DateTime @default(now())
+
+  // 用户已读记录（用于群发消息追踪单个用户的已读状态）
+  reads       MessageRead[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// 用户已读消息记录
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+// 用户已删除的消息记录（用于群发消息的软删除）
+model MessageDeleted {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  deletedAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+// ============ 兑换码系统 ============
+// 兑换码（管理员生成）
+model RedeemCode {
+  id          String    @id @default(cuid())
+  code        String    @unique // 兑换码（大写字母+数字）
+  // 奖励类型
+  rewardType  String    // token / plan
+  // token 奖励
+  tokenAmount Int       @default(0) // 当 rewardType=token 时有效
+  // 会员奖励
+  planReward  String?   // pro / year，当 rewardType=plan 时有效
+  planDays    Int       @default(0) // 会员天数（如 30 天月卡）
+  // 批次信息
+  batchId     String?   // 批次 ID（同一次生成的归为一批）
+  batchNote   String?   // 批次备注（如「双十一活动」）
+  // 状态
+  status      String    @default("unused") // unused / used / disabled
+  usedBy      String?   // 使用者 userId（仅独占码有效）
+  usedAt      DateTime?
+  expiresAt   DateTime? // 兑换码过期时间（null 表示永久）
+  // 通用兑换码（一个码可被多人使用，每人限一次）
+  isGeneric   Boolean   @default(false) // true=通用码，false=独占码
+  maxUses     Int       @default(0) // 通用码最大使用次数（0=不限）
+  totalUsed   Int       @default(0) // 通用码已被使用的次数
+  // 自定义标识（管理员手动创建的通用兑换码）
+  isCustom    Boolean   @default(false) // true=管理员手动创建的自定义码
+  // 创建信息
+  createdById String    // 创建管理员 id
+  createdAt   DateTime  @default(now())
+
+  history     RedeemHistory[]
+  uses        RedeemUse[]
+
+  @@index([batchId])
+  @@index([status])
+  @@index([isGeneric])
+}
+
+// 通用兑换码的用户使用记录（一个通用码可被多人使用，每人限一次）
+model RedeemUse {
+  id        String   @id @default(cuid())
+  codeId    String
+  code      String   // 冗余存储兑换码字符串
+  userId    String
+  redeemedAt DateTime @default(now())
+
+  redeemCode RedeemCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+
+  @@unique([codeId, userId]) // 同一通用码同一用户只能用一次
+  @@index([userId])
+}
+
+// 兑换历史记录
+model RedeemHistory {
+  id        String   @id @default(cuid())
+  codeId    String
+  code      String   // 冗余存储兑换码字符串
+  userId    String
+  // 兑换时的奖励快照
+  rewardType String
+  tokenAmount Int
+  planReward  String?
+  planDays    Int
+  // 兑换前后的余额
+  tokensBefore Int
+  tokensAfter  Int
+  planBefore   String
+  planAfter    String
+  redeemedAt   DateTime @default(now())
+
+  redeemCode RedeemCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============ 作品广场 ============
+// 作品发布到广场（一个 Novel 可以发布一次）
+model Publication {
+  id          String   @id @default(cuid())
+  novelId     String   @unique
+  userId      String   // 发布者
+  // 发布信息
+  title       String   // 广场展示标题（可与小说标题不同）
+  synopsis    String   // 广场简介
+  cover       String?
+  tags        String   @default("")
+  category    String   @default("玄幻") // 分类
+  // 状态
+  status      String   @default("published") // published / hidden / removed
+  featured    Boolean  @default(false) // 是否推荐
+  // 统计
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  collectCount Int     @default(0)
+  // 时间
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reads       ReadRecord[]
+  likes       PublicationLike[]
+  collects    PublicationCollect[]
+
+  @@index([status, publishedAt])
+  @@index([category])
+}
+
+// 阅读记录
+model ReadRecord {
+  id              String   @id @default(cuid())
+  publicationId   String
+  userId          String
+  chapterId       String?
+  // 阅读进度
+  lastChapterSortOrder Int  @default(0)
+  readWords       Int      @default(0)
+  // 时间
+  lastReadAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  publication     Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([publicationId, userId])
+  @@index([userId])
+}
+
+// 点赞
+model PublicationLike {
+  id            String   @id @default(cuid())
+  publicationId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([publicationId, userId])
+}
+
+// 收藏
+model PublicationCollect {
+  id            String   @id @default(cuid())
+  publicationId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([publicationId, userId])
+}
+
+// ============ 长篇时间线与一致性守卫（移植自墨枢） ============
+model TimelineEvent {
+  id          String   @id @default(cuid())
+  novelId     String
+  chapterId   String?
+  timeLabel   String   // 例如："第一年·秋" / "第3天 深夜"
+  title       String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, sortOrder])
+}
+
+model ConsistencyIssue {
+  id          String   @id @default(cuid())
+  novelId     String
+  chapterId   String?
+  category    String   @default("codex") // codex / timeline / character / logic
+  severity    String   @default("warning") // info / warning / error
+  title       String
+  detail      String
+  suggestion  String?
+  status      String   @default("open") // open / resolved / ignored
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  novel       Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, status])
+}

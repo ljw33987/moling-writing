@@ -1,0 +1,16 @@
+{
+  "name": "moling-writing-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "墨灵写作 Android 壳工程（Capacitor）",
+  "scripts": {
+    "cap:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

@@ -1,0 +1,298 @@
+import { db } from '@/lib/db'
+
+export interface ContextLayerInfo {
+  key: string
+  label: string
+  tokens: number
+  budgetTokens: number
+  trimmed: boolean
+  itemCount: number
+  preview: string
+}
+
+export interface ContextAssemblyResult {
+  contextText: string
+  totalTokens: number
+  budgetTokens: number
+  trimmedLayers: string[]
+  referencedCodexIds: string[]
+  missingCodexIds: string[]
+  layers: ContextLayerInfo[]
+  preflight: {
+    status: 'ready' | 'attention'
+    warnings: string[]
+  }
+}
+
+export function stripHtml(html: string): string {
+  if (!html) return ''
+  if (!html.includes('<')) return html
+  return html
+    .replace(/<div[^>]*data-ai-draft[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+export function extractCodexRefIds(html: string): string[] {
+  if (!html) return []
+  const ids = new Set<string>()
+  const re = /data-codex-ref=["']([^"']+)["']/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    if (m[1]) ids.add(m[1])
+  }
+  return [...ids]
+}
+
+export function estimateTokens(text: string): number {
+  if (!text) return 0
+  let cjk = 0
+  let other = 0
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    if (code >= 0x4e00 && code <= 0x9fff) cjk++
+    else other++
+  }
+  return Math.ceil(cjk * 0.75 + other * 0.3)
+}
+
+function fitToBudget(text: string, budgetTokens: number, fromTail = false): { text: string; trimmed: boolean } {
+  if (!text) return { text: '', trimmed: false }
+  const tokens = estimateTokens(text)
+  if (tokens <= budgetTokens) return { text, trimmed: false }
+  const ratio = Math.max(0.1, budgetTokens / Math.max(1, tokens))
+  const keepChars = Math.max(80, Math.floor(text.length * ratio))
+  if (fromTail) {
+    return { text: '…\n' + text.slice(-keepChars), trimmed: true }
+  }
+  return { text: text.slice(0, keepChars) + '\n…（已按预算截断）', trimmed: true }
+}
+
+/**
+ * 分层上下文装配引擎（移植自墨枢 Moshu）：
+ * 按优先级装配：大纲定位 → 本章 @ 引用设定 → 时间线 → 前情摘要 → 其余设定 → 近文正文
+ */
+export async function assembleNovelContext(params: {
+  novelId: string
+  chapterId?: string | null
+  budgetTokens?: number
+}): Promise<ContextAssemblyResult> {
+  const budgetTokens = params.budgetTokens ?? 14000
+  const layers: ContextLayerInfo[] = []
+  const trimmedLayers: string[] = []
+  const warnings: string[] = []
+
+  const [novel, characters, worldviews, items, currentChapter, allChapters] =
+    await Promise.all([
+      db.novel.findUnique({ where: { id: params.novelId } }),
+      db.character.findMany({ where: { novelId: params.novelId } }),
+      db.worldview.findMany({ where: { novelId: params.novelId } }),
+      db.item.findMany({ where: { novelId: params.novelId } }),
+      params.chapterId
+        ? db.chapter.findUnique({ where: { id: params.chapterId } })
+        : Promise.resolve(null),
+      db.chapter.findMany({
+        where: { novelId: params.novelId },
+        orderBy: [{ sortOrder: 'asc' }],
+        select: { id: true, title: true, summary: true, sortOrder: true, volumeId: true },
+      }),
+    ])
+
+  let timelineEvents: Array<{ timeLabel: string; title: string; description: string | null }> = []
+  try {
+    timelineEvents = await (db as any).timelineEvent.findMany({
+      where: { novelId: params.novelId },
+      orderBy: { sortOrder: 'asc' },
+      take: 25,
+    })
+  } catch {
+    timelineEvents = []
+  }
+
+  let remaining = budgetTokens
+
+  // 1. 作品定位与大纲
+  if (novel) {
+    const raw = `【当前小说】\n书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || '（未设定）'}\n大纲：${novel.outline || '（未设定）'}`
+    const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.22))
+    const fitted = fitToBudget(raw, layerBudget)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('outline')
+    if (!novel.outline) warnings.push('本书尚未填写总大纲，长篇一致性可能受影响')
+    layers.push({
+      key: 'outline',
+      label: '作品定位与大纲',
+      tokens,
+      budgetTokens: layerBudget,
+      trimmed: fitted.trimmed,
+      itemCount: 1,
+      preview: fitted.text,
+    })
+  }
+
+  // 2. 本章 @ 引用的设定（最高优先级记忆）
+  const rawHtml = currentChapter?.content || ''
+  const referencedIds = extractCodexRefIds(rawHtml)
+  const codexById = new Map<string, { kind: string; text: string }>()
+  for (const c of characters) {
+    codexById.set(c.id, {
+      kind: '角色',
+      text: `- [角色] ${c.name}：性格=${c.personality || '未知'} | 背景=${c.background || '未知'} | 能力=${c.abilities || '无'}`,
+    })
+  }
+  for (const w of worldviews) {
+    codexById.set(w.id, {
+      kind: '世界观',
+      text: `- [世界观/${w.type}] ${w.name}：${w.description || '无'}`,
+    })
+  }
+  for (const it of items) {
+    codexById.set(it.id, {
+      kind: '道具/功法',
+      text: `- [道具/${it.type}] ${it.name}：属性=${it.attributes || '无'} | 效果=${it.effect || '无'}`,
+    })
+  }
+
+  const missingCodexIds: string[] = []
+  const refLines: string[] = []
+  for (const id of referencedIds) {
+    const entry = codexById.get(id)
+    if (entry) refLines.push(entry.text)
+    else missingCodexIds.push(id)
+  }
+  if (missingCodexIds.length > 0) {
+    warnings.push(`本章有 ${missingCodexIds.length} 处 @ 引用指向了已删除的设定条目`)
+  }
+  if (refLines.length > 0 && remaining > 0) {
+    const raw = `【本章显式引用的设定（@CodexRef）】\n${refLines.join('\n')}`
+    const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.25))
+    const fitted = fitToBudget(raw, layerBudget)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('referenced_codex')
+    layers.push({
+      key: 'referenced_codex',
+      label: '本章 @ 引用设定',
+      tokens,
+      budgetTokens: layerBudget,
+      trimmed: fitted.trimmed,
+      itemCount: refLines.length,
+      preview: fitted.text,
+    })
+  }
+
+  // 3. 时间线锚点
+  if (timelineEvents.length > 0 && remaining > 0) {
+    const raw = `【故事时间线】\n${timelineEvents
+      .map((e) => `- [${e.timeLabel}] ${e.title}${e.description ? `：${e.description}` : ''}`)
+      .join('\n')}`
+    const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.12))
+    const fitted = fitToBudget(raw, layerBudget)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('timeline')
+    layers.push({
+      key: 'timeline',
+      label: '故事时间线',
+      tokens,
+      budgetTokens: layerBudget,
+      trimmed: fitted.trimmed,
+      itemCount: timelineEvents.length,
+      preview: fitted.text,
+    })
+  }
+
+  // 4. 前情摘要（取当前章之前的最多 4 章摘要）
+  if (currentChapter && remaining > 0) {
+    const idx = allChapters.findIndex((c) => c.id === currentChapter.id)
+    const prevChapters = idx > 0 ? allChapters.slice(Math.max(0, idx - 4), idx) : []
+    const withSummary = prevChapters.filter((c) => c.summary?.trim())
+    if (withSummary.length > 0) {
+      const raw = `【前情章节摘要】\n${withSummary
+        .map((c) => `- ${c.title}：${c.summary}`)
+        .join('\n')}`
+      const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.15))
+      const fitted = fitToBudget(raw, layerBudget)
+      const tokens = estimateTokens(fitted.text)
+      remaining = Math.max(0, remaining - tokens)
+      if (fitted.trimmed) trimmedLayers.push('previous_summary')
+      layers.push({
+        key: 'previous_summary',
+        label: '前情章节摘要',
+        tokens,
+        budgetTokens: layerBudget,
+        trimmed: fitted.trimmed,
+        itemCount: withSummary.length,
+        preview: fitted.text,
+      })
+    }
+  }
+
+  // 5. 其余常驻设定（排除已显式引用的）
+  const refSet = new Set(referencedIds)
+  const otherLines: string[] = []
+  for (const [id, entry] of codexById.entries()) {
+    if (!refSet.has(id)) otherLines.push(entry.text)
+  }
+  if (otherLines.length > 0 && remaining > 0) {
+    const raw = `【其余设定库参考】\n${otherLines.join('\n')}`
+    const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.16))
+    const fitted = fitToBudget(raw, layerBudget)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('other_codex')
+    layers.push({
+      key: 'other_codex',
+      label: '其余设定库',
+      tokens,
+      budgetTokens: layerBudget,
+      trimmed: fitted.trimmed,
+      itemCount: otherLines.length,
+      preview: fitted.text,
+    })
+  }
+
+  // 6. 当前章正文尾部（吃掉剩余预算）
+  if (currentChapter && remaining > 0) {
+    const plainBody = stripHtml(currentChapter.content || '')
+    const raw = `【当前章节】\n标题：${currentChapter.title}\n核心事件：${currentChapter.summary || '（未设定）'}\n前文末尾：\n${plainBody || '（暂无正文）'}`
+    const fitted = fitToBudget(raw, remaining, true)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('recent_body')
+    layers.push({
+      key: 'recent_body',
+      label: '当前章节正文',
+      tokens,
+      budgetTokens: remaining + tokens,
+      trimmed: fitted.trimmed,
+      itemCount: 1,
+      preview: fitted.text,
+    })
+  }
+
+  const totalTokens = layers.reduce((sum, l) => sum + l.tokens, 0)
+  const contextText = layers.map((l) => l.preview).join('\n\n')
+
+  return {
+    contextText,
+    totalTokens,
+    budgetTokens,
+    trimmedLayers,
+    referencedCodexIds: referencedIds,
+    missingCodexIds,
+    layers,
+    preflight: {
+      status: warnings.length > 0 ? 'attention' : 'ready',
+      warnings,
+    },
+  }
+}
