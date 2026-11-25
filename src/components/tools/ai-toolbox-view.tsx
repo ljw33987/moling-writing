@@ -42,6 +42,7 @@ interface ToolDef {
   desc: string
   placeholder: string
   icon: any
+  image: string
 }
 
 const TOOLS: ToolDef[] = [
@@ -53,6 +54,7 @@ const TOOLS: ToolDef[] = [
     desc: '输入一句话脑洞，一键生成吸睛简介、初步大纲与核心角色',
     placeholder: '例：末日降临，别人觉醒异能，我觉醒了一家只在深夜营业的便利店，卖出的泡面能续命…',
     icon: BookOpen,
+    image: '/toolbox/tool-synopsis.svg',
   },
   {
     id: 'goldfinger',
@@ -62,6 +64,7 @@ const TOOLS: ToolDef[] = [
     desc: '设计 3 套有爽点、有成长上限、带首个高潮兑现的金手指方案',
     placeholder: '例：都市修仙 / 历史种田 / 系统流，希望主角前期低调发育、打脸爽感强…',
     icon: Zap,
+    image: '/toolbox/tool-goldfinger.svg',
   },
   {
     id: 'golden_three',
@@ -71,6 +74,7 @@ const TOOLS: ToolDef[] = [
     desc: '专攻前三章“三秒抓眼球”高能开局，快速立住矛盾与金手指',
     placeholder: '填写主角身份、开局困境、金手指触发契机及前三章核心事件…',
     icon: Flame,
+    image: '/toolbox/tool-golden3.svg',
   },
   {
     id: 'name_gen',
@@ -80,6 +84,7 @@ const TOOLS: ToolDef[] = [
     desc: '批量生成角色名、宗门、功法、法宝、势力名并附风格说明',
     placeholder: '例：生成 10 个仙侠剑修宗门名与镇派剑诀名，要求偏冷冽孤高风格',
     icon: Wand2,
+    image: '/toolbox/tool-naming.svg',
   },
   {
     id: 'char_dialogue',
@@ -89,6 +94,7 @@ const TOOLS: ToolDef[] = [
     desc: '输入两个角色性格与矛盾点，生成有张力的多轮对白',
     placeholder: '例：冷面师姐（柳清霜）质问隐忍杂役（沈默）为何偷学禁地剑意，表面问责实则试探…',
     icon: MessageSquare,
+    image: '/toolbox/tool-dialogue.svg',
   },
   {
     id: 'break_block',
@@ -98,6 +104,7 @@ const TOOLS: ToolDef[] = [
     desc: '写到一半卡住？快速给出 3 种不同方向的反转与推进方案',
     placeholder: '描述你当前卡住的剧情节点，以及希望保持的基调…',
     icon: Compass,
+    image: '/toolbox/tool-break.svg',
   },
   {
     id: 'deconstruct',
@@ -107,6 +114,7 @@ const TOOLS: ToolDef[] = [
     desc: '粘贴爆款小说章节，拆解开篇钩子、情绪节奏、爽点与可复用章纲模板',
     placeholder: '请粘贴 500~4000 字的对标样章正文…',
     icon: FileSearch,
+    image: '/toolbox/tool-deconstruct.svg',
   },
   {
     id: 'editor_review',
@@ -116,6 +124,7 @@ const TOOLS: ToolDef[] = [
     desc: '模拟起点/番茄资深编辑，从逻辑、人设、节奏、爽点多维打分并给修改建议',
     placeholder: '请粘贴待审稿的章节正文（建议 1000~3500 字）…',
     icon: Award,
+    image: '/toolbox/tool-review.svg',
   },
 ]
 
@@ -454,27 +463,30 @@ export function AiToolboxView() {
             {/* 左侧工具卡片矩阵 */}
             <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
               {TOOLS.map((tool) => {
-                const Icon = tool.icon
                 const selected = activeTool?.id === tool.id
                 return (
                   <Card
                     key={tool.id}
                     onClick={() => setActiveTool(tool)}
-                    className={`cursor-pointer transition hover:border-indigo- ${
-                      selected ? 'border-indigo- bg-indigo-600/5 shadow-sm' : ''
+                    className={`cursor-pointer transition hover:border-indigo-400 ${
+                      selected ? 'border-indigo-600 bg-indigo-600/5 shadow-sm' : ''
                     }`}
                   >
-                    <CardHeader className="p-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-indigo-" />
-                          {tool.title}
-                        </CardTitle>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {tool.badge}
-                        </Badge>
+                    <CardHeader className="p-3.5 flex flex-row items-center gap-3.5 space-y-0">
+                      <img
+                        src={tool.image}
+                        alt={tool.title}
+                        className="w-14 h-14 rounded-xl shadow-sm shrink-0 object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-sm truncate">{tool.title}</CardTitle>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {tool.badge}
+                          </Badge>
+                        </div>
+                        <CardDescription className="text-xs mt-1 line-clamp-2">{tool.desc}</CardDescription>
                       </div>
-                      <CardDescription className="text-xs mt-1">{tool.desc}</CardDescription>
                     </CardHeader>
                   </Card>
                 )
@@ -485,12 +497,16 @@ export function AiToolboxView() {
             <div className="lg:col-span-7">
               {activeTool && (
                 <Card className="h-full flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <activeTool.icon className="w-5 h-5 text-indigo-" />
-                      {activeTool.title}
-                    </CardTitle>
-                    <CardDescription>{activeTool.desc}</CardDescription>
+                  <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                    <img
+                      src={activeTool.image}
+                      alt={activeTool.title}
+                      className="w-12 h-12 rounded-xl shadow-sm shrink-0 object-cover"
+                    />
+                    <div>
+                      <CardTitle className="text-lg">{activeTool.title}</CardTitle>
+                      <CardDescription>{activeTool.desc}</CardDescription>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col gap-4">
                     <Textarea
