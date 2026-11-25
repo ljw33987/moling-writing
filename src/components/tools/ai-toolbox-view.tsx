@@ -30,9 +30,11 @@ import {
   Check,
   Image as ImageIcon,
   Download,
+  Store,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
+import { PromptMarketPanel } from './prompt-market-panel'
 
 interface ToolDef {
   id: string
@@ -130,7 +132,7 @@ const TOOLS: ToolDef[] = [
 
 export function AiToolboxView() {
   const [activeTool, setActiveTool] = useState<ToolDef | null>(TOOLS[0])
-  const [mode, setMode] = useState<'ai' | 'txt' | 'cover'>('ai')
+  const [mode, setMode] = useState<'ai' | 'market' | 'txt' | 'cover'>('ai')
   const [prompt, setPrompt] = useState('')
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -247,6 +249,15 @@ export function AiToolboxView() {
               AI 生成与拆书
             </Button>
             <Button
+              variant={mode === 'market' ? 'default' : 'outline'}
+              size="sm"
+              className={mode === 'market' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
+              onClick={() => setMode('market')}
+            >
+              <Store className="w-3.5 h-3.5" />
+              提示词模板市场
+            </Button>
+            <Button
               variant={mode === 'txt' ? 'default' : 'outline'}
               size="sm"
               className={mode === 'txt' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
@@ -267,7 +278,15 @@ export function AiToolboxView() {
           </div>
         </div>
 
-        {mode === 'cover' ? (
+        {mode === 'market' ? (
+          <PromptMarketPanel
+            onApplyPrompt={(text) => {
+              setPrompt(text)
+              setActiveTool(TOOLS[0])
+              setMode('ai')
+            }}
+          />
+        ) : mode === 'cover' ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">原创小说封面生成器（无版权风险）</CardTitle>
