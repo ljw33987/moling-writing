@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
 import { api, countWords, formatWords } from '@/lib/helpers'
-import { ChapterTree } from './chapter-tree'
+import { LeftSidebarPanel } from './left-sidebar-panel'
 import { EditorPanel } from './editor-panel'
 import type { NovelTiptapHandle } from './novel-tiptap-editor'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -349,12 +349,15 @@ export function EditorView() {
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         {leftPanelOpen && (
           <>
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-              <ChapterTree
+            <ResizablePanel defaultSize={22} minSize={16} maxSize={34}>
+              <LeftSidebarPanel
                 novel={novel}
                 currentChapterId={currentChapterId}
-                onSelect={setCurrentChapter}
-                onChange={handleTreeChange}
+                onSelectChapter={setCurrentChapter}
+                onTreeChange={handleTreeChange}
+                onInsertCodexRef={(id) =>
+                  tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
+                }
               />
             </ResizablePanel>
             <ResizableHandle withHandle />

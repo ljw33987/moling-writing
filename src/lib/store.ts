@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 
-export type ViewType = 'workspace' | 'editor' | 'settings' | 'user' | 'admin' | 'login' | 'register' | 'plaza'
+export type ViewType = 'workspace' | 'editor' | 'toolbox' | 'settings' | 'user' | 'admin' | 'login' | 'register' | 'plaza'
 
 interface UserPublic {
   id: string

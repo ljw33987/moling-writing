@@ -117,8 +117,9 @@ export function TopBar() {
     }
   }
 
-  const navs: { id: 'workspace' | 'plaza' | 'settings' | 'user' | 'admin'; label: string; icon: any; adminOnly?: boolean }[] = [
+  const navs: { id: 'workspace' | 'toolbox' | 'plaza' | 'settings' | 'user' | 'admin'; label: string; icon: any; adminOnly?: boolean }[] = [
     { id: 'workspace' as const, label: t('nav.workspace'), icon: LayoutGrid },
+    { id: 'toolbox' as const, label: 'AI 工具箱', icon: Sparkles },
     { id: 'plaza' as const, label: t('nav.plaza'), icon: BookOpen },
     { id: 'settings' as const, label: t('nav.settings'), icon: Settings },
     { id: 'user' as const, label: t('nav.user'), icon: User },

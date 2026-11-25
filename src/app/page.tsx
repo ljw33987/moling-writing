@@ -11,6 +11,7 @@ import { AuthView } from '@/components/auth/auth-view'
 import { AdminView } from '@/components/admin/admin-view'
 import { AutoSerialPanel } from '@/components/editor/auto-serial-panel'
 import { PlazaView } from '@/components/plaza/plaza-view'
+import { AiToolboxView } from '@/components/tools/ai-toolbox-view'
 import { ForceChangePasswordDialog } from '@/components/auth/force-change-password'
 
 export default function Home() {
@@ -57,6 +58,7 @@ export default function Home() {
       <TopBar />
       <main className="flex-1 flex overflow-hidden">
         {view === 'workspace' && <WorkspaceView />}
+        {view === 'toolbox' && <AiToolboxView />}
         {view === 'plaza' && <PlazaView />}
         {view === 'editor' && currentNovelId && <EditorView />}
         {view === 'settings' && <SettingsLibrary />}
