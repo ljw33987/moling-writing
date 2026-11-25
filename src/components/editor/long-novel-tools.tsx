@@ -85,14 +85,14 @@ export function LongNovelTools({
     try {
       const r = await api<{ events: any[] }>(`/api/timeline?novelId=${novelId}`)
       setEvents(r.events || [])
-    } catch {}
+    } catch { }
   }, [novelId])
 
   const loadGuard = useCallback(async () => {
     try {
       const r = await api<{ issues: any[] }>(`/api/guard?novelId=${novelId}`)
       setIssues(r.issues || [])
-    } catch {}
+    } catch { }
   }, [novelId])
 
   const loadRatio = useCallback(async () => {
@@ -100,7 +100,7 @@ export function LongNovelTools({
     try {
       const r = await api(`/api/ai/naturalize?chapterId=${chapterId}`)
       setRatioData(r)
-    } catch {}
+    } catch { }
   }, [chapterId])
 
   useEffect(() => {
@@ -209,14 +209,14 @@ export function LongNovelTools({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
-          <ShieldAlert className="h-3.5 w-3.5 text-violet-500" />
+          <ShieldAlert className="h-3.5 w-3.5 text-teal-" />
           长篇工具
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-violet-500" />
+            <Sparkles className="h-4 w-4 text-teal-" />
             长篇一致性与质量工作台
           </DialogTitle>
         </DialogHeader>
@@ -393,9 +393,8 @@ export function LongNovelTools({
                 issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={`rounded-md border p-3 text-xs space-y-1.5 ${
-                      issue.status !== 'open' ? 'opacity-50' : ''
-                    }`}
+                    className={`rounded-md border p-3 text-xs space-y-1.5 ${issue.status !== 'open' ? 'opacity-50' : ''
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -404,8 +403,8 @@ export function LongNovelTools({
                             issue.severity === 'error'
                               ? 'destructive'
                               : issue.severity === 'warning'
-                              ? 'default'
-                              : 'secondary'
+                                ? 'default'
+                                : 'secondary'
                           }
                         >
                           {issue.severity}
@@ -448,7 +447,7 @@ export function LongNovelTools({
                     </div>
                     <p className="text-muted-foreground">{issue.detail}</p>
                     {issue.suggestion && (
-                      <p className="text-violet-600 dark:text-violet-400">
+                      <p className="text-teal- dark:text-teal-">
                         建议：{issue.suggestion}
                       </p>
                     )}

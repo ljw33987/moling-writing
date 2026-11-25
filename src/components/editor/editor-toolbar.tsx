@@ -107,7 +107,7 @@ function SearchTool({ novelId, onJumpChapter }: { novelId: string; onJumpChapter
                   onJumpChapter?.(r.chapterId)
                   setOpen(false)
                 }}
-                className="w-full text-left p-2 hover:bg-muted rounded text-sm border border-transparent hover:border-violet-200"
+                className="w-full text-left p-2 hover:bg-muted rounded text-sm border border-transparent hover:border-teal-"
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <FileText className="w-3 h-3 text-muted-foreground" />
@@ -173,8 +173,8 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
       <PopoverContent className="w-64" align="end">
         <div className="space-y-3">
           {/* ZIP 导出（推荐） */}
-          <div className="bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border border-violet-200 dark:border-violet-900 rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+          <div className="bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border border-teal- dark:border-teal- rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-teal- dark:text-teal-">
               <Archive className="w-3.5 h-3.5" />
               全书 ZIP 压缩包（推荐）
             </div>
@@ -185,7 +185,7 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
               <Button
                 variant="default"
                 size="sm"
-                className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
                 onClick={() => handleExport('zip', 'txt')}
               >
                 <Archive className="w-3.5 h-3.5" /> ZIP-TXT
@@ -193,7 +193,7 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
               <Button
                 variant="default"
                 size="sm"
-                className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
                 onClick={() => handleExport('zip', 'markdown')}
               >
                 <Archive className="w-3.5 h-3.5" /> ZIP-MD
@@ -339,7 +339,7 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
               </div>
             ) : (
               revisions.map((r) => (
-                <div key={r.id} className="group flex items-center gap-2 p-2 hover:bg-muted/50 rounded text-xs border border-transparent hover:border-violet-200">
+                <div key={r.id} className="group flex items-center gap-2 p-2 hover:bg-muted/50 rounded text-xs border border-transparent hover:border-teal-">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{r.title}</div>
                     <div className="text-muted-foreground">
@@ -358,7 +358,7 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
                   </button>
                   <button
                     onClick={() => handleRollback(r.id)}
-                    className="opacity-0 group-hover:opacity-100 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30 p-1 rounded"
+                    className="opacity-0 group-hover:opacity-100 text-teal- hover:bg-violet-50 dark:hover:bg-violet-950/30 p-1 rounded"
                     title="回滚到此版本"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -443,7 +443,7 @@ function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; word
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all"
+                  className="h-full bg-gradient-to-r from-teal-600 to-emerald-600 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>

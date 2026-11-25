@@ -130,7 +130,7 @@ export function MentionOverlay({ novelId, textareaRef, content, onInsert }: Prop
   }
 
   const typeConfig: Record<string, { label: string; icon: any; color: string }> = {
-    character: { label: '角色', icon: Users, color: 'text-violet-500' },
+    character: { label: '角色', icon: Users, color: 'text-teal-' },
     worldview: { label: '世界观', icon: Map, color: 'text-emerald-500' },
     item: { label: '道具', icon: Sword, color: 'text-amber-500' },
   }

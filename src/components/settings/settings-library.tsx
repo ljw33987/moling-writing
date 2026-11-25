@@ -60,7 +60,7 @@ interface SettingCard {
 }
 
 const TYPE_LABELS: Record<CardType, { label: string; icon: any; color: string }> = {
-  character: { label: '角色卡', icon: Users, color: 'text-violet-500' },
+  character: { label: '角色卡', icon: Users, color: 'text-teal-' },
   worldview: { label: '世界观', icon: Map, color: 'text-emerald-500' },
   item: { label: '道具/功法', icon: Sword, color: 'text-amber-500' },
 }
@@ -287,7 +287,7 @@ export function SettingsLibrary() {
             <Button
               onClick={() => setAiGenOpen(true)}
               variant="outline"
-              className="gap-1.5 bg-gradient-to-r from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border-violet-200 dark:border-violet-800 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-900/30"
+              className="gap-1.5 bg-gradient-to-r from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border-teal- dark:border-teal- text-teal- hover:bg-violet-100 dark:hover:bg-violet-900/30"
             >
               <Wand2 className="w-4 h-4" />
               AI 生成设定
@@ -461,12 +461,12 @@ function SettingCardItem({
                 className="w-full gap-1.5 text-xs"
                 onClick={onAIGenerate}
               >
-                <Sparkles className="w-3 h-3 text-violet-500" />
+                <Sparkles className="w-3 h-3 text-teal-" />
                 AI 生成背景小传
               </Button>
             )}
             {card.relations && (
-              <div className="flex items-center gap-1 text-xs text-violet-600">
+              <div className="flex items-center gap-1 text-xs text-teal-">
                 <Network className="w-3 h-3" />
                 <span>已设定人物关系</span>
               </div>
@@ -716,7 +716,7 @@ function AIGenDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-violet-500" />
+            <Wand2 className="w-4 h-4 text-teal-" />
             AI 自动生成设定
           </DialogTitle>
         </DialogHeader>
@@ -767,13 +767,13 @@ function AIGenDialog({
                   rows={3}
                 />
               </div>
-              <div className="bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900 rounded p-3 text-xs text-violet-700 dark:text-violet-300">
+              <div className="bg-violet-50 dark:bg-violet-950/20 border border-teal- dark:border-teal- rounded p-3 text-xs text-teal- dark:text-teal-">
                 💡 AI 会根据类型和关键词自动生成一个完整的{typeLabel}设定卡，直接保存到设定库
               </div>
               <Button
                 onClick={() => onGenSingle(genre, keywords)}
                 disabled={loading || !keywords.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 生成中...' : `生成${typeLabel}`}
@@ -801,13 +801,13 @@ function AIGenDialog({
                   rows={3}
                 />
               </div>
-              <div className="bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900 rounded p-3 text-xs text-violet-700 dark:text-violet-300">
+              <div className="bg-violet-50 dark:bg-violet-950/20 border border-teal- dark:border-teal- rounded p-3 text-xs text-teal- dark:text-teal-">
                 💡 AI 会一次性生成：3 个角色 + 2 个世界观 + 2 个道具/功法，共 7 个设定卡
               </div>
               <Button
                 onClick={() => onGenBatch(genre, theme)}
                 disabled={loading || !theme.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 批量生成中...' : '批量生成全套设定'}

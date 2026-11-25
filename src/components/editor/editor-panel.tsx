@@ -242,7 +242,7 @@ export function EditorPanel({
             <Button
               variant="default"
               size="sm"
-              className="gap-1.5 shrink-0 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+              className="gap-1.5 shrink-0 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
               disabled={aiLoading}
             >
               {aiLoading ? (
@@ -384,7 +384,7 @@ export function EditorPanel({
 
         <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
           {aiLoading ? (
-            <span className="text-violet-500 flex items-center gap-1">
+            <span className="text-teal- flex items-center gap-1">
               <Loader2 className="w-3 h-3 animate-spin" />
               AI 写入草稿中...
             </span>
@@ -427,13 +427,13 @@ export function EditorPanel({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="gap-1.5 shadow-lg border-violet-200"
+                  className="gap-1.5 shadow-lg border-teal-"
                   onClick={(e) => e.preventDefault()}
                 >
                   {aiLoading ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                    <Sparkles className="w-3.5 h-3.5 text-teal-" />
                   )}
                   AI 处理选中文字
                 </Button>

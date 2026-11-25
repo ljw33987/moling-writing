@@ -1,6 +1,6 @@
 {
-  "appId": "com.moling.writing",
-  "appName": "墨灵写作",
+  "appId": "com.linggou.writing",
+  "appName": "灵构写作",
   "webDir": "www",
   "server": {
     "url": "http://192.168.10.203:3100",

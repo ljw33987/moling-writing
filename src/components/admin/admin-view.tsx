@@ -68,7 +68,7 @@ export function AdminView() {
     <div className="flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-600 to-emerald-600 flex items-center justify-center">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -206,7 +206,7 @@ function OverviewTab() {
 
   const o = data.overview
   const cards = [
-    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-teal-', bg: 'bg-teal-600/10' },
     { label: '作品总数', value: o.totalNovels, icon: BookOpen, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { label: '章节总数', value: o.totalChapters, icon: FileText, color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { label: 'AI 调用次数', value: o.totalMessages, icon: MessageSquare, color: 'text-pink-500', bg: 'bg-pink-500/10' },
@@ -251,7 +251,7 @@ function OverviewTab() {
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                   <div className="flex items-end gap-0.5 h-24 w-full justify-center">
                     <div
-                      className="w-3 bg-violet-500 rounded-t"
+                      className="w-3 bg-teal-600 rounded-t"
                       style={{ height: `${(d.users / maxVal) * 100}%` }}
                       title={`新增用户：${d.users}`}
                     />
@@ -268,7 +268,7 @@ function OverviewTab() {
           </div>
           <div className="flex items-center gap-4 mt-3 text-xs">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-violet-500 rounded-sm" />
+              <span className="w-2 h-2 bg-teal-600 rounded-sm" />
               新增用户
             </span>
             <span className="flex items-center gap-1">
@@ -295,7 +295,7 @@ function OverviewTab() {
             <Button
               size="sm"
               variant="default"
-              className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+              className="gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
               onClick={() => handleBackup('all')}
             >
               <Download className="w-3.5 h-3.5" />
@@ -442,7 +442,7 @@ function UsersTab() {
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-pink-500 text-white text-xs">
+                          <AvatarFallback className="bg-gradient-to-br from-teal-600 to-emerald-600 text-white text-xs">
                             {(u.penName || u.name || u.email)[0].toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -450,7 +450,7 @@ function UsersTab() {
                           <div className="font-medium truncate flex items-center gap-1">
                             {u.penName || u.name || '未命名'}
                             {u.role === 'admin' && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-violet-600">
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-teal-">
                                 ADMIN
                               </Badge>
                             )}
@@ -499,7 +499,7 @@ function UsersTab() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 text-xs text-violet-600"
+                            className="h-7 text-xs text-teal-"
                             onClick={() => handleSetRole(u, 'admin')}
                           >
                             设管理员
@@ -644,8 +644,8 @@ function NovelsTab() {
           <Card key={n.id}>
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-16 rounded bg-gradient-to-br from-violet-500/30 to-pink-500/30 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-violet-300">
+                <div className="w-12 h-16 rounded bg-gradient-to-br from-teal-600/30 to-emerald-600/30 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-teal-">
                     {n.title.slice(0, 2)}
                   </span>
                 </div>
@@ -897,7 +897,7 @@ function MessagesTab() {
                       m.role === 'user'
                         ? 'text-emerald-600 text-xs'
                         : m.role === 'assistant'
-                        ? 'text-violet-600 text-xs'
+                        ? 'text-teal- text-xs'
                         : 'text-slate-500 text-xs'
                     }
                   >
@@ -957,7 +957,7 @@ function EmailConfigTab() {
   const [smtpSecure, setSmtpSecure] = useState(true)
   const [smtpUser, setSmtpUser] = useState('')
   const [smtpPass, setSmtpPass] = useState('')
-  const [fromName, setFromName] = useState('墨灵写作')
+  const [fromName, setFromName] = useState('灵构写作')
   const [enabled, setEnabled] = useState(true)
 
   const load = useCallback(async () => {
@@ -972,7 +972,7 @@ function EmailConfigTab() {
         setSmtpSecure(r.config.smtpSecure ?? true)
         setSmtpUser(r.config.smtpUser || '')
         setSmtpPass('')
-        setFromName(r.config.fromName || '墨灵写作')
+        setFromName(r.config.fromName || '灵构写作')
         setEnabled(r.config.enabled ?? true)
       }
     } catch (e: any) {
@@ -1229,7 +1229,7 @@ function EmailConfigTab() {
               <Input
                 value={fromName}
                 onChange={(e) => setFromName(e.target.value)}
-                placeholder="墨灵写作"
+                placeholder="灵构写作"
               />
             </div>
           </div>
@@ -1668,7 +1668,7 @@ function RedeemCodesTab() {
                       </div>
                     </td>
                     <td className="p-3 text-xs">
-                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-violet-600'}>
+                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-teal-'}>
                         {c.rewardDesc}
                       </Badge>
                     </td>
@@ -2182,7 +2182,7 @@ function AnnouncementsTab() {
     info: { label: '通知', color: 'text-blue-600', bg: 'bg-blue-500/10' },
     warning: { label: '提醒', color: 'text-amber-600', bg: 'bg-amber-500/10' },
     success: { label: '好消息', color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-    maintenance: { label: '维护', color: 'text-violet-600', bg: 'bg-violet-500/10' },
+    maintenance: { label: '维护', color: 'text-teal-', bg: 'bg-teal-600/10' },
   }
 
   if (loading && !data) {
@@ -2200,7 +2200,7 @@ function AnnouncementsTab() {
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">总公告</div><div className="text-xl font-bold">{data.stats.total}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">已发布</div><div className="text-xl font-bold text-emerald-600">{data.stats.published}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">草稿</div><div className="text-xl font-bold text-amber-600">{data.stats.draft}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-violet-600">{data.stats.pinned}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-teal-">{data.stats.pinned}</div></CardContent></Card>
         </div>
       )}
 
@@ -2221,7 +2221,7 @@ function AnnouncementsTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {item.pinned && <Badge variant="default" className="text-[10px] bg-violet-500">置顶</Badge>}
+                      {item.pinned && <Badge variant="default" className="text-[10px] bg-teal-600">置顶</Badge>}
                       <Badge variant="outline" className={`text-xs ${tc.color} ${tc.bg}`}>{tc.label}</Badge>
                       {!item.published && (
                         <Badge variant="outline" className="text-xs text-amber-600">草稿</Badge>
@@ -2450,7 +2450,7 @@ function BroadcastTab() {
 
   const typeConfig: Record<string, { label: string; color: string }> = {
     notice: { label: '通知', color: 'text-blue-600' },
-    system: { label: '系统', color: 'text-violet-600' },
+    system: { label: '系统', color: 'text-teal-' },
     warning: { label: '警告', color: 'text-amber-600' },
     reward: { label: '奖励', color: 'text-emerald-600' },
   }
@@ -2588,7 +2588,7 @@ function BroadcastTab() {
                       {item.userId === null ? (
                         <Badge variant="outline" className="text-xs text-blue-600">{t('ad.broadcast')}</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-violet-600">单发</Badge>
+                        <Badge variant="outline" className="text-xs text-teal-">单发</Badge>
                       )}
                       {item.emailSent && (
                         <Badge variant="outline" className="text-xs text-emerald-600">

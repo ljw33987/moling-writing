@@ -267,7 +267,7 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
                   ) : (
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   )}
-                  <BookOpen className="w-3.5 h-3.5 mr-1.5 text-violet-500 shrink-0" />
+                  <BookOpen className="w-3.5 h-3.5 mr-1.5 text-teal- shrink-0" />
                   <span className="truncate flex-1 font-medium">{vol.title}</span>
                   {vol.isOutline && (
                     <Badge variant="outline" className="text-[10px] mr-1 px-1 py-0">
@@ -335,7 +335,7 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
 
         <DragOverlay>
           {draggingId ? (
-            <div className="bg-violet-500/20 border border-violet-400 rounded px-3 py-1.5 text-sm shadow-lg">
+            <div className="bg-teal-600/20 border border-teal- rounded px-3 py-1.5 text-sm shadow-lg">
               {allChapters.find((c) => c.id === draggingId)?.title}
             </div>
           ) : null}
@@ -418,7 +418,7 @@ function SortableChapter({
       style={style}
       className={`group flex items-center pl-2 pr-2 py-1.5 cursor-pointer rounded-sm mx-1 transition ${
         active
-          ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+          ? 'bg-teal-600/15 text-teal- dark:text-teal-'
           : 'hover:bg-muted/50'
       }`}
       onClick={() => onSelect(chapter.id)}
@@ -433,7 +433,7 @@ function SortableChapter({
       >
         <GripVertical className="w-3 h-3" />
       </button>
-      <FileText className={`w-3 h-3 mr-1.5 shrink-0 ${active ? 'text-violet-500' : 'text-muted-foreground'}`} />
+      <FileText className={`w-3 h-3 mr-1.5 shrink-0 ${active ? 'text-teal-' : 'text-muted-foreground'}`} />
       <span className="truncate flex-1 text-[13px]">{chapter.title}</span>
       <span className={`w-1.5 h-1.5 rounded-full ${status.dot} mr-1 shrink-0`} />
       <span className="text-[10px] text-muted-foreground mr-1">

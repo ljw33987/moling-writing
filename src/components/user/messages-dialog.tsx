@@ -52,12 +52,12 @@ const annTypeConfig: Record<string, { label: string; icon: any; color: string }>
   info: { label: '通知', icon: Info, color: 'text-blue-500' },
   warning: { label: '提醒', icon: AlertTriangle, color: 'text-amber-500' },
   success: { label: '好消息', icon: CheckCircle2, color: 'text-emerald-500' },
-  maintenance: { label: '维护', icon: Wrench, color: 'text-violet-500' },
+  maintenance: { label: '维护', icon: Wrench, color: 'text-teal-' },
 }
 
 const msgTypeConfig: Record<string, { label: string; icon: any; color: string }> = {
   notice: { label: '通知', icon: Bell, color: 'text-blue-500' },
-  system: { label: '系统', icon: Info, color: 'text-violet-500' },
+  system: { label: '系统', icon: Info, color: 'text-teal-' },
   warning: { label: '警告', icon: AlertCircle, color: 'text-amber-500' },
   reward: { label: '奖励', icon: Gift, color: 'text-emerald-500' },
 }
@@ -156,7 +156,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Bell className="w-4 h-4 text-violet-500" />
+            <Bell className="w-4 h-4 text-teal-" />
             消息中心
             <button
               onClick={() => onOpenChange(false)}
@@ -216,7 +216,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 {openItem.type === 'ann' ? (
                   <>
-                    {openItem.data.pinned && <Badge variant="default" className="bg-violet-500">置顶</Badge>}
+                    {openItem.data.pinned && <Badge variant="default" className="bg-teal-600">置顶</Badge>}
                     {(() => {
                       const tc = annTypeConfig[openItem.data.type] || annTypeConfig.info
                       return <Badge variant="outline" className={tc.color}>{tc.label}</Badge>
@@ -274,7 +274,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                     <div
                       key={a.id}
                       className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/30 transition ${
-                        !a.isRead ? 'border-violet-200 bg-violet-50/30 dark:bg-violet-950/10' : ''
+                        !a.isRead ? 'border-teal- bg-violet-50/30 dark:bg-violet-950/10' : ''
                       }`}
                       onClick={() => handleOpenAnn(a)}
                     >
@@ -282,7 +282,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                         <Icon className={`w-4 h-4 ${tc.color} shrink-0 mt-0.5`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            {a.pinned && <Badge variant="default" className="text-[9px] px-1 py-0 bg-violet-500">置顶</Badge>}
+                            {a.pinned && <Badge variant="default" className="text-[9px] px-1 py-0 bg-teal-600">置顶</Badge>}
                             <span className="font-medium text-sm truncate">{a.title}</span>
                             {!a.isRead && <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />}
                           </div>
@@ -313,7 +313,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                   <div
                     key={m.id}
                     className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/30 transition group ${
-                      !m.isRead ? 'border-violet-200 bg-violet-50/30 dark:bg-violet-950/10' : ''
+                      !m.isRead ? 'border-teal- bg-violet-50/30 dark:bg-violet-950/10' : ''
                     }`}
                     onClick={() => handleOpenMsg(m)}
                   >

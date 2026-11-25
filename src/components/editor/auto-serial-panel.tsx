@@ -209,7 +209,7 @@ export function AutoSerialPanel({ novelId }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <TimerReset className="w-4 h-4 text-violet-500" />
+              <TimerReset className="w-4 h-4 text-teal-" />
               自动连载设置
             </DialogTitle>
           </DialogHeader>

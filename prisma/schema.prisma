@@ -13,9 +13,9 @@ datasource db {
 model PlatformConfig {
   id              String   @id @default("default")
   // 平台基础
-  platformName    String   @default("墨灵写作")
+  platformName    String   @default("灵构写作")
   platformIcon    String   @default("") // URL 或空
-  platformDesc    String   @default("AI 驱动的网文创作平台")
+  platformDesc    String   @default("AI 驱动的长篇网文创作平台")
   // 平台模式
   mode            String   @default("paid") // paid(付费) / free(免费)
   // 充值配置
@@ -299,7 +299,7 @@ model EmailConfig {
   smtpSecure   Boolean  @default(true) // 465 为 true，587 为 false
   smtpUser     String   // 邮箱地址
   smtpPass     String   // 邮箱密码或授权码
-  fromName     String   @default("墨灵写作") // 发件人显示名
+  fromName     String   @default("灵构写作") // 发件人显示名
   // 状态
   enabled      Boolean  @default(true)
   lastTestAt   DateTime?

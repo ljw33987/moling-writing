@@ -261,10 +261,10 @@ export function WorkspaceView() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* 数据看板 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-violet-500/10 to-pink-500/10 border-violet-200 dark:border-violet-900">
+          <Card className="bg-gradient-to-br from-teal-600/10 to-emerald-600/10 border-teal- dark:border-teal-">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">今日新增</CardTitle>
-              <TrendingUp className="w-4 h-4 text-violet-500" />
+              <TrendingUp className="w-4 h-4 text-teal-" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -474,8 +474,8 @@ export function WorkspaceView() {
             {novels.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center mb-4">
-                    <Wand2 className="w-8 h-8 text-violet-500" />
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-600/20 to-emerald-600/20 flex items-center justify-center mb-4">
+                    <Wand2 className="w-8 h-8 text-teal-" />
                   </div>
                   <h4 className="font-semibold mb-1">开始你的第一部作品</h4>
                   <p className="text-sm text-muted-foreground mb-4 max-w-md">
@@ -580,8 +580,8 @@ export function WorkspaceView() {
             ) : (
               trashNovels.map((n) => (
                 <div key={n.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                  <div className="w-10 h-14 rounded bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-violet-300/60">
+                  <div className="w-10 h-14 rounded bg-gradient-to-br from-teal-600/20 to-emerald-600/20 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-teal-/60">
                       {n.title.slice(0, 2)}
                     </span>
                   </div>
@@ -639,7 +639,7 @@ function NovelCard({
   onDelete: () => void
 }) {
   const genreColors: Record<string, string> = {
-    玄幻: 'bg-violet-500/10 text-violet-600',
+    玄幻: 'bg-teal-600/10 text-teal-',
     言情: 'bg-pink-500/10 text-pink-600',
     科幻: 'bg-cyan-500/10 text-cyan-600',
     悬疑: 'bg-slate-500/10 text-slate-600',
@@ -653,12 +653,12 @@ function NovelCard({
 
   return (
     <Card className="group overflow-hidden hover:shadow-md transition cursor-pointer" onClick={onOpen}>
-      <div className="aspect-[3/2] bg-gradient-to-br from-violet-500/20 via-pink-500/15 to-amber-500/10 relative">
+      <div className="aspect-[3/2] bg-gradient-to-br from-teal-600/20 via-cyan-600/15 to-amber-500/10 relative">
         {novel.cover ? (
           <img src={novel.cover} alt={novel.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-3xl font-bold text-violet-300/60 font-serif">
+            <span className="text-3xl font-bold text-teal-/60 font-serif">
               {novel.title.slice(0, 2)}
             </span>
           </div>

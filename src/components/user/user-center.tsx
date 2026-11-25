@@ -233,14 +233,14 @@ export function UserCenter() {
           <CardContent className="p-4">
             <div className="flex items-center gap-4 flex-wrap">
               <Avatar className="w-14 h-14">
-                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-pink-500 text-white text-xl">
+                <AvatarFallback className="bg-gradient-to-br from-teal-600 to-emerald-600 text-white text-xl">
                   {(penName || name || 'W').slice(0, 1)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-base flex items-center gap-2">
                   {penName || name || '未命名'}
-                  <Badge variant="outline" className="text-violet-600 border-violet-300 gap-1 text-xs">
+                  <Badge variant="outline" className="text-teal- border-teal- gap-1 text-xs">
                     <Crown className="w-3 h-3" />
                     {data.user.plan === 'pro' ? '月卡' : data.user.plan === 'year' ? '年卡' : '免费'}
                   </Badge>
@@ -279,7 +279,7 @@ export function UserCenter() {
                   onClick={() => setSection(n.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition ${
                     active
-                      ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
                       : 'hover:bg-muted text-foreground'
                   }`}
                 >
@@ -354,7 +354,7 @@ export function UserCenter() {
                 </div>
                 <div className="border-t pt-2 mt-2 flex justify-between">
                   <span className="font-medium">应付金额</span>
-                  <span className="font-bold text-lg text-violet-600">¥{payDialog.pkg.price}</span>
+                  <span className="font-bold text-lg text-teal-">¥{payDialog.pkg.price}</span>
                 </div>
               </div>
 
@@ -454,7 +454,7 @@ function ProfileSection({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">总字数</CardTitle>
-            <FileText className="w-4 h-4 text-violet-500" />
+            <FileText className="w-4 h-4 text-teal-" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatWords(data.stats.totalWords)}</div>
@@ -590,7 +590,7 @@ function RechargeSection({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Crown className="w-4 h-4 text-violet-500" />
+            <Crown className="w-4 h-4 text-teal-" />
             会员订阅
           </CardTitle>
         </CardHeader>
@@ -622,14 +622,14 @@ function RechargeSection({
             <div
               key={p.plan}
               className={`p-3 border rounded-lg ${
-                p.popular ? 'border-violet-300 bg-violet-50 dark:bg-violet-950/20' : ''
+                p.popular ? 'border-teal- bg-violet-50 dark:bg-violet-950/20' : ''
               } ${p.current ? 'ring-2 ring-emerald-400' : ''}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="font-semibold flex items-center gap-2">
                   {p.name}
                   {p.popular && (
-                    <Badge className="bg-violet-500" variant="default">
+                    <Badge className="bg-teal-600" variant="default">
                       热门
                     </Badge>
                   )}
@@ -776,10 +776,10 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
   }
 
   return (
-    <Card className="border-violet-200 dark:border-violet-900 bg-gradient-to-br from-violet-50/50 to-pink-50/50 dark:from-violet-950/20 dark:to-pink-950/20">
+    <Card className="border-teal- dark:border-teal- bg-gradient-to-br from-violet-50/50 to-pink-50/50 dark:from-violet-950/20 dark:to-pink-950/20">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Ticket className="w-4 h-4 text-violet-500" />
+          <Ticket className="w-4 h-4 text-teal-" />
           兑换码
           {history.length > 0 && (
             <Badge variant="outline" className="text-xs ml-2">
@@ -810,7 +810,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
           <Button
             onClick={handleRedeem}
             disabled={redeeming || !code.trim()}
-            className="gap-1.5 shrink-0 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+            className="gap-1.5 shrink-0 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
           >
             {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
             立即兑换
@@ -827,7 +827,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
             {history.map((h: any) => (
               <div
                 key={h.id}
-                className="flex items-center justify-between p-2 bg-card/60 rounded text-sm border border-violet-100 dark:border-violet-900"
+                className="flex items-center justify-between p-2 bg-card/60 rounded text-sm border border-teal- dark:border-teal-"
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-mono text-xs truncate">{h.code}</div>
