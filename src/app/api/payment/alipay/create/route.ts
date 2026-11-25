@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       bizContent: {
         out_trade_no: order.id,
         total_amount: pkg.price.toFixed(2),
-        subject: `灵构写作 - ${pkg.tokens.toLocaleString()} Token`,
+        subject: `笔锋写作 - ${pkg.tokens.toLocaleString()} Token`,
         body: `购买 ${pkg.name} 套餐`,
         product_code: 'FAST_INSTANT_TRADE_PAY',
       },

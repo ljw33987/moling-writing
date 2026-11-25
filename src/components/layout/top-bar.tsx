@@ -131,10 +131,8 @@ export function TopBar() {
     return (
       <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 z-30 sticky top-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-            <PenLine className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-base">灵构写作</span>
+          <img src="/logo.svg" alt="笔锋写作" className="w-8 h-8 rounded-lg shadow-sm" />
+          <span className="font-bold text-base">笔锋写作</span>
         </div>
         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
       </header>
@@ -146,10 +144,8 @@ export function TopBar() {
     return (
       <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 z-30 sticky top-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-            <PenLine className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-base">灵构写作</span>
+          <img src="/logo.svg" alt="笔锋写作" className="w-8 h-8 rounded-lg shadow-sm" />
+          <span className="font-bold text-base">笔锋写作</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
@@ -165,10 +161,8 @@ export function TopBar() {
   return (
     <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 gap-4 z-30 sticky top-0">
       <button onClick={backToWorkspace} className="flex items-center gap-2 hover:opacity-80 transition">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-          <PenLine className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-bold text-base hidden sm:block">灵构写作</span>
+        <img src="/logo.svg" alt="笔锋写作" className="w-8 h-8 rounded-lg shadow-sm" />
+        <span className="font-bold text-base hidden sm:block">笔锋写作</span>
       </button>
 
       <nav className="flex items-center gap-1 ml-4">
@@ -230,7 +224,7 @@ export function TopBar() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:opacity-80 transition">
               <Avatar className="w-7 h-7">
-                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-pink-500 text-white text-xs">
+                <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-xs">
                   {(user.penName || user.name || user.email)[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>

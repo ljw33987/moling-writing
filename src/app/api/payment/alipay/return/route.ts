@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>支付结果 - 灵构写作</title>
+  <title>支付结果 - 笔锋写作</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f9fafb; }
     .card { background: white; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 400px; }
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     </div>
     <h1>支付成功</h1>
     <p>Token 将自动到账，请稍后刷新用户中心查看余额<br/>如未到账，请等待几秒后刷新</p>
-    <a href="${baseUrl || '/'}/" class="btn">返回灵构写作</a>
+    <a href="${baseUrl || '/'}/" class="btn">返回笔锋写作</a>
     <div class="order">订单号: ${outTradeNo.slice(-12)}${tradeNo ? '<br/>交易号: ' + tradeNo.slice(-12) : ''}</div>
   </div>
   <script>

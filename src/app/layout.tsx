@@ -21,12 +21,12 @@ const notoSerifSC = Noto_Serif_SC({
 });
 
 export const metadata: Metadata = {
-  title: "灵构写作 - AI 驱动的网文创作平台",
+  title: "笔锋写作 - AI 驱动的网文创作平台",
   description:
     "集 AI 写作、章节管理、设定库、长文本记忆于一体的专业网文创作平台。一句话灵感自动生成简介、大纲、角色，AI 不再失忆。",
-  keywords: ["AI写作", "网文创作", "小说创作", "AI助手", "灵构写作"],
+  keywords: ["AI写作", "网文创作", "小说创作", "AI助手", "笔锋写作"],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
 };
 

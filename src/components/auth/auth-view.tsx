@@ -141,11 +141,9 @@ export function AuthView() {
         {/* 左侧介绍 */}
         <div className="hidden lg:block space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-              <PenLine className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.svg" alt="笔锋写作" className="w-12 h-12 rounded-xl shadow-md" />
             <div>
-              <h1 className="text-3xl font-bold">灵构写作</h1>
+              <h1 className="text-3xl font-bold">笔锋写作</h1>
               <p className="text-sm text-muted-foreground">AI 驱动的网文创作平台</p>
             </div>
           </div>
@@ -166,9 +164,9 @@ export function AuthView() {
             ].map((f) => {
               const Icon = f.icon
               return (
-                <div key={f.title} className="flex items-start gap-3 p-3 bg-card/50 rounded-lg backdrop-blur-sm border border-teal- dark:border-teal-">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-teal-" />
+                <div key={f.title} className="flex items-start gap-3 p-3 bg-card/50 rounded-lg backdrop-blur-sm border border-border">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
                     <div className="font-medium">{f.title}</div>
@@ -227,7 +225,7 @@ export function AuthView() {
                 <Button
                   onClick={handleLogin}
                   disabled={loginLoading}
-                  className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                  className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                 >
                   {loginLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   登录
@@ -316,7 +314,7 @@ export function AuthView() {
                 <Button
                   onClick={handleRegister}
                   disabled={regLoading}
-                  className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                  className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                 >
                   {regLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   注册并赠送 10000 Token

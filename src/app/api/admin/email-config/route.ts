@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     smtpSecure: smtpSecure !== undefined ? !!smtpSecure : true,
     smtpUser: smtpUser.trim(),
     smtpPass: finalPass,
-    fromName: fromName?.trim() || '灵构写作',
+    fromName: fromName?.trim() || '笔锋写作',
     enabled: enabled !== undefined ? !!enabled : true,
   }
 

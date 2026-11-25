@@ -42,12 +42,12 @@ export function DocsView() {
     <div className="flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div>
             <h2 className="text-2xl font-bold">平台文档</h2>
-            <p className="text-sm text-muted-foreground">灵构写作 · AI 驱动的网文创作平台 · 完整使用与运维指南</p>
+            <p className="text-sm text-muted-foreground">笔锋写作 · AI 驱动的网文创作平台 · 完整使用与运维指南</p>
           </div>
         </div>
 
@@ -63,7 +63,7 @@ export function DocsView() {
                   onClick={() => setActive(s.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition ${
                     isActive
-                      ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
                       : 'hover:bg-muted text-foreground'
                   }`}
                 >
@@ -124,7 +124,7 @@ function Pre({ children }: { children: string }) {
 
 function Tag({ children, color = 'violet' }: { children: string; color?: string }) {
   const colors: Record<string, string> = {
-    violet: 'bg-violet-500/10 text-teal-',
+    violet: 'bg-indigo-600/10 text-teal-',
     blue: 'bg-blue-500/10 text-blue-600',
     emerald: 'bg-emerald-500/10 text-emerald-600',
     amber: 'bg-amber-500/10 text-amber-600',
@@ -138,8 +138,8 @@ function OverviewDoc() {
   return (
     <>
       <DocSection title="平台简介">
-        <p><b>灵构写作</b>是一个 AI 驱动的网文创作平台，集成了 AI 写作辅助、章节管理、设定库、自动连载、作品广场、用户系统、计费支付等完整功能。</p>
-        <p>平台名称「灵构」取自「笔墨 + 灵感」，寓意用 AI 灵感赋能创作。</p>
+        <p><b>笔锋写作</b>是一个 AI 驱动的网文创作平台，集成了 AI 写作辅助、章节管理、设定库、自动连载、作品广场、用户系统、计费支付等完整功能。</p>
+        <p>平台名称「笔锋」取自「笔墨 + 灵感」，寓意用 AI 灵感赋能创作。</p>
       </DocSection>
 
       <DocSection title="技术栈">
@@ -226,43 +226,43 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000`}</Pre>
       <DocSection title="首次使用流程">
         <div className="space-y-3 text-sm">
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">1</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">1</span>
             <div>
               <b>访问首页</b>：打开 <Code2>http://localhost:3000</Code2>，系统自动创建管理员账号
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">2</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">2</span>
             <div>
               <b>登录</b>：使用 <Code2>admin@moli.com</Code2> / <Code2>admin123</Code2> 登录
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">3</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">3</span>
             <div>
               <b>配置邮件</b>：管理后台 → 邮箱配置 → 填入 SMTP 信息（用于用户注册验证码）
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">4</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">4</span>
             <div>
               <b>创建小说</b>：工作台 → 创建新书 → AI 辅助建书（输入一句话灵感）
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">5</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">5</span>
             <div>
               <b>开始写作</b>：编辑器中写作，右侧 AI 助手随时辅助
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">6</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">6</span>
             <div>
               <b>开启自动连载</b>：编辑器工具栏 → 开启 → AI 定时生成新章节
             </div>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs flex items-center justify-center shrink-0">7</span>
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center shrink-0">7</span>
             <div>
               <b>发布到广场</b>：编辑器工具栏 → 发布 → 读者可在广场阅读
             </div>
@@ -513,7 +513,7 @@ function EmailDoc() {
           <p>1. 登录 163 邮箱网页版</p>
           <p>2. 设置 → POP3/SMTP/IMAP → 开启 SMTP 服务</p>
           <p>3. 在「客户端授权密码」中生成授权码（16 位字母）</p>
-          <p>4. 在灵构写作后台填入授权码（不是登录密码）</p>
+          <p>4. 在笔锋写作后台填入授权码（不是登录密码）</p>
         </div>
       </DocSection>
 

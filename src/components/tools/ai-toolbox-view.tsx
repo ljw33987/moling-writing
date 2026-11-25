@@ -213,7 +213,7 @@ export function AiToolboxView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-violet-500" />
+              <Sparkles className="w-6 h-6 text-indigo-" />
               AI 网文创作工具箱
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -224,7 +224,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'ai' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'ai' ? 'bg-gradient-to-r from-violet-500 to-pink-500' : ''}
+              className={mode === 'ai' ? 'bg-gradient-to-r from-indigo-600 to-blue-600' : ''}
               onClick={() => setMode('ai')}
             >
               AI 生成与拆书
@@ -232,7 +232,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'txt' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'txt' ? 'bg-gradient-to-r from-violet-500 to-pink-500 gap-1.5' : 'gap-1.5'}
+              className={mode === 'txt' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
               onClick={() => setMode('txt')}
             >
               <Upload className="w-3.5 h-3.5" />
@@ -292,7 +292,7 @@ export function AiToolboxView() {
                 <Button
                   onClick={handleImportTxt}
                   disabled={importing}
-                  className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                  className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                 >
                   {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   开始智能分章并导入
@@ -311,14 +311,14 @@ export function AiToolboxView() {
                   <Card
                     key={tool.id}
                     onClick={() => setActiveTool(tool)}
-                    className={`cursor-pointer transition hover:border-violet-400 ${
-                      selected ? 'border-violet-500 bg-violet-500/5 shadow-sm' : ''
+                    className={`cursor-pointer transition hover:border-indigo- ${
+                      selected ? 'border-indigo- bg-indigo-600/5 shadow-sm' : ''
                     }`}
                   >
                     <CardHeader className="p-4">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-violet-500" />
+                          <Icon className="w-4 h-4 text-indigo-" />
                           {tool.title}
                         </CardTitle>
                         <Badge variant="secondary" className="text-[10px]">
@@ -338,7 +338,7 @@ export function AiToolboxView() {
                 <Card className="h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <activeTool.icon className="w-5 h-5 text-violet-500" />
+                      <activeTool.icon className="w-5 h-5 text-indigo-" />
                       {activeTool.title}
                     </CardTitle>
                     <CardDescription>{activeTool.desc}</CardDescription>
@@ -354,7 +354,7 @@ export function AiToolboxView() {
                       <Button
                         onClick={handleRunAi}
                         disabled={loading}
-                        className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                        className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                       >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         立即生成

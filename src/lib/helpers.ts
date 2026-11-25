@@ -96,7 +96,7 @@ export const FOLDER_COLORS: Record<string, string> = {
   emerald: 'bg-emerald-500',
   teal: 'bg-teal-500',
   cyan: 'bg-cyan-500',
-  violet: 'bg-violet-500',
+  violet: 'bg-indigo-600',
   pink: 'bg-pink-500',
   rose: 'bg-rose-500',
 }

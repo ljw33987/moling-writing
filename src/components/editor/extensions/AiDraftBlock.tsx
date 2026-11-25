@@ -26,7 +26,7 @@ export function AiDraftBlock({ node, getPos, editor, updateAttributes }: NodeVie
 
   return (
     <NodeViewWrapper
-      className="ai-draft my-3 rounded-r-md border-l-4 border-teal- bg-violet-500/5 py-2 pl-4 pr-3 data-[status=locked]:border-muted-foreground"
+      className="ai-draft my-3 rounded-r-md border-l-4 border-teal- bg-indigo-600/5 py-2 pl-4 pr-3 data-[status=locked]:border-muted-foreground"
       data-status={status}
     >
       <div
@@ -48,7 +48,7 @@ export function AiDraftBlock({ node, getPos, editor, updateAttributes }: NodeVie
             <button
               type="button"
               onClick={accept}
-              className="rounded border border-teal-/40 bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-teal- hover:bg-violet-500/25 dark:text-teal-"
+              className="rounded border border-teal-/40 bg-indigo-600/15 px-2 py-0.5 text-xs font-medium text-teal- hover:bg-indigo-600/25 dark:text-teal-"
             >
               采纳
             </button>

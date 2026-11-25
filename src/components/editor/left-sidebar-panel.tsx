@@ -157,7 +157,7 @@ export function LeftSidebarPanel({
           </div>
           <Button
             size="sm"
-            className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+            className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
             onClick={handleSaveOutline}
             disabled={savingOutline}
           >
@@ -197,7 +197,7 @@ export function LeftSidebarPanel({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-violet-600 dark:text-violet-400"
+                          className="h-5 px-1.5 text-[10px] text-indigo- dark:text-indigo-"
                           onClick={() => onInsertCodexRef(item.id)}
                           title="插入 @ 引用到当前光标"
                         >

@@ -185,7 +185,7 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
               <Button
                 variant="default"
                 size="sm"
-                className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                 onClick={() => handleExport('zip', 'txt')}
               >
                 <Archive className="w-3.5 h-3.5" /> ZIP-TXT
@@ -193,7 +193,7 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
               <Button
                 variant="default"
                 size="sm"
-                className="gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
+                className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
                 onClick={() => handleExport('zip', 'markdown')}
               >
                 <Archive className="w-3.5 h-3.5" /> ZIP-MD
@@ -443,7 +443,7 @@ function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; word
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all"
+                  className="h-full bg-gradient-to-r from-indigo-600 to-blue-600 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
