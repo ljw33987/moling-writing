@@ -41,6 +41,7 @@ jobs:
       - name: Install mobile dependencies and generate Android project
         working-directory: mobile
         run: |
+          node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('capacitor.config.json','utf8')); c.server.url=process.env.MOLING_SERVER_URL; fs.writeFileSync('capacitor.config.json', JSON.stringify(c,null,2));"
           npm install
           if [ ! -d "android" ]; then
             npx cap add android
@@ -48,7 +49,7 @@ jobs:
           npx cap sync android
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if ! grep -q "usesCleartextTraffic" "$MANIFEST"; then
-            sed -i 's/<application /<application android:usesCleartextTraffic="true" /' "$MANIFEST"
+            sed -i 's/<application/<application android:usesCleartextTraffic="true"/' "$MANIFEST"
           fi
 
       - name: Build Debug APK

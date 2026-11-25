@@ -1,0 +1,12 @@
+{
+  "appId": "com.moling.writing",
+  "appName": "墨灵写作",
+  "webDir": "www",
+  "server": {
+    "url": "http://192.168.10.203:3100",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
