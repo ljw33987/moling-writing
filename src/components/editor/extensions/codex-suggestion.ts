@@ -11,7 +11,7 @@ export interface CodexSuggestState {
 }
 
 export function createCodexSuggestion(
-  searchRef: { current: (q: string) => CodexItem[] },
+  search: (q: string) => CodexItem[],
   onStateChange: (updater: (prev: CodexSuggestState) => CodexSuggestState) => void
 ) {
   return Extension.create({
@@ -22,7 +22,7 @@ export function createCodexSuggestion(
           editor: this.editor,
           char: '@',
           allowSpaces: false,
-          items: ({ query }) => searchRef.current(query),
+          items: ({ query }) => search(query),
           command: ({ editor, range, props }) => {
             editor
               .chain()

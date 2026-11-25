@@ -127,20 +127,22 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
     }, [codexItems])
 
     const searchRef = useRef<(q: string) => CodexItem[]>(() => [])
-    searchRef.current = (q: string) => {
-      const query = q.trim().toLowerCase()
-      const list = query
-        ? codexItems.filter((i) => i.name.toLowerCase().includes(query))
-        : codexItems
-      return list.slice(0, 10)
-    }
-
     const onUpdateRef = useRef(onUpdate)
-    onUpdateRef.current = onUpdate
     const onSelectionRef = useRef(onSelectionChange)
-    onSelectionRef.current = onSelectionChange
     const onSaveRef = useRef(onSaveShortcut)
-    onSaveRef.current = onSaveShortcut
+
+    useEffect(() => {
+      searchRef.current = (q: string) => {
+        const query = q.trim().toLowerCase()
+        const list = query
+          ? codexItems.filter((i) => i.name.toLowerCase().includes(query))
+          : codexItems
+        return list.slice(0, 10)
+      }
+      onUpdateRef.current = onUpdate
+      onSelectionRef.current = onSelectionChange
+      onSaveRef.current = onSaveShortcut
+    }, [codexItems, onUpdate, onSelectionChange, onSaveShortcut])
 
     // 加载本书设定库（角色 / 世界观 / 道具）
     useEffect(() => {
@@ -189,7 +191,7 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
     }, [novelId])
 
     const codexSuggestExt = useMemo(
-      () => createCodexSuggestion(searchRef, setSuggest),
+      () => createCodexSuggestion((q) => searchRef.current(q), setSuggest),
       []
     )
 

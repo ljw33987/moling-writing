@@ -42,7 +42,9 @@ export function useAutosave(
   const pendingRef = useRef<Map<string, string>>(new Map())
   const cleanRef = useRef<Map<string, string>>(new Map())
   const saveFnRef = useRef(saveToServer)
-  saveFnRef.current = saveToServer
+  useEffect(() => {
+    saveFnRef.current = saveToServer
+  }, [saveToServer])
 
   const flush = useCallback(async (targetChapterId?: string) => {
     if (savingRef.current || pendingRef.current.size === 0) return
@@ -169,10 +171,6 @@ export function useAutosave(
   }, [recoveryDraft, queueSave])
 
   useEffect(() => {
-    if (!chapterId) setState('idle')
-  }, [chapterId])
-
-  useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (pendingRef.current.size > 0) void flush()
@@ -180,7 +178,7 @@ export function useAutosave(
   }, [flush])
 
   return {
-    state,
+    state: chapterId ? state : ('idle' as SaveState),
     savedAt,
     recoveryDraft,
     markClean,

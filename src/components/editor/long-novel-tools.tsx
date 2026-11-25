@@ -105,10 +105,13 @@ export function LongNovelTools({
 
   useEffect(() => {
     if (!open) return
-    if (tab === 'preview') void loadPreview()
-    if (tab === 'timeline') void loadTimeline()
-    if (tab === 'guard') void loadGuard()
-    if (tab === 'ratio') void loadRatio()
+    const timer = setTimeout(() => {
+      if (tab === 'preview') void loadPreview()
+      if (tab === 'timeline') void loadTimeline()
+      if (tab === 'guard') void loadGuard()
+      if (tab === 'ratio') void loadRatio()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [open, tab, loadPreview, loadTimeline, loadGuard, loadRatio])
 
   const handleAddEvent = async () => {
