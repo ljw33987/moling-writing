@@ -175,7 +175,7 @@ export function PlazaView() {
                     <img src={p.cover} alt={p.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-4xl font-bold text-teal-/40 font-serif">
+                      <span className="text-4xl font-bold text-indigo-500/40 font-serif">
                         {p.title.slice(0, 2)}
                       </span>
                     </div>

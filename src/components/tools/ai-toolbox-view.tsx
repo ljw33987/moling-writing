@@ -28,6 +28,8 @@ import {
   Copy,
   Loader2,
   Check,
+  Image as ImageIcon,
+  Download,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -119,11 +121,17 @@ const TOOLS: ToolDef[] = [
 
 export function AiToolboxView() {
   const [activeTool, setActiveTool] = useState<ToolDef | null>(TOOLS[0])
-  const [mode, setMode] = useState<'ai' | 'txt'>('ai')
+  const [mode, setMode] = useState<'ai' | 'txt' | 'cover'>('ai')
   const [prompt, setPrompt] = useState('')
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // 原创封面生成器状态
+  const [coverTitle, setCoverTitle] = useState('太虚问道')
+  const [coverAuthor, setCoverAuthor] = useState('青云客')
+  const [coverTagline, setCoverTagline] = useState('一剑破苍穹 · 万古第一宗')
+  const [coverTheme, setCoverTheme] = useState<'xianxia' | 'urban' | 'scifi' | 'history' | 'romance'>('xianxia')
 
   // TXT 智能分章导入状态
   const [novels, setNovels] = useState<Array<{ id: string; title: string }>>([])
@@ -238,10 +246,151 @@ export function AiToolboxView() {
               <Upload className="w-3.5 h-3.5" />
               TXT 智能分章导入
             </Button>
+            <Button
+              variant={mode === 'cover' ? 'default' : 'outline'}
+              size="sm"
+              className={mode === 'cover' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
+              onClick={() => setMode('cover')}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              原创封面生成
+            </Button>
           </div>
         </div>
 
-        {mode === 'txt' ? (
+        {mode === 'cover' ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">原创小说封面生成器（无版权风险）</CardTitle>
+              <CardDescription>
+                输入书名、笔名与宣传语，实时生成 3:4 竖版原创封面图，支持直接下载 PNG 或一键应用到作品
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>作品书名</Label>
+                  <Input value={coverTitle} onChange={(e) => setCoverTitle(e.target.value)} placeholder="输入书名" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>作者笔名</Label>
+                  <Input value={coverAuthor} onChange={(e) => setCoverAuthor(e.target.value)} placeholder="输入笔名" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>封面金句 / 副标题</Label>
+                  <Input value={coverTagline} onChange={(e) => setCoverTagline(e.target.value)} placeholder="一句话卖点" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>视觉风格</Label>
+                  <Select value={coverTheme} onValueChange={(v) => setCoverTheme(v as any)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="xianxia">玄墨剑影（玄幻/仙侠）</SelectItem>
+                      <SelectItem value="urban">霓虹夜色（都市/异能）</SelectItem>
+                      <SelectItem value="scifi">深空星舰（科幻/未来）</SelectItem>
+                      <SelectItem value="history">朱砂古卷（历史/武侠）</SelectItem>
+                      <SelectItem value="romance">暖雪柔光（言情/治愈）</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                    onClick={() => {
+                      const svg = document.getElementById('bifeng-cover-svg')
+                      if (!svg) return
+                      const xml = new XMLSerializer().serializeToString(svg)
+                      const img = new window.Image()
+                      img.onload = () => {
+                        const canvas = document.createElement('canvas')
+                        canvas.width = 600
+                        canvas.height = 800
+                        const ctx = canvas.getContext('2d')
+                        if (!ctx) return
+                        ctx.drawImage(img, 0, 0, 600, 800)
+                        const a = document.createElement('a')
+                        a.download = `${coverTitle || 'cover'}.png`
+                        a.href = canvas.toDataURL('image/png')
+                        a.click()
+                        toast.success('已导出原创 PNG 封面')
+                      }
+                      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml)
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    下载 PNG 封面 (600×800)
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <svg
+                  id="bifeng-cover-svg"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 300 400"
+                  className="w-64 aspect-[3/4] rounded-xl shadow-lg border border-border"
+                >
+                  <defs>
+                    <linearGradient id="cg" x1="0" y1="0" x2="300" y2="400" gradientUnits="userSpaceOnUse">
+                      <stop
+                        offset="0%"
+                        stopColor={
+                          coverTheme === 'xianxia'
+                            ? '#0f172a'
+                            : coverTheme === 'urban'
+                            ? '#1e1b4b'
+                            : coverTheme === 'scifi'
+                            ? '#090d16'
+                            : coverTheme === 'history'
+                            ? '#271712'
+                            : '#3b1d2e'
+                        }
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={
+                          coverTheme === 'xianxia'
+                            ? '#1e3a8a'
+                            : coverTheme === 'urban'
+                            ? '#0369a1'
+                            : coverTheme === 'scifi'
+                            ? '#1e293b'
+                            : coverTheme === 'history'
+                            ? '#7c2d12'
+                            : '#831843'
+                        }
+                      />
+                    </linearGradient>
+                  </defs>
+                  <rect width="300" height="400" fill="url(#cg)" />
+                  <circle cx="240" cy="80" r="90" fill="#ffffff" opacity="0.06" />
+                  <circle cx="60" cy="340" r="110" fill="#f59e0b" opacity="0.08" />
+                  <rect x="16" y="16" width="268" height="368" fill="none" stroke="#f59e0b" strokeOpacity="0.45" strokeWidth="1.5" rx="8" />
+                  <text x="150" y="62" textAnchor="middle" fill="#fbbf24" fontSize="11" letterSpacing="4">
+                    笔锋写作 · 原创典藏
+                  </text>
+                  <text x="150" y="178" textAnchor="middle" fill="#ffffff" fontSize="28" fontWeight="bold" fontFamily="serif">
+                    {(coverTitle || '未命名作品').slice(0, 8)}
+                  </text>
+                  {coverTitle.length > 8 && (
+                    <text x="150" y="216" textAnchor="middle" fill="#ffffff" fontSize="22" fontWeight="bold" fontFamily="serif">
+                      {coverTitle.slice(8, 18)}
+                    </text>
+                  )}
+                  <line x1="90" y1="242" x2="210" y2="242" stroke="#fbbf24" strokeOpacity="0.6" strokeWidth="1" />
+                  <text x="150" y="268" textAnchor="middle" fill="#e2e8f0" fontSize="12" opacity="0.9">
+                    {coverTagline || ' '}
+                  </text>
+                  <text x="150" y="348" textAnchor="middle" fill="#cbd5e1" fontSize="14" letterSpacing="2">
+                    {coverAuthor || '佚名'} 著
+                  </text>
+                </svg>
+              </div>
+            </CardContent>
+          </Card>
+        ) : mode === 'txt' ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">TXT 长文本智能分章导入</CardTitle>
