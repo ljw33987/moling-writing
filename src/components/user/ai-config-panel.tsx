@@ -53,7 +53,7 @@ const PROVIDER_STYLES: Record<string, { label: string; gradient: string; bg: str
   deepseek: { label: 'DS', gradient: 'from-blue-500 to-cyan-500', bg: 'bg-blue-500/10', border: 'border-blue-200 dark:border-blue-800', text: 'text-blue-600' },
   openai: { label: 'GPT', gradient: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-600' },
   claude: { label: 'CL', gradient: 'from-orange-500 to-amber-500', bg: 'bg-orange-500/10', border: 'border-orange-200 dark:border-orange-800', text: 'text-orange-600' },
-  gemini: { label: 'GM', gradient: 'from-teal-600 to-purple-500', bg: 'bg-teal-600/10', border: 'border-teal- dark:border-teal-', text: 'text-teal-' },
+  gemini: { label: 'GM', gradient: 'from-violet-500 to-purple-500', bg: 'bg-violet-500/10', border: 'border-teal- dark:border-teal-', text: 'text-teal-' },
   grok: { label: 'GK', gradient: 'from-slate-600 to-slate-800', bg: 'bg-slate-500/10', border: 'border-slate-300 dark:border-slate-700', text: 'text-slate-600' },
   minimax: { label: 'MM', gradient: 'from-pink-500 to-rose-500', bg: 'bg-pink-500/10', border: 'border-pink-200 dark:border-pink-800', text: 'text-pink-600' },
   custom: { label: 'API', gradient: 'from-gray-500 to-gray-600', bg: 'bg-gray-500/10', border: 'border-gray-200 dark:border-gray-800', text: 'text-gray-600' },
@@ -298,7 +298,7 @@ export function AiConfigPanel() {
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-medium text-sm truncate">{c.name}</span>
                                 {c.isDefault && (
-                                  <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-0.5 bg-teal-600">
+                                  <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-0.5 bg-violet-500">
                                     <Star className="w-2.5 h-2.5 fill-current" /> 默认
                                   </Badge>
                                 )}

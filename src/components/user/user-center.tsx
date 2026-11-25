@@ -233,7 +233,7 @@ export function UserCenter() {
           <CardContent className="p-4">
             <div className="flex items-center gap-4 flex-wrap">
               <Avatar className="w-14 h-14">
-                <AvatarFallback className="bg-gradient-to-br from-teal-600 to-emerald-600 text-white text-xl">
+                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-pink-500 text-white text-xl">
                   {(penName || name || 'W').slice(0, 1)}
                 </AvatarFallback>
               </Avatar>
@@ -279,7 +279,7 @@ export function UserCenter() {
                   onClick={() => setSection(n.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition ${
                     active
-                      ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md'
                       : 'hover:bg-muted text-foreground'
                   }`}
                 >
@@ -629,7 +629,7 @@ function RechargeSection({
                 <div className="font-semibold flex items-center gap-2">
                   {p.name}
                   {p.popular && (
-                    <Badge className="bg-teal-600" variant="default">
+                    <Badge className="bg-violet-500" variant="default">
                       热门
                     </Badge>
                   )}
@@ -810,7 +810,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
           <Button
             onClick={handleRedeem}
             disabled={redeeming || !code.trim()}
-            className="gap-1.5 shrink-0 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
+            className="gap-1.5 shrink-0 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
           >
             {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
             立即兑换

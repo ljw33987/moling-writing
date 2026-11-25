@@ -130,7 +130,7 @@ export function TopBar() {
     return (
       <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 z-30 sticky top-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-600 to-emerald-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
             <PenLine className="w-4 h-4 text-white" />
           </div>
           <span className="font-bold text-base">灵构写作</span>
@@ -145,7 +145,7 @@ export function TopBar() {
     return (
       <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 z-30 sticky top-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-600 to-emerald-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
             <PenLine className="w-4 h-4 text-white" />
           </div>
           <span className="font-bold text-base">灵构写作</span>
@@ -164,7 +164,7 @@ export function TopBar() {
   return (
     <header className="h-14 border-b border-border bg-card/60 backdrop-blur-sm flex items-center px-4 gap-4 z-30 sticky top-0">
       <button onClick={backToWorkspace} className="flex items-center gap-2 hover:opacity-80 transition">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-600 to-emerald-600 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
           <PenLine className="w-4 h-4 text-white" />
         </div>
         <span className="font-bold text-base hidden sm:block">灵构写作</span>
@@ -229,7 +229,7 @@ export function TopBar() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:opacity-80 transition">
               <Avatar className="w-7 h-7">
-                <AvatarFallback className="bg-gradient-to-br from-teal-600 to-emerald-600 text-white text-xs">
+                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-pink-500 text-white text-xs">
                   {(user.penName || user.name || user.email)[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>

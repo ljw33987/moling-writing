@@ -216,7 +216,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 {openItem.type === 'ann' ? (
                   <>
-                    {openItem.data.pinned && <Badge variant="default" className="bg-teal-600">置顶</Badge>}
+                    {openItem.data.pinned && <Badge variant="default" className="bg-violet-500">置顶</Badge>}
                     {(() => {
                       const tc = annTypeConfig[openItem.data.type] || annTypeConfig.info
                       return <Badge variant="outline" className={tc.color}>{tc.label}</Badge>
@@ -282,7 +282,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                         <Icon className={`w-4 h-4 ${tc.color} shrink-0 mt-0.5`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            {a.pinned && <Badge variant="default" className="text-[9px] px-1 py-0 bg-teal-600">置顶</Badge>}
+                            {a.pinned && <Badge variant="default" className="text-[9px] px-1 py-0 bg-violet-500">置顶</Badge>}
                             <span className="font-medium text-sm truncate">{a.title}</span>
                             {!a.isRead && <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />}
                           </div>

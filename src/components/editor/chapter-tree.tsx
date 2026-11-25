@@ -335,7 +335,7 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
 
         <DragOverlay>
           {draggingId ? (
-            <div className="bg-teal-600/20 border border-teal- rounded px-3 py-1.5 text-sm shadow-lg">
+            <div className="bg-violet-500/20 border border-teal- rounded px-3 py-1.5 text-sm shadow-lg">
               {allChapters.find((c) => c.id === draggingId)?.title}
             </div>
           ) : null}
@@ -418,7 +418,7 @@ function SortableChapter({
       style={style}
       className={`group flex items-center pl-2 pr-2 py-1.5 cursor-pointer rounded-sm mx-1 transition ${
         active
-          ? 'bg-teal-600/15 text-teal- dark:text-teal-'
+          ? 'bg-violet-500/15 text-teal- dark:text-teal-'
           : 'hover:bg-muted/50'
       }`}
       onClick={() => onSelect(chapter.id)}

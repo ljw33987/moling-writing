@@ -773,7 +773,7 @@ function AIGenDialog({
               <Button
                 onClick={() => onGenSingle(genre, keywords)}
                 disabled={loading || !keywords.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 生成中...' : `生成${typeLabel}`}
@@ -807,7 +807,7 @@ function AIGenDialog({
               <Button
                 onClick={() => onGenBatch(genre, theme)}
                 disabled={loading || !theme.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 批量生成中...' : '批量生成全套设定'}

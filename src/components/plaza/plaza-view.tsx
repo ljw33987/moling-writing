@@ -106,7 +106,7 @@ export function PlazaView() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* 顶部 */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-600 to-emerald-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -170,7 +170,7 @@ export function PlazaView() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((p) => (
               <Card key={p.id} className="group overflow-hidden hover:shadow-md transition cursor-pointer" onClick={() => setReadingId(p.id)}>
-                <div className="aspect-[3/4] bg-gradient-to-br from-teal-600/20 via-cyan-600/15 to-amber-500/10 relative">
+                <div className="aspect-[3/4] bg-gradient-to-br from-violet-500/20 via-pink-500/15 to-amber-500/10 relative">
                   {p.cover ? (
                     <img src={p.cover} alt={p.title} className="w-full h-full object-cover" />
                   ) : (
@@ -194,7 +194,7 @@ export function PlazaView() {
                   <p className="text-xs text-muted-foreground line-clamp-2 h-8">{p.synopsis}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Avatar className="w-4 h-4">
-                      <AvatarFallback className="text-[8px] bg-teal-600 text-white">
+                      <AvatarFallback className="text-[8px] bg-violet-500 text-white">
                         {(p.user?.penName || p.user?.name || 'A')[0]}
                       </AvatarFallback>
                     </Avatar>
@@ -367,7 +367,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
 
         {/* 作品信息 */}
         <div className="flex gap-4 mb-6 pb-6 border-b">
-          <div className="w-20 h-28 rounded bg-gradient-to-br from-teal-600/20 to-emerald-600/20 flex items-center justify-center shrink-0">
+          <div className="w-20 h-28 rounded bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center shrink-0">
             <span className="text-lg font-bold text-teal-/60 font-serif">
               {pub.title.slice(0, 2)}
             </span>
@@ -462,7 +462,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
                 key={c.id}
                 onClick={() => setCurrentChapter(c)}
                 className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted transition ${
-                  currentChapter?.id === c.id ? 'bg-teal-600/15 text-teal- dark:text-teal-' : ''
+                  currentChapter?.id === c.id ? 'bg-violet-500/15 text-teal- dark:text-teal-' : ''
                 }`}
               >
                 <span className="text-muted-foreground text-xs mr-2">第{i + 1}章</span>

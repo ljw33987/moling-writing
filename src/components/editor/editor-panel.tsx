@@ -242,7 +242,7 @@ export function EditorPanel({
             <Button
               variant="default"
               size="sm"
-              className="gap-1.5 shrink-0 bg-gradient-to-r from-teal-600 to-emerald-600 hover:opacity-90"
+              className="gap-1.5 shrink-0 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90"
               disabled={aiLoading}
             >
               {aiLoading ? (
