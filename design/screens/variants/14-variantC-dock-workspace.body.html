@@ -1,0 +1,242 @@
+<div style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)">
+  <!-- 顶部只留品牌行，无导航 -->
+  <header style="height:58px;flex:none;display:flex;align-items:center;padding:0 26px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div class="brand-mark" style="width:28px;height:28px;border-radius:8px;font-size:13px">墨</div>
+      <span style="font-weight:700;font-size:14.5px">墨灵写作</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <div class="search-box" style="width:190px;height:32px"><svg class="ic ic-sm"><use href="#i-search"/></svg><span>搜索…</span><span class="kbd">⌘K</span></div>
+      <button class="icon-btn" style="width:32px;height:32px"><svg class="ic ic-sm"><use href="#i-bell"/></svg><span class="dot-badge">3</span></button>
+      <span class="badge badge-brand mono">128,460</span>
+    </div>
+  </header>
+
+  <div class="content">
+    <div style="padding:20px 40px 120px;max-width:1520px;margin:0 auto">
+
+      <div class="page-hd">
+        <div>
+          <h1>下午好，梧攸笙歌</h1>
+          <p>今天已写 1,240 字，达标率 41%。</p>
+        </div>
+        <div class="page-hd-right">
+          <button class="btn btn-outline">导入 TXT</button>
+          <button class="btn btn-primary">新建作品</button>
+        </div>
+      </div>
+
+      <!-- Hero -->
+      <div class="hero" style="grid-template-columns:1fr 340px">
+        <div class="hero-main">
+          <div class="hero-cover">剑</div>
+          <div class="hero-info">
+            <div class="hero-title-row">
+              <span class="badge badge-brand">最近编辑</span>
+              <span class="hero-title">剑起长安</span>
+              <span class="badge badge-outline">玄幻</span>
+              <span class="badge badge-green">连载中</span>
+            </div>
+            <p style="font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.7">
+              少年剑修林渊因一块残玉觉醒血瞳，被卷入宗门内乱的百年棋局……
+            </p>
+            <div class="hero-meta">
+              <span><svg class="ic ic-sm"><use href="#i-file"/></svg>3 卷 48 章</span>
+              <span><svg class="ic ic-sm"><use href="#i-type"/></svg>128,400 字</span>
+              <span><svg class="ic ic-sm"><use href="#i-clock"/></svg>2 小时前</span>
+            </div>
+            <div style="margin-top:14px;max-width:400px">
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:6px">
+                <span>今日字数目标</span>
+                <span class="mono" style="color:var(--ink-2);font-weight:600">1,240 / 3,000</span>
+              </div>
+              <div class="progress grad"><i style="width:41%"></i></div>
+            </div>
+            <div class="hero-cta">
+              <button class="btn btn-primary btn-lg">继续写作</button>
+              <button class="btn btn-outline btn-lg">查看大纲</button>
+              <button class="btn btn-ghost btn-lg">导出</button>
+            </div>
+          </div>
+        </div>
+        <aside class="hero-side">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="ring">
+              <svg width="62" height="62">
+                <circle cx="31" cy="31" r="27" fill="none" stroke="var(--surface-3)" stroke-width="6"/>
+                <circle cx="31" cy="31" r="27" fill="none" stroke="url(#g1)" stroke-width="6" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="99"/>
+                <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#A855F7"/></linearGradient></defs>
+              </svg>
+              <div class="ring-txt">41%</div>
+            </div>
+            <div>
+              <div style="font-size:11.5px;color:var(--ink-3)">今日达标率</div>
+              <div style="font-size:12.5px;color:var(--ink-2);margin-top:2px">距目标还差 <b class="mono">1,760</b> 字</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:12px">
+            <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650">
+              <svg class="ic ic-sm" style="color:var(--violet)"><use href="#i-zap"/></svg>自动连载
+              <span class="badge badge-green" style="margin-left:auto">运行中</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink-3);margin-top:5px">每 30 分钟生成 1 章 · 已生成 9 章</div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:12px;flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
+              <span style="font-size:12px;font-weight:650">本书字数目标</span>
+              <span class="mono" style="font-size:11.5px;color:var(--ink-3)">128,400 / 300,000</span>
+            </div>
+            <div class="progress grad"><i style="width:43%"></i></div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;gap:8px">
+            <button class="btn btn-sm btn-outline" style="flex:1">连载设置</button>
+            <button class="btn btn-sm btn-soft" style="flex:1">立即生成</button>
+          </div>
+        </aside>
+      </div>
+
+      <!-- 指标 -->
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-ic"><svg class="ic ic-sm"><use href="#i-zap"/></svg></div>
+          <div class="stat-v mono">1,240</div>
+          <div class="stat-k">今日新增字数 · 目标 3,000</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic cyan"><svg class="ic ic-sm"><use href="#i-type"/></svg></div>
+          <div class="stat-v mono">486,290</div>
+          <div class="stat-k">累计总字数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic violet"><svg class="ic ic-sm"><use href="#i-book"/></svg></div>
+          <div class="stat-v mono">12</div>
+          <div class="stat-k">作品总数 · 3 个文件夹</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic amber"><svg class="ic ic-sm"><use href="#i-wallet"/></svg></div>
+          <div class="stat-v mono">128,460</div>
+          <div class="stat-k">Token 余额 · 年卡会员</div>
+        </div>
+      </div>
+
+      <!-- 作品 -->
+      <div class="section-hd">
+        <svg class="ic"><use href="#i-book"/></svg>
+        <h2>我的作品</h2>
+        <span class="badge">12</span>
+        <div class="section-hd-right">
+          <div class="seg">
+            <button class="on"><svg class="ic ic-sm"><use href="#i-grid"/></svg>卡片</button>
+            <button><svg class="ic ic-sm"><use href="#i-list"/></svg>列表</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-row">
+        <div class="search-box" style="width:260px">
+          <svg class="ic ic-sm"><use href="#i-search"/></svg><span>搜索作品或题材…</span>
+        </div>
+        <button class="chip on">全部</button>
+        <button class="chip">连载中</button>
+        <button class="chip">已完结</button>
+        <button class="chip">已暂停</button>
+        <span style="width:1px;height:20px;background:var(--line-2)"></span>
+        <button class="chip"><svg class="ic ic-sm"><use href="#i-folder"/></svg>玄幻</button>
+        <button class="chip"><svg class="ic ic-sm"><use href="#i-folder"/></svg>都市</button>
+        <div style="margin-left:auto">
+          <button class="btn btn-sm btn-outline"><svg class="ic ic-sm"><use href="#i-sliders"/></svg>最近更新</button>
+        </div>
+      </div>
+
+      <div class="book-grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="book">
+          <div class="book-cover" style="background:linear-gradient(145deg,#312E81,#4C1D95)">
+            <span style="position:absolute;left:14px;top:14px;color:rgba(255,255,255,.22);font-size:40px;font-weight:800">剑</span>
+            <span class="badge">玄幻</span>
+          </div>
+          <div class="book-body">
+            <div class="book-title">剑起长安</div>
+            <div class="book-sub"><span class="mono">128,400 字</span><span>·</span><span>48 章</span></div>
+            <div class="book-sub" style="margin-top:6px;color:var(--ink-4)">2 小时前</div>
+            <div class="book-foot">
+              <span class="badge badge-green">连载中</span>
+              <button class="btn btn-xs btn-soft" style="margin-left:auto">进入写作</button>
+            </div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="background:linear-gradient(145deg,#0F766E,#0E7490)">
+            <span style="position:absolute;left:14px;top:14px;color:rgba(255,255,255,.22);font-size:40px;font-weight:800">深</span>
+            <span class="badge">科幻</span>
+          </div>
+          <div class="book-body">
+            <div class="book-title">深海回声</div>
+            <div class="book-sub"><span class="mono">86,200 字</span><span>·</span><span>22 章</span></div>
+            <div class="book-sub" style="margin-top:6px;color:var(--ink-4)">昨天</div>
+            <div class="book-foot">
+              <span class="badge badge-green">连载中</span>
+              <button class="btn btn-xs btn-soft" style="margin-left:auto">进入写作</button>
+            </div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="background:linear-gradient(145deg,#B45309,#DC2626)">
+            <span style="position:absolute;left:14px;top:14px;color:rgba(255,255,255,.22);font-size:40px;font-weight:800">红</span>
+            <span class="badge">都市</span>
+          </div>
+          <div class="book-body">
+            <div class="book-title">重回1998</div>
+            <div class="book-sub"><span class="mono">213,600 字</span><span>·</span><span>96 章</span></div>
+            <div class="book-sub" style="margin-top:6px;color:var(--ink-4)">3 天前</div>
+            <div class="book-foot">
+              <span class="badge badge-amber">已暂停</span>
+              <button class="btn btn-xs btn-soft" style="margin-left:auto">进入写作</button>
+            </div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="background:linear-gradient(145deg,#1E293B,#475569)">
+            <span style="position:absolute;left:14px;top:14px;color:rgba(255,255,255,.22);font-size:40px;font-weight:800">仙</span>
+            <span class="badge">奇幻</span>
+          </div>
+          <div class="book-body">
+            <div class="book-title">太上忘情录</div>
+            <div class="book-sub"><span class="mono">58,090 字</span><span>·</span><span>15 章</span></div>
+            <div class="book-sub" style="margin-top:6px;color:var(--ink-4)">5 天前</div>
+            <div class="book-foot">
+              <span class="badge badge-brand">已完结</span>
+              <button class="btn btn-xs btn-soft" style="margin-left:auto">进入写作</button>
+            </div>
+          </div>
+        </div>
+        <div class="book" style="border-style:dashed;display:grid;place-items:center;min-height:230px;background:rgba(255,255,255,.5)">
+          <div style="text-align:center">
+            <div style="width:42px;height:42px;border-radius:13px;background:var(--surface-3);display:grid;place-items:center;color:var(--ink-3);margin:0 auto 9px">
+              <svg class="ic"><use href="#i-plus-circle"/></svg>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink-2)">新建作品</div>
+            <div style="font-size:11.5px;color:var(--ink-4);margin-top:2px">或用 AI 一键建书</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 日历 -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-hd">
+          <svg class="ic ic-sm"><use href="#i-activity"/></svg>
+          <h3>创作日历</h3>
+          <span class="badge">近 35 天</span>
+          <div class="card-hd-right" style="font-size:11.5px;color:var(--ink-3)">
+            本月共 <b class="mono" style="color:var(--ink)">42,180</b> 字
+          </div>
+        </div>
+        <div class="card-pad" style="display:flex;gap:3px;flex-wrap:wrap">
+          <i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:#BFC3F7"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#BFC3F7"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:#6366F1"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#BFC3F7"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:#BFC3F7"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#6366F1"></i><i style="width:12px;height:12px;border-radius:3px;background:#8E93EF"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i><i style="width:12px;height:12px;border-radius:3px;background:#DDE0FB"></i><i style="width:12px;height:12px;border-radius:3px;background:#BFC3F7"></i><i style="width:12px;height:12px;border-radius:3px;background:var(--surface-3)"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!--DOCK:workspace-->
+</div>

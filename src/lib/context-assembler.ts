@@ -100,7 +100,7 @@ export async function assembleNovelContext(params: {
         : Promise.resolve(null),
       db.chapter.findMany({
         where: { novelId: params.novelId },
-        orderBy: [{ sortOrder: 'asc' }],
+        orderBy: [{ volume: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
         select: { id: true, title: true, summary: true, sortOrder: true, volumeId: true },
       }),
     ])

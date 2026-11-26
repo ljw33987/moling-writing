@@ -40,7 +40,7 @@ export function LanguageSwitcher() {
           >
             <span className="text-base">{l.flag}</span>
             <span className="flex-1">{l.name}</span>
-            {lang === l.code && <Check className="w-3.5 h-3.5 text-emerald-500" />}
+            {lang === l.code && <Check className="w-3.5 h-3.5 text-jade" />}
           </button>
         ))}
       </PopoverContent>

@@ -6,6 +6,7 @@ import { callThirdPartyAI } from '@/lib/ai-providers'
 import { getPlatformConfig, getPlatformDefaultAI } from '@/lib/platform-ai'
 import { getPlatformProAiFromEnv, parseModelMappings } from '@/lib/ai-models'
 import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-assembler'
+import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // POST /api/ai/stream - 流式 AI 调用（SSE）
@@ -23,6 +24,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { action, preset, message, novelId, chapterId, targetStyle, modelId, referencedItems } = body
+
+  if (novelId && !await getOwnedNovel(user.id, novelId)) {
+    return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+  }
+  if (chapterId) {
+    const chapter = await getOwnedChapter(user.id, chapterId)
+    if (!chapter || (novelId && chapter.novelId !== novelId)) {
+      return NextResponse.json({ error: '未找到章节' }, { status: 404 })
+    }
+  }
 
   let systemPrompt = '你是一位专业的网文创作助手，帮助作者完成小说创作任务。回复请使用中文。'
   let userPrompt = message || ''

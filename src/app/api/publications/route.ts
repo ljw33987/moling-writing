@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   const novelId = url.searchParams.get('novelId')
 
   if (novelId) {
-    const pub = await db.publication.findUnique({ where: { novelId } })
+    const pub = await db.publication.findFirst({ where: { novelId, userId: session.user.id } })
     return NextResponse.json({ publication: pub })
   }
 

@@ -17,6 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   Send,
   Sparkles,
   Loader2,
@@ -36,6 +41,9 @@ import {
   Cpu,
   Copy,
   Check,
+  List,
+  Plus,
+  RefreshCw,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
@@ -63,6 +71,7 @@ interface Message {
   preset?: string
   modelLabel?: string
   references?: ReferencedItem[]
+  isError?: boolean
 }
 
 interface Props {
@@ -78,27 +87,27 @@ const REF_TYPE_META: Record<
   chapter: {
     label: '章节',
     icon: FileText,
-    chipClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    chipClass: 'bg-primary/10 text-primary border-primary/20',
   },
   outline: {
     label: '大纲',
     icon: BookText,
-    chipClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    chipClass: 'bg-gold/10 text-gold border-gold/20',
   },
   character: {
     label: '角色',
     icon: Users,
-    chipClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    chipClass: 'bg-jade/10 text-jade border-jade/20',
   },
   worldview: {
     label: '世界观',
     icon: Globe,
-    chipClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    chipClass: 'bg-primary/10 text-primary border-primary/20',
   },
   item: {
     label: '道具',
     icon: Gem,
-    chipClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+    chipClass: 'bg-cinnabar/10 text-cinnabar border-cinnabar/20',
   },
 }
 
@@ -124,6 +133,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const lastRequestRef = useRef<{ text: string; preset?: string; refs?: ReferencedItem[] } | null>(null)
 
   useEffect(() => {
     api<{ presets: Preset[] }>('/api/ai')
@@ -224,6 +234,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
   ) => {
     if (!content.trim() || loading) return
     const refsToUse = overrideRefs ?? referencedItems
+    lastRequestRef.current = { text: content, preset, refs: refsToUse }
     const currentModelObj = models.find((m) => m.id === selectedModel)
     const userMsg: Message = {
       role: 'user',
@@ -341,6 +352,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
                   copy[copy.length - 1] = {
                     role: 'assistant',
                     content: `出错了：${parsed.error}`,
+                    isError: true,
                   }
                   return copy
                 })
@@ -358,10 +370,15 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
         if (last && last.role === 'assistant' && !last.content) {
           copy[copy.length - 1] = {
             role: 'assistant',
-            content: `抱歉，出错了：${e.message}`,
+            content: `抱歉，生成失败：${e.message || '网络异常，请重试'}`,
+            isError: true,
           }
         } else {
-          copy.push({ role: 'assistant', content: `抱歉，出错了：${e.message}` })
+          copy.push({
+            role: 'assistant',
+            content: `抱歉，生成失败：${e.message || '网络异常，请重试'}`,
+            isError: true,
+          })
         }
         return copy
       })
@@ -372,6 +389,31 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
 
   const handleSend = () => {
     sendMessage(input)
+  }
+
+  const handleRegenerate = (msgIndex: number) => {
+    if (loading) return
+    // 找到该条助手消息对应的上一条用户消息
+    let userContent = ''
+    let userRefs: ReferencedItem[] | undefined
+    let userMsgIndex = -1
+    for (let k = msgIndex - 1; k >= 0; k--) {
+      if (messages[k]?.role === 'user') {
+        userContent = messages[k].content
+        userRefs = messages[k].references
+        userMsgIndex = k
+        break
+      }
+    }
+    const presetToUse = messages[msgIndex]?.preset || lastRequestRef.current?.preset
+    const textToUse = userContent || lastRequestRef.current?.text || ''
+    const refsToUse = userRefs || lastRequestRef.current?.refs
+    if (!textToUse.trim()) return
+
+    if (userMsgIndex >= 0) {
+      setMessages((prev) => prev.slice(0, userMsgIndex))
+    }
+    void sendMessage(textToUse, presetToUse, refsToUse)
   }
 
   const handlePreset = (p: Preset) => {
@@ -401,24 +443,28 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
   }, {})
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-card/30 overflow-hidden">
-      {/* 顶部 */}
-      <div className="h-10 border-b border-border flex items-center px-3 gap-2 shrink-0">
-        <Bot className="w-4 h-4 text-teal-" />
-        <span className="font-medium text-sm truncate">写作 AI 助手</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-          @多文件分析
-        </Badge>
+    <div className="h-full min-h-0 flex flex-col bg-card overflow-hidden border-l border-border">
+      {/* 顶部（靛紫渐变球 + @多文件分析副标题） */}
+      <div className="border-b border-border flex items-center px-3.5 py-2.5 gap-2.5 shrink-0 bg-card">
+        <div className="w-8 h-8 rounded-[10px] ai-brand-mark flex items-center justify-center shrink-0 text-white">
+          <Sparkles className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[13.5px] leading-tight truncate">写作 AI 助手</div>
+          <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+            @多文件分析 · 已注入世界观/大纲/前情
+          </div>
+        </div>
         <Popover open={presetOpen} onOpenChange={setPresetOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto shrink-0" title="预设指令库">
-              <BookMarked className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px]" title="预设指令库">
+              <List className="w-3.5 h-3.5" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="end">
             <div className="space-y-3 max-h-96 overflow-y-auto">
               <div className="text-sm font-medium flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-teal-" />
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
                 预设指令库
               </div>
               {Object.entries(grouped).map(([cat, items]) => (
@@ -442,7 +488,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           </PopoverContent>
         </Popover>
         {messages.length > 0 && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleClear} title="清空对话">
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px] text-muted-foreground hover:text-cinnabar" onClick={handleClear} title="清空对话">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
@@ -455,8 +501,8 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
       >
         {messages.length === 0 && !loading && (
           <div className="h-full flex flex-col items-center justify-center text-center px-3">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center mb-3">
-              <Wand2 className="w-5 h-5 text-teal-" />
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gold/25 to-gold/10 flex items-center justify-center mb-3">
+              <Wand2 className="w-5 h-5 text-gold" />
             </div>
             <p className="text-sm font-medium mb-1">写作 AI 助手已就绪</p>
             <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
@@ -491,20 +537,28 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
               className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
               <div
-                className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center ${
+                className={`w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center ${
                   m.role === 'user'
-                    ? 'bg-emerald-500/20'
-                    : 'bg-gradient-to-br from-indigo-600/20 to-blue-600/20'
+                    ? 'bg-[var(--surface-3)] text-foreground'
+                    : 'ai-brand-mark text-white'
                 }`}
               >
                 {m.role === 'user' ? (
-                  <UserIcon className="w-3.5 h-3.5 text-emerald-600" />
+                  <UserIcon className="w-3.5 h-3.5" />
                 ) : (
-                  <Bot className="w-3.5 h-3.5 text-teal-" />
+                  <Sparkles className="w-3.5 h-3.5" />
                 )}
               </div>
               <div className={`flex-1 min-w-0 max-w-[85%] ${m.role === 'user' ? 'text-right' : ''}`}>
-                <div className={`flex items-center gap-1 mb-1 flex-wrap ${m.role === 'user' ? 'justify-end' : ''}`}>
+                <div className={`flex items-center gap-1.5 mb-1 flex-wrap ${m.role === 'user' ? 'justify-end' : ''}`}>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {m.role === 'user' ? '我' : 'AI 助手'}
+                  </span>
+                  {m.role === 'assistant' && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[var(--violet)]/30 bg-[var(--violet-soft)] text-[var(--violet)]">
+                      长文记忆
+                    </Badge>
+                  )}
                   {m.preset && (
                     <Badge variant="outline" className="text-[10px] px-1 py-0">
                       {presets.find((p) => p.id === m.preset)?.name || m.preset}
@@ -534,38 +588,53 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
                   </div>
                 )}
                 {m.role === 'user' ? (
-                  <div className="inline-block text-sm px-3 py-2 rounded-lg whitespace-pre-wrap break-words text-left max-w-full bg-emerald-500/15 text-emerald-900 dark:text-emerald-100">
+                  <div className="inline-block text-[13px] px-3 py-2 rounded-[10px] whitespace-pre-wrap break-words text-left max-w-full bg-[var(--surface-3)] text-foreground border border-border">
                     {m.content}
                   </div>
                 ) : (
-                  <div className="inline-block px-3.5 py-2.5 rounded-lg text-left max-w-full bg-muted/70 border border-border/50 overflow-hidden">
+                  <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
                     <MarkdownRenderer content={m.content} />
                   </div>
                 )}
                 {m.role === 'assistant' && (
-                  <div className="mt-1 flex items-center gap-1">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {!m.isError && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                          onClick={() => onInsertText(markdownToPlainText(m.content))}
+                        >
+                          <Send className="w-3 h-3" />
+                          插入到正文
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                          onClick={() => {
+                            navigator.clipboard.writeText(markdownToPlainText(m.content))
+                            setCopiedIndex(i)
+                            toast.success('已复制纯文本')
+                            setTimeout(() => setCopiedIndex(null), 1500)
+                          }}
+                        >
+                          {copiedIndex === i ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
+                          复制
+                        </Button>
+                      </>
+                    )}
                     <Button
-                      variant="ghost"
+                      variant={m.isError ? 'default' : 'ghost'}
                       size="sm"
-                      className="h-6 text-xs gap-1"
-                      onClick={() => onInsertText(markdownToPlainText(m.content))}
+                      disabled={loading}
+                      className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                      onClick={() => handleRegenerate(i)}
+                      title="重新生成"
                     >
-                      <Send className="w-3 h-3" />
-                      插入到正文
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs gap-1"
-                      onClick={() => {
-                        navigator.clipboard.writeText(markdownToPlainText(m.content))
-                        setCopiedIndex(i)
-                        toast.success('已复制纯文本')
-                        setTimeout(() => setCopiedIndex(null), 1500)
-                      }}
-                    >
-                      {copiedIndex === i ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                      复制
+                      <RefreshCw className="w-3 h-3" />
+                      {m.isError ? '刷新重试' : '重新生成'}
                     </Button>
                   </div>
                 )}
@@ -576,11 +645,11 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
 
         {loading && !messages.some((m) => m.role === 'assistant' && m.content) && (
           <div className="flex gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center shrink-0">
-              <Bot className="w-3.5 h-3.5 text-teal-" />
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gold/25 to-gold/10 flex items-center justify-center shrink-0">
+              <Bot className="w-3.5 h-3.5 text-gold" />
             </div>
-            <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <Loader2 className="w-3 h-3 animate-spin" />
+            <div className="bg-gold/10 border border-gold/25 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin text-gold" />
               <span className="text-sm text-muted-foreground">思考中</span>
             </div>
           </div>
@@ -646,60 +715,54 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           </div>
         )}
 
-        {/* 已 @ 引用的文件标签栏 */}
-        {referencedItems.length > 0 && (
-          <div className="mb-2 space-y-1.5">
-            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
-              {referencedItems.map((ref) => {
-                const meta = REF_TYPE_META[ref.type]
-                const Icon = meta.icon
-                return (
-                  <span
-                    key={`${ref.type}-${ref.id}`}
-                    className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border ${meta.chipClass}`}
-                  >
-                    <Icon className="w-3 h-3 shrink-0" />
-                    <span className="truncate max-w-[140px]">{ref.title}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeReference(ref.type, ref.id)}
-                      className="hover:opacity-70 ml-0.5"
-                      title="移除引用"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )
-              })}
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {[
-                '请深度解读并分析这些材料的核心剧情与亮点',
-                '请对比检查这些材料中的逻辑漏洞与人设冲突',
-              ].map((quickPrompt) => (
+        {/* 已 @ 引用的文件标签 + 添加引用按钮 */}
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 max-h-20 overflow-y-auto">
+          {referencedItems.map((ref) => {
+            const meta = REF_TYPE_META[ref.type]
+            const Icon = meta.icon
+            return (
+              <span
+                key={`${ref.type}-${ref.id}`}
+                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[7px] border border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand-ink)]"
+              >
+                <Icon className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[130px]">{ref.title}</span>
                 <button
-                  key={quickPrompt}
                   type="button"
-                  disabled={loading}
-                  onClick={() => sendMessage(quickPrompt, undefined, referencedItems)}
-                  className="text-[10px] px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition"
+                  onClick={() => removeReference(ref.type, ref.id)}
+                  className="hover:opacity-70 ml-0.5"
+                  title="移除引用"
                 >
-                  ✨ {quickPrompt.slice(1, 14)}
+                  <X className="w-3 h-3" />
                 </button>
-              ))}
-            </div>
-          </div>
-        )}
+              </span>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => {
+              setMentionTriggerType('button')
+              setMentionQuery('')
+              setMentionIndex(0)
+              loadReferences()
+              setMentionOpen((v) => !v)
+            }}
+            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[7px] border border-border bg-card hover:bg-[var(--surface-3)] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            引用设定
+          </button>
+        </div>
 
-        {/* 文本输入框 */}
-        <div className="flex gap-2 items-end">
+        {/* 一体化 AI 输入框 */}
+        <div className="rounded-[12px] border border-[var(--line-2)] bg-[var(--surface-2)] focus-within:border-primary focus-within:bg-card transition-colors p-2.5">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => handleInputChange(e.target.value)}
-            placeholder="输入问题，或输入 @ 引用多个章节/设定进行分析... (Shift+Enter 换行)"
+            placeholder="输入问题，或输入 @ 引用多个章节/设定进行分析..."
             rows={2}
-            className="resize-none text-sm min-h-[56px] max-h-28"
+            className="resize-none text-[13px] min-h-[44px] max-h-28 border-0 bg-transparent p-0 focus-visible:ring-0 shadow-none"
             onKeyDown={(e) => {
               if (mentionOpen && filteredRefs.length > 0) {
                 if (e.key === 'ArrowDown') {
@@ -730,58 +793,73 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
               }
             }}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            size="icon"
-            className="h-9 w-9 shrink-0"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
+
+          <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-border/60">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Select value={selectedModel} onValueChange={setSelectedModel}>
+                    <SelectTrigger className="h-6 w-auto min-w-[110px] max-w-[160px] text-[11px] px-2 gap-1 border-0 bg-transparent shadow-none hover:bg-[var(--surface-3)] rounded-[6px]">
+                      <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {models.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs">
+                          <div className="flex flex-col gap-0.5 py-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-medium">{m.label}</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                {m.badge}
+                              </Badge>
+                            </div>
+                            {m.description && (
+                              <span className="text-[10px] text-muted-foreground">{m.description}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="start" className="max-w-xs text-xs space-y-1 p-2.5 bg-popover text-popover-foreground border border-border shadow-lg">
+                {models.map((m) => (
+                  <div key={m.id}>
+                    <span className="font-mono font-semibold">{m.label}</span>：{m.description}
+                  </div>
+                ))}
+              </TooltipContent>
+            </Tooltip>
+
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+              className="ml-auto w-7 h-7 rounded-[8px] ai-brand-mark text-white inline-flex items-center justify-center disabled:opacity-45 hover:opacity-95 transition-opacity shrink-0"
+              title="发送"
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </div>
 
-        {/* 底部工具栏：@引用按钮 + 自定义模型选择 */}
-        <div className="flex items-center justify-between gap-2 mt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs gap-1"
-            onClick={() => {
-              setMentionTriggerType('button')
-              setMentionQuery('')
-              setMentionIndex(0)
-              loadReferences()
-              setMentionOpen((v) => !v)
-            }}
-          >
-            <AtSign className="w-3.5 h-3.5" />
-            引用文件
-            {referencedItems.length > 0 && (
-              <Badge variant="secondary" className="h-4 px-1 text-[10px] ml-0.5">
-                {referencedItems.length}
-              </Badge>
-            )}
-          </Button>
-
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="h-7 w-auto min-w-[130px] max-w-[180px] text-xs px-2 gap-1.5">
-              <Cpu className="w-3 h-3 text-muted-foreground shrink-0" />
-              <SelectValue placeholder="选择模型" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              {models.map((m) => (
-                <SelectItem key={m.id} value={m.id} className="text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-medium">{m.label}</span>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0">
-                      {m.badge}
-                    </Badge>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* 底部快捷分析标签 */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {[
+            { label: '深度解读分析', prompt: '请深度解读并分析当前章节及关联材料的核心剧情与亮点' },
+            { label: '对比检查逻辑漏洞', prompt: '请对比检查当前章节与已有设定中的逻辑漏洞与人设冲突' },
+          ].map((quick) => (
+            <button
+              key={quick.label}
+              type="button"
+              disabled={loading}
+              onClick={() => sendMessage(quick.prompt, undefined, referencedItems)}
+              className="text-[11px] px-2.5 py-1 rounded-[7px] border border-border bg-card hover:bg-[var(--surface-3)] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {quick.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>

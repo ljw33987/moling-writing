@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -42,6 +49,8 @@ interface AutoSerialTask {
   enabled: boolean
   intervalMin: number
   targetWords: number
+  startChapterNum: number | null
+  targetVolumeId: string | null
   lastRunAt: string | null
   nextRunAt: string | null
   status: string
@@ -52,15 +61,18 @@ interface AutoSerialTask {
 
 interface Props {
   novelId: string
+  volumes?: { id: string; title: string; isOutline: boolean }[]
   onChapterCreated?: (chapterId?: string) => void
 }
 
-export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
+export function AutoSerialPanel({ novelId, volumes = [], onChapterCreated }: Props) {
   const [task, setTask] = useState<AutoSerialTask | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [intervalMin, setIntervalMin] = useState(60)
   const [targetWords, setTargetWords] = useState(2000)
+  const [startChapterNum, setStartChapterNum] = useState<string>('')
+  const [targetVolumeId, setTargetVolumeId] = useState<string>('auto')
   const [plotDirection, setPlotDirection] = useState('')
   const [toggling, setToggling] = useState(false)
   const [runningNow, setRunningNow] = useState(false)
@@ -68,33 +80,43 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
   const load = useCallback(async () => {
     try {
       const r = await api<{ task: AutoSerialTask }>(`/api/auto-serial?novelId=${novelId}`)
-      setTask(r.task)
+      setTask((prev) => {
+        if (prev && r.task.totalGenerated > prev.totalGenerated) {
+          onChapterCreated?.()
+        }
+        return r.task
+      })
       setIntervalMin(r.task.intervalMin)
       setTargetWords(r.task.targetWords)
+      setStartChapterNum(r.task.startChapterNum ? String(r.task.startChapterNum) : '')
+      setTargetVolumeId(r.task.targetVolumeId || 'auto')
       setPlotDirection(r.task.plotDirection || '')
     } catch (e: any) {
       // 静默失败
     } finally {
       setLoading(false)
     }
-  }, [novelId])
+  }, [novelId, onChapterCreated])
 
   useEffect(() => {
     load()
-    // 每 10 秒刷新一次任务状态
-    const i = setInterval(load, 10000)
+    const pollMs = task?.enabled || task?.status === 'running' || runningNow ? 3000 : 10000
+    const i = setInterval(load, pollMs)
     return () => clearInterval(i)
-  }, [load])
+  }, [load, task?.enabled, task?.status, runningNow])
 
   const handleSave = async () => {
     setToggling(true)
     try {
+      const parsedStart = startChapterNum.trim() ? Math.max(1, Math.floor(Number(startChapterNum))) : null
       await api('/api/auto-serial', {
         method: 'POST',
         body: JSON.stringify({
           novelId,
           intervalMin: Number(intervalMin),
           targetWords: Number(targetWords),
+          startChapterNum: parsedStart,
+          targetVolumeId: targetVolumeId === 'auto' ? null : targetVolumeId,
           plotDirection: plotDirection.trim() || null,
         }),
       })
@@ -161,8 +183,14 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
     paused: { label: '已暂停', color: 'text-amber-500', dot: 'bg-amber-400', icon: Pause },
     error: { label: '错误', color: 'text-red-500', dot: 'bg-red-500', icon: AlertCircle },
   }
+  const isGenerating = task.status === 'running' || runningNow
   const status = statusConfig[task.status] || statusConfig.idle
   const StatusIcon = status.icon
+  const badgeText = isGenerating
+    ? 'AI 连载：正在生成...'
+    : task.enabled
+      ? 'AI 连载：运行中'
+      : `AI 连载：${status.label}`
 
   return (
     <div className="flex items-center gap-1.5">
@@ -170,14 +198,22 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
         <TooltipTrigger asChild>
           <Badge
             variant="outline"
-            className={`gap-1.5 cursor-help ${status.color}`}
+            className={`gap-1.5 cursor-help ${
+              isGenerating
+                ? 'text-primary border-[var(--brand-line)] bg-[var(--brand-soft)]'
+                : task.enabled
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5'
+                  : status.color
+            }`}
           >
-            {task.status === 'running' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
+            {isGenerating ? (
+              <Loader2 className="w-3 h-3 animate-spin text-primary" />
+            ) : task.enabled ? (
+              <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
             ) : (
               <StatusIcon className="w-3 h-3" />
             )}
-            AI 连载：{status.label}
+            <span>{badgeText}</span>
             {task.totalGenerated > 0 && <span className="text-muted-foreground">· 已生成 {task.totalGenerated} 章</span>}
           </Badge>
         </TooltipTrigger>
@@ -249,7 +285,7 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <TimerReset className="w-4 h-4 text-teal-" />
+              <TimerReset className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               自动连载设置
             </DialogTitle>
           </DialogHeader>
@@ -260,11 +296,11 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
                 <Label>生成间隔（分钟）</Label>
                 <Input
                   type="number"
-                  min={5}
+                  min={1}
                   value={intervalMin}
                   onChange={(e) => setIntervalMin(Number(e.target.value))}
                 />
-                <p className="text-xs text-muted-foreground">最小 5 分钟</p>
+                <p className="text-xs text-muted-foreground">最小 1 分钟</p>
               </div>
               <div className="space-y-2">
                 <Label>每章字数目标</Label>
@@ -276,6 +312,42 @@ export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
                   onChange={(e) => setTargetWords(Number(e.target.value))}
                 />
                 <p className="text-xs text-muted-foreground">建议 1500-3000</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>从第几章开始写</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={startChapterNum}
+                  onChange={(e) => setStartChapterNum(e.target.value)}
+                  placeholder="留空则自动顺延"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {startChapterNum.trim()
+                    ? `下一章将从第 ${startChapterNum} 章开始生成`
+                    : '未指定，按当前章节总数顺延'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>写入目标分卷</Label>
+                <Select value={targetVolumeId} onValueChange={setTargetVolumeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="默认（最后一卷）" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">默认（最后一个正文卷）</SelectItem>
+                    {volumes.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.title}
+                        {v.isOutline ? '（大纲）' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">新生成章节将放入此分卷</p>
               </div>
             </div>
 

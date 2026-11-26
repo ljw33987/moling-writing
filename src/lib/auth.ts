@@ -2,7 +2,13 @@ import { cookies } from 'next/headers'
 import crypto from 'crypto'
 import { db } from './db'
 
-const SECRET = process.env.JWT_SECRET || 'moli-writing-secret-2026-do-not-leak'
+const SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production' ? '' : 'moli-writing-secret-2026-do-not-leak'
+)
+
+if (process.env.NODE_ENV === 'production' && !SECRET) {
+  throw new Error('JWT_SECRET must be set in production')
+}
 
 // ============ JWT ============
 export function signToken(userId: string): string {
@@ -143,10 +149,16 @@ export async function ensureAdminUser() {
   if (adminCount > 0) return null
 
   // 没有管理员才创建默认管理员
+  const email = process.env.ADMIN_EMAIL || (process.env.NODE_ENV === 'production' ? '' : 'admin@moli.com')
+  const password = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'admin123')
+  if (!email || !password) {
+    throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD before first production startup')
+  }
+
   return db.user.create({
     data: {
-      email: 'admin@moli.com',
-      password: hashPassword('admin123'),
+      email,
+      password: hashPassword(password),
       name: '平台管理员',
       penName: '管理员',
       tokens: 999999,

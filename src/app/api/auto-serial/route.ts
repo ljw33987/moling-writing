@@ -33,6 +33,14 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // 若服务热重载导致状态残留为 running 但实际未在运行，自动恢复为 idle
+  if (task.status === 'running' && !isAutoSerialRunning(task.id)) {
+    task = await db.autoSerial.update({
+      where: { id: task.id },
+      data: { status: task.enabled ? 'idle' : 'paused' },
+    })
+  }
+
   // 若已开启自动连载且到达计划执行时间，自动在后台触发下一章生成
   if (
     task.enabled &&
@@ -44,7 +52,17 @@ export async function GET(req: NextRequest) {
     void runAutoSerialChapter(task.id)
   }
 
-  return NextResponse.json({ task })
+  const extra = await db.$queryRaw<Array<{ startChapterNum: number | null; targetVolumeId: string | null }>>`
+    SELECT startChapterNum, targetVolumeId FROM AutoSerial WHERE id = ${task.id} LIMIT 1
+  `.catch(() => [])
+
+  return NextResponse.json({
+    task: {
+      ...task,
+      startChapterNum: (task as any).startChapterNum ?? extra[0]?.startChapterNum ?? null,
+      targetVolumeId: (task as any).targetVolumeId ?? extra[0]?.targetVolumeId ?? null,
+    },
+  })
 }
 
 // POST - 创建/更新任务
@@ -53,7 +71,7 @@ export async function POST(req: NextRequest) {
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
 
   const body = await req.json()
-  const { novelId, enabled, intervalMin, targetWords, plotDirection } = body
+  const { novelId, enabled, intervalMin, targetWords, plotDirection, startChapterNum, targetVolumeId } = body
 
   if (!novelId) return NextResponse.json({ error: '需要 novelId' }, { status: 400 })
   const novel = await db.novel.findUnique({ where: { id: novelId } })
@@ -62,37 +80,86 @@ export async function POST(req: NextRequest) {
   }
 
   let task = await db.autoSerial.findFirst({ where: { novelId } })
-  const data: any = {}
+  const baseData: any = {}
   if (enabled !== undefined) {
-    data.enabled = enabled
-    data.status = enabled ? 'idle' : 'paused'
+    baseData.enabled = enabled
+    baseData.status = enabled ? 'idle' : 'paused'
     if (enabled) {
-      data.nextRunAt = new Date() // 启用时立即触发一次
+      baseData.nextRunAt = new Date() // 启用时立即触发一次
     }
   }
-  if (intervalMin !== undefined) data.intervalMin = Math.max(5, intervalMin)
-  if (targetWords !== undefined) data.targetWords = Math.max(500, targetWords)
-  if (plotDirection !== undefined) data.plotDirection = plotDirection
+  if (intervalMin !== undefined) baseData.intervalMin = Math.max(1, Number(intervalMin) || 1)
+  if (targetWords !== undefined) baseData.targetWords = Math.max(500, targetWords)
+  if (plotDirection !== undefined) baseData.plotDirection = plotDirection
 
-  if (task) {
-    task = await db.autoSerial.update({ where: { id: task.id }, data })
-  } else {
-    task = await db.autoSerial.create({
-      data: {
-        novelId,
-        userId: session.user.id,
-        enabled: enabled ?? false,
-        intervalMin: intervalMin ?? 60,
-        targetWords: targetWords ?? 2000,
-        plotDirection: plotDirection ?? null,
-        status: enabled ? 'idle' : 'idle',
-        nextRunAt: enabled ? new Date() : null,
-        ...data,
-      },
-    })
+  const hasStartChapter = startChapterNum !== undefined
+  const parsedStartChapter =
+    startChapterNum && Number(startChapterNum) >= 1 ? Math.floor(Number(startChapterNum)) : null
+  const hasTargetVolume = targetVolumeId !== undefined
+  const parsedTargetVolume = targetVolumeId || null
+
+  try {
+    const fullData = {
+      ...baseData,
+      ...(hasStartChapter ? { startChapterNum: parsedStartChapter } : {}),
+      ...(hasTargetVolume ? { targetVolumeId: parsedTargetVolume } : {}),
+    }
+    if (task) {
+      task = await db.autoSerial.update({ where: { id: task.id }, data: fullData })
+    } else {
+      task = await db.autoSerial.create({
+        data: {
+          novelId,
+          userId: session.user.id,
+          enabled: enabled ?? false,
+          intervalMin: intervalMin ?? 60,
+          targetWords: targetWords ?? 2000,
+          plotDirection: plotDirection ?? null,
+          status: 'idle',
+          nextRunAt: enabled ? new Date() : null,
+          ...fullData,
+        },
+      })
+    }
+  } catch {
+    // 兼容未重启 dev server 时旧版 Prisma Client 尚无新字段的情况
+    if (task) {
+      task = await db.autoSerial.update({ where: { id: task.id }, data: baseData })
+    } else {
+      task = await db.autoSerial.create({
+        data: {
+          novelId,
+          userId: session.user.id,
+          enabled: enabled ?? false,
+          intervalMin: intervalMin ?? 60,
+          targetWords: targetWords ?? 2000,
+          plotDirection: plotDirection ?? null,
+          status: 'idle',
+          nextRunAt: enabled ? new Date() : null,
+          ...baseData,
+        },
+      })
+    }
+    if (hasStartChapter) {
+      await db.$executeRaw`UPDATE AutoSerial SET startChapterNum = ${parsedStartChapter} WHERE id = ${task.id}`
+    }
+    if (hasTargetVolume) {
+      await db.$executeRaw`UPDATE AutoSerial SET targetVolumeId = ${parsedTargetVolume} WHERE id = ${task.id}`
+    }
   }
 
-  return NextResponse.json({ task })
+  // 若开启自动连载，立即在后台触发一次生成
+  if (enabled === true && !isAutoSerialRunning(task.id)) {
+    void runAutoSerialChapter(task.id)
+  }
+
+  return NextResponse.json({
+    task: {
+      ...task,
+      ...(hasStartChapter ? { startChapterNum: parsedStartChapter } : {}),
+      ...(hasTargetVolume ? { targetVolumeId: parsedTargetVolume } : {}),
+    },
+  })
 }
 
 // 立即触发一次生成（手动调用）

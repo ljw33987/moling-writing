@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "prompts": {
+    "assets/generated/image-3de604e3-6e99-431a-8f7a-5e930cea7e61.png": "墨灵写作 Chinese web novel AI writing desktop website redesign. Professional high fidelity UI design comparison board with precisely two widescreen app screenshots side by side on a warm neutral background, no laptops, no marketing. Shared contemporary Chinese literary editorial identity: warm ivory, midnight ink blue, restrained copper orange CTA, crisp Simplified Chinese, orderly spacing. Left screenshot 工作台: top nav 工作台 / AI 工具箱 / 提示词市场 / 作品广场, prominent current book 雾港来信 with ink wash foggy harbor illustrated jacket, current chapter, daily word goal line, 继续写作, recent chapters and 自动连载 status. Below 我的作品 shelf with three illustrated cover thumbnails, 新建作品. Right screenshot 写作编辑器: compact header 返回书架, book title, 已保存, 专注, 导出. Narrow icon rail and chapter index left, center wide warm white manuscript column with Chinese Song serif title 第十二章 雾港来信 and short Chinese body text. Right AI 助手 drawer with 续写 润色 生成整章, 引用设定, short AI draft, 插入正文 and prompt area. Footer 字数目标 and 版本历史. Polished minimal realistic and highly usable high fidelity, clear and sharp text. Maximize the screenshot area in both panels.",
+    "assets/generated/image-a459e2b4-f7d8-4dbd-bb35-6e6d43360533.png": "High fidelity actual Simplified Chinese web app mockup for 墨灵写作, continuation of warm ivory paper #f7f2ea, ink navy header with subtle foggy harbor silhouette, copper orange primary actions, elegant Song type headings, graphic thin borders, realistic usable clean UI, readable accurate Chinese, book 雾港来信. No device frames, no presentation titles. One full-width desktop screenshot of 设定库 for 雾港来信. Top navy header 墨灵写作; breadcrumb 我的作品 / 雾港来信 / 设定库. Left vertical tabs 角色 / 世界观 / 道具功法 with counts. Middle searchable roster with 沈雁 selected and 陈渡, 林舟. Right generous structured detail for 沈雁, character portrait painted ink wash, editable fields 身份 性格 背景故事, actions 编辑 and AI 生成小传. Header actions 新建设定 and 批量生成. Balanced content and generous spacing."
+  },
+  "previews": {},
+  "libraryAssets": {
+    "assets/generated/image-3de604e3-6e99-431a-8f7a-5e930cea7e61.png": "2103b039-8385-41c7-98c9-fcd4838f5f62",
+    "assets/generated/image-a459e2b4-f7d8-4dbd-bb35-6e6d43360533.png": "e59a2340-483b-4dbc-b1ca-2f5f0cbf9b53"
+  },
+  "origins": {
+    "assets/generated/image-3de604e3-6e99-431a-8f7a-5e930cea7e61.png": "generated",
+    "assets/generated/image-a459e2b4-f7d8-4dbd-bb35-6e6d43360533.png": "generated"
+  },
+  "purposes": {
+    "assets/generated/image-3de604e3-6e99-431a-8f7a-5e930cea7e61.png": "asset",
+    "assets/generated/image-a459e2b4-f7d8-4dbd-bb35-6e6d43360533.png": "asset"
+  }
+}

@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/orders?id=xxx&status=paid - 模拟支付回调
 export async function PATCH(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Mock payments are disabled in production' }, { status: 404 })
+  }
   const session = await requireSessionOr401()
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
   const user = session.user
@@ -85,22 +88,26 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: '订单已支付' }, { status: 400 })
   }
 
-  // 事务：更新订单 + 增加 Token
-  await db.$transaction([
-    db.order.update({
-      where: { id },
-      data: { status: 'paid', paidAt: new Date() },
-    }),
-    db.user.update({
+  // Compare-and-set prevents two concurrent requests from crediting the same order twice.
+  const paidAt = new Date()
+  const claimed = await db.$transaction(async (tx) => {
+    const result = await tx.order.updateMany({
+      where: { id, userId: user.id, status: 'pending' },
+      data: { status: 'paid', paidAt },
+    })
+    if (result.count !== 1) return false
+    await tx.user.update({
       where: { id: user.id },
       data: { tokens: { increment: order.tokens } },
-    }),
-  ])
+    })
+    return true
+  })
+  if (!claimed) return NextResponse.json({ error: 'Order already processed' }, { status: 409 })
 
   const updatedUser = await db.user.findUnique({ where: { id: user.id } })
   return NextResponse.json({
     ok: true,
-    order: { ...order, status: 'paid', paidAt: new Date() },
+    order: { ...order, status: 'paid', paidAt },
     newBalance: updatedUser?.tokens,
   })
 }

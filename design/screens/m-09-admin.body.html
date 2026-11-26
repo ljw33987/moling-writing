@@ -1,0 +1,137 @@
+<div class="m-shell">
+  <!--MSTATUS-->
+
+  <div class="m-topbar">
+    <button class="m-iconbtn"><svg class="ic" style="transform:rotate(180deg)"><use href="#i-chev-right"/></svg></button>
+    <div style="flex:1">
+      <div style="font-size:17px;font-weight:700;letter-spacing:-.02em">管理后台</div>
+      <div style="font-size:10.5px;color:var(--ink-3);margin-top:1px">平台运营数据 · 实时同步</div>
+    </div>
+    <button class="m-iconbtn"><svg class="ic"><use href="#i-refresh"/></svg></button>
+  </div>
+
+  <div class="m-scroll">
+    <div class="m-pad">
+
+      <!-- 概览指标 -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:11px;color:var(--ink-3)">注册用户</span>
+            <span class="badge badge-green" style="height:18px;font-size:9.5px;margin-left:auto">+8.2%</span>
+          </div>
+          <div class="mono" style="font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px">12,846</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:11px;color:var(--ink-3)">作品总数</span>
+            <span class="badge badge-green" style="height:18px;font-size:9.5px;margin-left:auto">+12.6%</span>
+          </div>
+          <div class="mono" style="font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px">38,209</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:11px;color:var(--ink-3)">AI 调用</span>
+            <span class="badge badge-green" style="height:18px;font-size:9.5px;margin-left:auto">+21.4%</span>
+          </div>
+          <div class="mono" style="font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px">1,042,338</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:11px;color:var(--ink-3)">本月收入</span>
+            <span class="badge badge-rose" style="height:18px;font-size:9.5px;margin-left:auto">-3.1%</span>
+          </div>
+          <div class="mono" style="font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px">¥86,420</div>
+        </div>
+      </div>
+
+      <!-- 趋势图 -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-trend"/></svg>
+        <h2>近 7 天新增</h2>
+        <span class="more">用户 / 作品</span>
+      </div>
+      <div class="m-card" style="padding:14px">
+        <svg viewBox="0 0 320 110" preserveAspectRatio="none" style="width:100%;height:110px">
+          <defs>
+            <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6366F1" stop-opacity=".25"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></linearGradient>
+          </defs>
+          <g stroke="#E8E9F0" stroke-width="1">
+            <line x1="0" y1="18" x2="320" y2="18"/><line x1="0" y1="52" x2="320" y2="52"/><line x1="0" y1="86" x2="320" y2="86"/><line x1="0" y1="104" x2="320" y2="104"/>
+          </g>
+          <path d="M0 82 L53 70 L106 76 L160 48 L213 54 L266 26 L320 18 L320 104 L0 104 Z" fill="url(#m1)"/>
+          <polyline points="0,82 53,70 106,76 160,48 213,54 266,26 320,18" fill="none" stroke="#6366F1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="320" cy="18" r="3.6" fill="#6366F1"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-4);margin-top:6px">
+          <span>周一</span><span>周三</span><span>周五</span><span>周日</span>
+        </div>
+      </div>
+
+      <!-- 后台分区（横向滑动） -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-grid"/></svg>
+        <h2>管理分区</h2>
+      </div>
+      <div class="m-chips">
+        <button class="chip on">总览</button>
+        <button class="chip">用户</button>
+        <button class="chip">作品</button>
+        <button class="chip">订单</button>
+        <button class="chip">AI 日志</button>
+        <button class="chip">公告</button>
+        <button class="chip">群发</button>
+        <button class="chip">邮箱</button>
+        <button class="chip">兑换码</button>
+        <button class="chip">文档</button>
+        <button class="chip">平台配置</button>
+      </div>
+
+      <!-- 最近用户 -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-users"/></svg>
+        <h2>最近用户</h2>
+        <button class="more">全部 ›</button>
+      </div>
+      <div class="m-list">
+        <div class="m-row">
+          <span class="avatar" style="width:32px;height:32px;border-radius:10px;font-size:11px">梧</span>
+          <div class="tx"><h4>梧攸笙歌 <span class="badge badge-brand" style="height:17px;font-size:9.5px">ADMIN</span></h4><p>wysg@moli.com · 128,460 Token</p></div>
+          <svg class="ic ic-sm rt"><use href="#i-chev-right"/></svg>
+        </div>
+        <div class="m-row">
+          <span class="avatar" style="width:32px;height:32px;border-radius:10px;font-size:11px;background:linear-gradient(140deg,#0EA5E9,#0891B2)">潮</span>
+          <div class="tx"><h4>潮汐观测员</h4><p>tide@moli.com · 月卡会员</p></div>
+          <svg class="ic ic-sm rt"><use href="#i-chev-right"/></svg>
+        </div>
+        <div class="m-row">
+          <span class="avatar" style="width:32px;height:32px;border-radius:10px;font-size:11px;background:linear-gradient(140deg,#F59E0B,#DC2626)">九</span>
+          <div class="tx"><h4>九十年代 <span class="badge badge-rose" style="height:17px;font-size:9.5px">封禁</span></h4><p>nineties@moli.com · 免费用户</p></div>
+          <svg class="ic ic-sm rt"><use href="#i-chev-right"/></svg>
+        </div>
+      </div>
+
+      <!-- 操作 -->
+      <div class="m-sec"><svg class="ic"><use href="#i-sliders"/></svg><h2>快捷操作</h2></div>
+      <div class="m-list">
+        <div class="m-row">
+          <div class="ic-box" style="background:var(--brand-soft);color:var(--brand)"><svg class="ic ic-sm"><use href="#i-megaphone"/></svg></div>
+          <div class="tx"><h4>新建公告</h4><p>可同时邮件群发给所有用户</p></div>
+          <svg class="ic ic-sm rt"><use href="#i-chev-right"/></svg>
+        </div>
+        <div class="m-row">
+          <div class="ic-box" style="background:var(--cyan-soft);color:var(--cyan)"><svg class="ic ic-sm"><use href="#i-cloud"/></svg></div>
+          <div class="tx"><h4>数据备份</h4><p>上次：今天 03:00 · 42.6 MB</p></div>
+          <svg class="ic ic-sm rt"><use href="#i-chev-right"/></svg>
+        </div>
+      </div>
+
+      <div class="m-tip" style="margin-top:14px">
+        <svg class="ic ic-sm" style="flex:none;margin-top:1px"><use href="#i-info"/></svg>
+        <span>手机端适合查看概览与快速处理；批量操作建议在桌面端后台完成。</span>
+      </div>
+
+      <div style="height:8px"></div>
+    </div>
+  </div>
+</div>

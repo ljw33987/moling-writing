@@ -31,6 +31,10 @@ import { Users, Map as MapIcon, Sword } from 'lucide-react'
 
 export interface NovelTiptapHandle {
   getEditor: () => Editor | null
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => boolean
   toggleBold: () => void
   toggleItalic: () => void
   toggleHeading: () => void
@@ -54,6 +58,7 @@ interface Props {
   fontSize?: number
   onUpdate: (html: string, words: number) => void
   onSelectionChange: (selectedText: string) => void
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void
   onSaveShortcut?: () => void
 }
 
@@ -108,6 +113,7 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
       fontSize = 17,
       onUpdate,
       onSelectionChange,
+      onHistoryChange,
       onSaveShortcut,
     },
     ref
@@ -215,7 +221,7 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
       editorProps: {
         attributes: {
           class:
-            'tiptap-novel-body outline-none min-h-full px-6 py-8 sm:px-12 sm:py-10 max-w-none',
+            'tiptap-novel-body outline-none min-h-full px-4 py-6 sm:px-12 sm:py-10 max-w-none',
           spellcheck: 'false',
         },
         handleKeyDown: (_view, event) => {
@@ -229,6 +235,10 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
       },
       onCreate: ({ editor: ed }) => {
         ensureParagraphIds(ed)
+        onHistoryChange?.(ed.can().undo(), ed.can().redo())
+      },
+      onTransaction: ({ editor: ed }) => {
+        onHistoryChange?.(ed.can().undo(), ed.can().redo())
       },
       onUpdate: ({ editor: ed }) => {
         const canonical = canonicalBody(ed)
@@ -268,6 +278,10 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
       ref,
       () => ({
         getEditor: () => editor,
+        undo: () => editor?.chain().focus().undo().run(),
+        redo: () => editor?.chain().focus().redo().run(),
+        canUndo: () => editor?.can().undo() ?? false,
+        canRedo: () => editor?.can().redo() ?? false,
         toggleBold: () => editor?.chain().focus().toggleBold().run(),
         toggleItalic: () => editor?.chain().focus().toggleItalic().run(),
         toggleHeading: () =>
@@ -351,7 +365,7 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
     )
 
     const typeIcon = (type: CodexItem['type']) => {
-      if (type === 'character') return <Users className="h-3.5 w-3.5 text-teal-" />
+      if (type === 'character') return <Users className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
       if (type === 'worldview') return <MapIcon className="h-3.5 w-3.5 text-emerald-500" />
       return <Sword className="h-3.5 w-3.5 text-amber-500" />
     }

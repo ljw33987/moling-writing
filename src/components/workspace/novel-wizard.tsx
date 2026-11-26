@@ -129,7 +129,7 @@ export function NovelWizard({ open, onClose, folderId, onCreated }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-teal-" />
+            <Wand2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             创建新作品
           </DialogTitle>
         </DialogHeader>
@@ -184,7 +184,7 @@ export function NovelWizard({ open, onClose, folderId, onCreated }: Props) {
             </Button>
 
             {aiResult.synopsis && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-teal- dark:border-teal-">
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-indigo-500/30">
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                     <FileText className="w-3 h-3" /> 书籍简介

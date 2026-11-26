@@ -1,0 +1,21 @@
+{
+    "version":  1,
+    "assets":  {
+                   "7da17af6-2603-486c-8340-a1ccc3398267":  {
+                                                                "name":  "墨灵写作界面设计稿",
+                                                                "path":  "assets/generated/image-3de604e3-6e99-431a-8f7a-5e930cea7e61.png"
+                                                            },
+                   "582954de-4905-4a1b-8649-17f26b093ae7":  {
+                                                                "name":  "设定库",
+                                                                "path":  "assets/generated/image-a459e2b4-f7d8-4dbd-bb35-6e6d43360533.png"
+                                                            },
+                   "1664d8c7-dc9b-402e-95e0-ad5a843e8510":  {
+                                                                "name":  "作品广场",
+                                                                "path":  "assets/generated/moling-plaza-mockup.png"
+                                                            },
+                   "fa7d5bef-597c-4bb7-89fd-8e07d93ded59":  {
+                                                                "name":  "移动端写作流程",
+                                                                "path":  "assets/generated/moling-mobile-mockup.png"
+                                                            }
+               }
+}

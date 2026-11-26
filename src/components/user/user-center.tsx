@@ -233,14 +233,14 @@ export function UserCenter() {
           <CardContent className="p-4">
             <div className="flex items-center gap-4 flex-wrap">
               <Avatar className="w-14 h-14">
-                <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-xl">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xl font-display">
                   {(penName || name || 'W').slice(0, 1)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-base flex items-center gap-2">
                   {penName || name || '未命名'}
-                  <Badge variant="outline" className="text-teal- border-teal- gap-1 text-xs">
+                  <Badge variant="outline" className="text-gold border-gold/40 gap-1 text-xs">
                     <Crown className="w-3 h-3" />
                     {data.user.plan === 'pro' ? '月卡' : data.user.plan === 'year' ? '年卡' : '免费'}
                   </Badge>
@@ -249,7 +249,7 @@ export function UserCenter() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="gap-1.5 px-3 py-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <Sparkles className="w-3.5 h-3.5 text-gold" />
                   <span className="font-mono text-sm">{data.user.tokens.toLocaleString()}</span>
                   <span className="text-muted-foreground text-xs">Token</span>
                 </Badge>
@@ -279,7 +279,7 @@ export function UserCenter() {
                   onClick={() => setSection(n.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition ${
                     active
-                      ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'hover:bg-muted text-foreground'
                   }`}
                 >
@@ -354,7 +354,7 @@ export function UserCenter() {
                 </div>
                 <div className="border-t pt-2 mt-2 flex justify-between">
                   <span className="font-medium">应付金额</span>
-                  <span className="font-bold text-lg text-teal-">¥{payDialog.pkg.price}</span>
+                  <span className="font-bold text-lg font-display text-primary">¥{payDialog.pkg.price}</span>
                 </div>
               </div>
 
@@ -372,7 +372,7 @@ export function UserCenter() {
                 </Select>
               </div>
 
-              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-3 text-xs text-amber-700 dark:text-amber-300">
+              <div className="bg-gold/10 dark:bg-gold/15 border border-gold/30 rounded p-3 text-xs text-gold">
                 ⓘ 这是演示环境，点击下方按钮即可"完成支付"并自动到账 Token。无需真实扣款。
               </div>
             </div>
@@ -445,28 +445,28 @@ function ProfileSection({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">今日字数</CardTitle>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-jade" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatWords(data.stats.todayWords)}</div>
+            <div className="text-2xl font-bold font-display">{formatWords(data.stats.todayWords)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">总字数</CardTitle>
-            <FileText className="w-4 h-4 text-teal-" />
+            <FileText className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatWords(data.stats.totalWords)}</div>
+            <div className="text-2xl font-bold font-display">{formatWords(data.stats.totalWords)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">作品数</CardTitle>
-            <BookOpen className="w-4 h-4 text-amber-500" />
+            <BookOpen className="w-4 h-4 text-gold" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.stats.novelCount}</div>
+            <div className="text-2xl font-bold font-display">{data.stats.novelCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -487,10 +487,10 @@ function ProfileSection({
                     const intensity = Math.min(4, Math.floor(day.words / 1500))
                     const colors = [
                       'bg-muted',
-                      'bg-emerald-200 dark:bg-emerald-900',
-                      'bg-emerald-400 dark:bg-emerald-700',
-                      'bg-emerald-500 dark:bg-emerald-600',
-                      'bg-emerald-600 dark:bg-emerald-500',
+                      'bg-jade/25',
+                      'bg-jade/50',
+                      'bg-jade/75',
+                      'bg-jade',
                     ]
                     return (
                       <div
@@ -507,10 +507,10 @@ function ProfileSection({
           <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
             <span>少</span>
             <div className="w-3 h-3 rounded-sm bg-muted" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-900" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-400 dark:bg-emerald-700" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-            <div className="w-3 h-3 rounded-sm bg-emerald-600" />
+            <div className="w-3 h-3 rounded-sm bg-jade/25" />
+            <div className="w-3 h-3 rounded-sm bg-jade/50" />
+            <div className="w-3 h-3 rounded-sm bg-jade/75" />
+            <div className="w-3 h-3 rounded-sm bg-jade" />
             <span>多</span>
           </div>
         </CardContent>
@@ -540,7 +540,7 @@ function RechargeSection({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-500" />
+            <Zap className="w-4 h-4 text-gold" />
             Token 充值
           </CardTitle>
         </CardHeader>
@@ -554,15 +554,15 @@ function RechargeSection({
             packages.map((p) => (
               <div
                 key={p.id}
-                className={`flex items-center justify-between p-3 border rounded-lg ${
-                  p.popular ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20' : ''
+                className={`flex items-center justify-between p-3 border rounded-lg transition hover:shadow-md hover:-translate-y-0.5 ${
+                  p.popular ? 'border-gold/40 bg-gold/10' : ''
                 }`}
               >
                 <div>
                   <div className="font-semibold">
                     {p.tokens.toLocaleString()} Token
                     {p.popular && (
-                      <Badge className="ml-2 bg-amber-500" variant="default">
+                      <Badge className="ml-2 bg-gold text-primary-foreground" variant="default">
                         推荐
                       </Badge>
                     )}
@@ -590,7 +590,7 @@ function RechargeSection({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Crown className="w-4 h-4 text-teal-" />
+            <Crown className="w-4 h-4 text-gold" />
             会员订阅
           </CardTitle>
         </CardHeader>
@@ -621,30 +621,30 @@ function RechargeSection({
           ].map((p) => (
             <div
               key={p.plan}
-              className={`p-3 border rounded-lg ${
-                p.popular ? 'border-teal- bg-violet-50 dark:bg-violet-950/20' : ''
-              } ${p.current ? 'ring-2 ring-emerald-400' : ''}`}
+              className={`p-3 border rounded-lg transition hover:shadow-md hover:-translate-y-0.5 ${
+                p.popular ? 'border-gold/40 bg-gold/10' : ''
+              } ${p.current ? 'ring-2 ring-jade' : ''}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="font-semibold flex items-center gap-2">
                   {p.name}
                   {p.popular && (
-                    <Badge className="bg-indigo-600" variant="default">
+                    <Badge className="bg-gold text-primary-foreground" variant="default">
                       热门
                     </Badge>
                   )}
                   {p.current && (
-                    <Badge variant="outline" className="text-emerald-600 border-emerald-300">
+                    <Badge variant="outline" className="text-jade border-jade/50">
                       当前
                     </Badge>
                   )}
                 </div>
-                <div className="font-bold">{p.price}</div>
+                <div className="font-bold font-display text-gold">{p.price}</div>
               </div>
               <ul className="text-xs space-y-1 mb-2">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-center gap-1.5">
-                    <Check className="w-3 h-3 text-emerald-500" />
+                    <Check className="w-3 h-3 text-jade" />
                     {f}
                   </li>
                 ))}
@@ -709,15 +709,15 @@ function OrdersSection({ orders }: { orders: any[] }) {
                   <td className="p-3 font-semibold">¥{o.amount.toFixed(2)}</td>
                   <td className="p-3">
                     {o.status === 'paid' ? (
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-300 text-xs">
+                      <Badge variant="outline" className="text-jade border-jade/50 text-xs">
                         已支付
                       </Badge>
                     ) : o.status === 'failed' ? (
-                      <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                      <Badge variant="outline" className="text-cinnabar border-cinnabar/40 text-xs">
                         失败
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                      <Badge variant="outline" className="text-gold border-gold/40 text-xs">
                         待支付
                       </Badge>
                     )}
@@ -776,10 +776,10 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
   }
 
   return (
-    <Card className="border-teal- dark:border-teal- bg-gradient-to-br from-violet-50/50 to-pink-50/50 dark:from-violet-950/20 dark:to-pink-950/20">
+    <Card className="border-gold/30 bg-gradient-to-br from-gold/10 to-gold/5">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Ticket className="w-4 h-4 text-teal-" />
+          <Ticket className="w-4 h-4 text-gold" />
           兑换码
           {history.length > 0 && (
             <Badge variant="outline" className="text-xs ml-2">
@@ -810,7 +810,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
           <Button
             onClick={handleRedeem}
             disabled={redeeming || !code.trim()}
-            className="gap-1.5 shrink-0 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+            className="gap-1.5 shrink-0 bg-primary rounded-full shadow-sm"
           >
             {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
             立即兑换
@@ -827,7 +827,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
             {history.map((h: any) => (
               <div
                 key={h.id}
-                className="flex items-center justify-between p-2 bg-card/60 rounded text-sm border border-teal- dark:border-teal-"
+                className="flex items-center justify-between p-2 bg-card/60 rounded text-sm border border-gold/30"
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-mono text-xs truncate">{h.code}</div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { getOwnedChapter } from '@/lib/ownership'
 
 // GET /api/chapters/revisions?chapterId=xxx
 export async function GET(req: NextRequest) {
@@ -135,6 +136,14 @@ export async function DELETE(req: NextRequest) {
   const url = new URL(req.url)
   const revisionId = url.searchParams.get('revisionId')
   if (!revisionId) return NextResponse.json({ error: '需要 revisionId' }, { status: 400 })
+
+  const revision = await db.chapterRevision.findUnique({
+    where: { id: revisionId },
+    select: { chapterId: true },
+  })
+  if (!revision || !await getOwnedChapter(session.user.id, revision.chapterId)) {
+    return NextResponse.json({ error: '未找到' }, { status: 404 })
+  }
 
   await db.chapterRevision.delete({ where: { id: revisionId } })
   return NextResponse.json({ ok: true, message: '已删除该版本' })

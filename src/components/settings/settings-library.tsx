@@ -60,14 +60,16 @@ interface SettingCard {
 }
 
 const TYPE_LABELS: Record<CardType, { label: string; icon: any; color: string }> = {
-  character: { label: '角色卡', icon: Users, color: 'text-teal-' },
-  worldview: { label: '世界观', icon: Map, color: 'text-emerald-500' },
-  item: { label: '道具/功法', icon: Sword, color: 'text-amber-500' },
+  character: { label: '角色卡', icon: Users, color: 'text-primary' },
+  worldview: { label: '世界观', icon: Map, color: 'text-jade' },
+  item: { label: '道具/功法', icon: Sword, color: 'text-gold' },
 }
 
 export function SettingsLibrary() {
   const [type, setType] = useState<CardType>('character')
   const [cards, setCards] = useState<SettingCard[]>([])
+  const [query, setQuery] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState<SettingCard | null>(null)
   const [open, setOpen] = useState(false)
@@ -274,11 +276,11 @@ export function SettingsLibrary() {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="studio-settings flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold">设定库</h2>
+            <h2 className="studio-page-title font-display">设定库</h2>
             <p className="text-sm text-muted-foreground mt-1">
               独立管理角色、世界观、道具设定，AI 写作时自动注入上下文
             </p>
@@ -287,7 +289,7 @@ export function SettingsLibrary() {
             <Button
               onClick={() => setAiGenOpen(true)}
               variant="outline"
-              className="gap-1.5 bg-gradient-to-r from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border-teal- dark:border-teal- text-teal- hover:bg-violet-100 dark:hover:bg-violet-900/30"
+              className="gap-1.5 bg-gradient-to-r from-gold/15 to-gold/5 dark:from-gold/20 dark:to-gold/10 border-gold/40 text-gold hover:bg-gold/15 dark:hover:bg-gold/15"
             >
               <Wand2 className="w-4 h-4" />
               AI 生成设定
@@ -305,7 +307,11 @@ export function SettingsLibrary() {
           </div>
         </div>
 
-        <Tabs value={type} onValueChange={(v) => setType(v as CardType)}>
+        <Tabs className="studio-settings-layout" value={type} onValueChange={(value) => {
+          setQuery('')
+          setSelectedId(null)
+          setType(value as CardType)
+        }}>
           <TabsList>
             <TabsTrigger value="character" className="gap-1.5">
               <Users className="w-3.5 h-3.5" />
@@ -321,7 +327,7 @@ export function SettingsLibrary() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={type} className="mt-4">
+          <TabsContent value={type} className="min-w-0">
             {loading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -338,21 +344,20 @@ export function SettingsLibrary() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cards.map((card) => (
-                  <SettingCardItem
-                    key={card.id}
-                    card={card}
-                    type={type}
-                    onEdit={() => {
-                      setEditing(card)
-                      setOpen(true)
-                    }}
-                    onDelete={() => handleDelete(card.id)}
-                    onAIGenerate={() => handleAIGenerate(card)}
-                  />
-                ))}
-              </div>
+              <SettingsBrowser
+                cards={cards}
+                type={type}
+                query={query}
+                onQueryChange={setQuery}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onEdit={(card) => {
+                  setEditing(card)
+                  setOpen(true)
+                }}
+                onDelete={handleDelete}
+                onAIGenerate={handleAIGenerate}
+              />
             )}
           </TabsContent>
         </Tabs>
@@ -378,6 +383,44 @@ export function SettingsLibrary() {
         onGenBatch={handleAIGenBatch}
         loading={aiGenLoading}
       />
+    </div>
+  )
+}
+
+function SettingsBrowser({
+  cards, type, query, onQueryChange, selectedId, onSelect, onEdit, onDelete, onAIGenerate,
+}: {
+  cards: SettingCard[]
+  type: CardType
+  query: string
+  onQueryChange: (query: string) => void
+  selectedId: string | null
+  onSelect: (id: string) => void
+  onEdit: (card: SettingCard) => void
+  onDelete: (id: string) => void
+  onAIGenerate: (card: SettingCard) => void
+}) {
+  const matches = cards.filter((card) => card.name.toLowerCase().includes(query.trim().toLowerCase()))
+  const selected = matches.find((card) => card.id === selectedId) ?? matches[0]
+
+  return (
+    <div className="studio-settings-browser">
+      <div className="studio-settings-index">
+        <Input aria-label="搜索设定" placeholder="搜索设定…" value={query} onChange={(event) => onQueryChange(event.target.value)} />
+        {matches.map((card) => (
+          <button key={card.id} type="button" aria-pressed={selected?.id === card.id}
+            onClick={() => onSelect(card.id)}>
+            {card.name}
+          </button>
+        ))}
+      </div>
+      {selected ? (
+        <SettingCardItem key={selected.id} card={selected} type={type}
+          onEdit={() => onEdit(selected)}
+          onDelete={() => onDelete(selected.id)}
+          onAIGenerate={() => onAIGenerate(selected)}
+        />
+      ) : <p className="p-4 text-sm text-muted-foreground">没有匹配的设定</p>}
     </div>
   )
 }
@@ -424,11 +467,11 @@ function SettingCardItem({
             </Badge>
           )}
         </div>
-        <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
+        <div className="flex shrink-0 gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="编辑设定" onClick={onEdit}>
             <Pencil className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={onDelete}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-cinnabar" aria-label="删除设定" onClick={onDelete}>
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -439,19 +482,19 @@ function SettingCardItem({
             {card.personality && (
               <div>
                 <span className="text-xs text-muted-foreground">性格：</span>
-                <span className="line-clamp-2">{card.personality}</span>
+                <span className="whitespace-pre-wrap break-words">{card.personality}</span>
               </div>
             )}
             {card.appearance && (
               <div>
                 <span className="text-xs text-muted-foreground">外貌：</span>
-                <span className="line-clamp-2">{card.appearance}</span>
+                <span className="whitespace-pre-wrap break-words">{card.appearance}</span>
               </div>
             )}
             {card.background && (
               <div>
                 <span className="text-xs text-muted-foreground">背景：</span>
-                <span className="line-clamp-3 text-muted-foreground">{card.background}</span>
+                <span className="whitespace-pre-wrap break-words text-muted-foreground">{card.background}</span>
               </div>
             )}
             {!card.background && (
@@ -461,12 +504,12 @@ function SettingCardItem({
                 className="w-full gap-1.5 text-xs"
                 onClick={onAIGenerate}
               >
-                <Sparkles className="w-3 h-3 text-teal-" />
+                <Sparkles className="w-3 h-3 text-gold" />
                 AI 生成背景小传
               </Button>
             )}
             {card.relations && (
-              <div className="flex items-center gap-1 text-xs text-teal-">
+              <div className="flex items-center gap-1 text-xs text-primary">
                 <Network className="w-3 h-3" />
                 <span>已设定人物关系</span>
               </div>
@@ -474,20 +517,20 @@ function SettingCardItem({
           </>
         )}
         {type === 'worldview' && card.description && (
-          <p className="line-clamp-4 text-muted-foreground">{card.description}</p>
+          <p className="whitespace-pre-wrap break-words text-muted-foreground">{card.description}</p>
         )}
         {type === 'item' && (
           <>
             {card.attributes && (
               <div>
                 <span className="text-xs text-muted-foreground">属性：</span>
-                <span className="line-clamp-2">{card.attributes}</span>
+                <span className="whitespace-pre-wrap break-words">{card.attributes}</span>
               </div>
             )}
             {card.effect && (
               <div>
                 <span className="text-xs text-muted-foreground">效果：</span>
-                <span className="line-clamp-2">{card.effect}</span>
+                <span className="whitespace-pre-wrap break-words">{card.effect}</span>
               </div>
             )}
           </>
@@ -716,7 +759,7 @@ function AIGenDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-teal-" />
+            <Wand2 className="w-4 h-4 text-gold" />
             AI 自动生成设定
           </DialogTitle>
         </DialogHeader>
@@ -767,13 +810,13 @@ function AIGenDialog({
                   rows={3}
                 />
               </div>
-              <div className="bg-violet-50 dark:bg-violet-950/20 border border-teal- dark:border-teal- rounded p-3 text-xs text-teal- dark:text-teal-">
+              <div className="bg-gold/10 dark:bg-gold/15 border border-gold/30 rounded p-3 text-xs text-gold">
                 💡 AI 会根据类型和关键词自动生成一个完整的{typeLabel}设定卡，直接保存到设定库
               </div>
               <Button
                 onClick={() => onGenSingle(genre, keywords)}
                 disabled={loading || !keywords.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-gold to-gold/75 text-ink hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 生成中...' : `生成${typeLabel}`}
@@ -801,13 +844,13 @@ function AIGenDialog({
                   rows={3}
                 />
               </div>
-              <div className="bg-violet-50 dark:bg-violet-950/20 border border-teal- dark:border-teal- rounded p-3 text-xs text-teal- dark:text-teal-">
+              <div className="bg-gold/10 dark:bg-gold/15 border border-gold/30 rounded p-3 text-xs text-gold">
                 💡 AI 会一次性生成：3 个角色 + 2 个世界观 + 2 个道具/功法，共 7 个设定卡
               </div>
               <Button
                 onClick={() => onGenBatch(genre, theme)}
                 disabled={loading || !theme.trim()}
-                className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                className="w-full gap-1.5 bg-gradient-to-r from-gold to-gold/75 text-ink hover:opacity-90"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'AI 批量生成中...' : '批量生成全套设定'}

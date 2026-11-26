@@ -23,6 +23,130 @@ import { toast } from 'sonner'
 
 const CATEGORIES = ['全部', '玄幻', '言情', '科幻', '悬疑', '历史', '都市', '武侠', '游戏', '奇幻']
 
+const COVER_THEMES = [
+  {
+    bg: 'linear-gradient(155deg, #D5E4EF 0%, #ECF3F8 100%)',
+    ink: '#1E293B',
+    sub: '#475569',
+    accent: 'rgba(30, 41, 59, 0.12)',
+    spine: 'rgba(255, 255, 255, 0.45)',
+  },
+  {
+    bg: 'linear-gradient(155deg, #1A3A32 0%, #274E44 100%)',
+    ink: '#F8FAFC',
+    sub: 'rgba(248, 250, 252, 0.72)',
+    accent: 'rgba(255, 255, 255, 0.12)',
+    spine: 'rgba(255, 255, 255, 0.18)',
+  },
+  {
+    bg: 'linear-gradient(155deg, #F3E9D7 0%, #FAF5EC 100%)',
+    ink: '#292524',
+    sub: '#78716C',
+    accent: 'rgba(180, 140, 90, 0.16)',
+    spine: 'rgba(255, 255, 255, 0.5)',
+  },
+  {
+    bg: 'linear-gradient(155deg, #D5DCE4 0%, #EAEFF4 100%)',
+    ink: '#1E293B',
+    sub: '#475569',
+    accent: 'rgba(30, 41, 59, 0.12)',
+    spine: 'rgba(255, 255, 255, 0.45)',
+  },
+  {
+    bg: 'linear-gradient(155deg, #E6E3F4 0%, #F4F2FA 100%)',
+    ink: '#23223A',
+    sub: '#5A5878',
+    accent: 'rgba(79, 70, 229, 0.12)',
+    spine: 'rgba(255, 255, 255, 0.5)',
+  },
+]
+
+function getCoverTheme(title: string, category?: string) {
+  const seedStr = `${category || ''}-${title}`
+  let hash = 0
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0
+  }
+  return COVER_THEMES[hash % COVER_THEMES.length]
+}
+
+function DefaultBookCover({
+  title,
+  author,
+  category,
+  className = '',
+  compact = false,
+}: {
+  title: string
+  author?: string | null
+  category?: string
+  className?: string
+  compact?: boolean
+}) {
+  const theme = getCoverTheme(title, category)
+  const displayTitle = title.length > 10 ? `${title.slice(0, 10)}…` : title
+  const displayAuthor = (author || '匿名').slice(0, 6)
+
+  return (
+    <div
+      className={`relative w-full h-full overflow-hidden select-none ${className}`}
+      style={{ background: theme.bg, color: theme.ink }}
+    >
+      {/* 左侧书脊压痕 */}
+      <div
+        className="absolute inset-y-0 left-0 w-2.5 pointer-events-none"
+        style={{
+          background: `linear-gradient(90deg, rgba(0,0,0,0.08) 0%, ${theme.spine} 55%, transparent 100%)`,
+        }}
+      />
+
+      {/* 极简几何波纹装饰 */}
+      <svg
+        viewBox="0 0 200 260"
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        preserveAspectRatio="none"
+      >
+        <path
+          d="M-20 185 Q 70 145 140 190 T 230 175 L 230 270 L -20 270 Z"
+          fill={theme.accent}
+        />
+        <circle
+          cx="145"
+          cy="210"
+          r="72"
+          fill="none"
+          stroke={theme.accent}
+          strokeWidth="1.2"
+        />
+        <circle
+          cx="145"
+          cy="210"
+          r="98"
+          fill="none"
+          stroke={theme.accent}
+          strokeWidth="1"
+        />
+      </svg>
+
+      {/* 左上竖排作者 */}
+      <div
+        className={`absolute ${compact ? 'top-2.5 left-3.5 text-[9px]' : 'top-4 left-5 text-[11px]'} tracking-widest opacity-80`}
+        style={{ writingMode: 'vertical-rl', color: theme.sub }}
+      >
+        {displayAuthor} — 著
+      </div>
+
+      {/* 右上竖排书名 */}
+      <div
+        className={`absolute ${compact ? 'top-2.5 right-2.5 text-sm' : 'top-4 right-4 text-xl sm:text-[22px]'} font-semibold tracking-[0.18em] leading-snug`}
+        style={{ writingMode: 'vertical-rl' }}
+      >
+        {displayTitle}
+      </div>
+    </div>
+  )
+}
+
 export function PlazaView() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,19 +225,32 @@ export function PlazaView() {
     return <ReaderView publicationId={readingId} onBack={() => { setReadingId(null); load() }} />
   }
 
+  const featured = !loading && page === 1 && !search.trim() && !category
+    ? items.find((item) => item.featured)
+    : undefined
+
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="studio-plaza flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* 顶部 */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">作品广场</h2>
-            <p className="text-sm text-muted-foreground">发现精彩原创小说</p>
-          </div>
-        </div>
+        {featured && (
+          <section className="studio-featured">
+            <div className="w-28 sm:w-36 aspect-[3/4] rounded-[10px] overflow-hidden shadow-lg shrink-0">
+              <DefaultBookCover
+                title={featured.title}
+                author={featured.user?.penName || featured.user?.name}
+                category={featured.category}
+              />
+            </div>
+            <div className="min-w-0 space-y-3">
+              <p className="studio-featured-label">精选作品 / {featured.category}</p>
+              <h2 className="font-display break-words">{featured.title}</h2>
+              <p className="line-clamp-3">{featured.synopsis}</p>
+              <p className="text-sm">{featured.user?.penName || featured.user?.name || '匿名'}</p>
+              <Button onClick={() => setReadingId(featured.id)}>阅读作品</Button>
+            </div>
+          </section>
+        )}
+        <h1 className="studio-page-title font-display">作品广场</h1>
 
         {/* 搜索 + 排序 */}
         <div className="flex flex-wrap gap-2 items-center">
@@ -167,34 +304,35 @@ export function PlazaView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {items.map((p) => (
-              <Card key={p.id} className="group overflow-hidden hover:shadow-md transition cursor-pointer" onClick={() => setReadingId(p.id)}>
-                <div className="aspect-[3/4] bg-gradient-to-br from-indigo-600/20 via-sky-500/15 to-amber-500/10 relative">
-                  {p.cover ? (
-                    <img src={p.cover} alt={p.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-4xl font-bold text-indigo-500/40 font-serif">
-                        {p.title.slice(0, 2)}
-                      </span>
-                    </div>
-                  )}
+              <Card key={p.id} className="studio-publication group overflow-hidden hover:shadow-md hover:border-[var(--brand-line)] transition cursor-pointer" onClick={() => setReadingId(p.id)}>
+                <div className="aspect-[3/4] relative overflow-hidden">
+                  <DefaultBookCover
+                    title={p.title}
+                    author={p.user?.penName || p.user?.name}
+                    category={p.category}
+                  />
                   {p.featured && (
-                    <Badge className="absolute top-2 left-2 bg-amber-500">
-                      <Star className="w-3 h-3 mr-1" /> 推荐
+                    <Badge className="absolute bottom-2 left-2 bg-amber-500/95 text-white hover:bg-amber-500 text-[10px] px-1.5 py-0.5">
+                      <Star className="w-2.5 h-2.5 mr-1" /> 推荐
                     </Badge>
                   )}
-                  <Badge className="absolute top-2 right-2" variant="secondary">
+                  <Badge className="absolute bottom-2 right-2 bg-black/45 text-white border-0 backdrop-blur-xs text-[10px] px-1.5 py-0.5">
                     {p.category}
                   </Badge>
                 </div>
                 <CardContent className="p-3 space-y-2">
-                  <h4 className="font-semibold truncate">{p.title}</h4>
+                  <h4 className="font-semibold font-display">
+                    <button type="button" className="text-left hover:underline" onClick={(event) => {
+                      event.stopPropagation()
+                      setReadingId(p.id)
+                    }}>{p.title}</button>
+                  </h4>
                   <p className="text-xs text-muted-foreground line-clamp-2 h-8">{p.synopsis}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Avatar className="w-4 h-4">
-                      <AvatarFallback className="text-[8px] bg-indigo-600 text-white">
+                      <AvatarFallback className="text-[8px] bg-primary text-primary-foreground">
                         {(p.user?.penName || p.user?.name || 'A')[0]}
                       </AvatarFallback>
                     </Avatar>
@@ -205,14 +343,14 @@ export function PlazaView() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleLike(p.id, p.isLiked) }}
-                        className={`flex items-center gap-0.5 hover:text-pink-500 transition ${p.isLiked ? 'text-pink-500' : 'text-muted-foreground'}`}
+                        className={`flex items-center gap-0.5 hover:text-cinnabar transition ${p.isLiked ? 'text-cinnabar' : 'text-muted-foreground'}`}
                       >
                         <Heart className={`w-3 h-3 ${p.isLiked ? 'fill-current' : ''}`} />
                         {p.likeCount}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCollect(p.id, p.isCollected) }}
-                        className={`flex items-center gap-0.5 hover:text-amber-500 transition ${p.isCollected ? 'text-amber-500' : 'text-muted-foreground'}`}
+                        className={`flex items-center gap-0.5 hover:text-gold transition ${p.isCollected ? 'text-gold' : 'text-muted-foreground'}`}
                       >
                         <Bookmark className={`w-3 h-3 ${p.isCollected ? 'fill-current' : ''}`} />
                         {p.collectCount}
@@ -367,13 +505,16 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
 
         {/* 作品信息 */}
         <div className="flex gap-4 mb-6 pb-6 border-b">
-          <div className="w-20 h-28 rounded bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center shrink-0">
-            <span className="text-lg font-bold text-teal-/60 font-serif">
-              {pub.title.slice(0, 2)}
-            </span>
+          <div className="w-20 h-28 rounded-[8px] overflow-hidden shadow-sm shrink-0">
+            <DefaultBookCover
+              title={pub.title}
+              author={pub.user?.penName || pub.user?.name}
+              category={pub.category}
+              compact
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold mb-1">{pub.title}</h1>
+            <h1 className="text-xl font-bold font-display mb-1">{pub.title}</h1>
             <p className="text-sm text-muted-foreground mb-2">
               作者：{pub.user?.penName || pub.user?.name || '匿名'}
             </p>
@@ -384,14 +525,14 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
               <span className="text-muted-foreground">{allChapters.length} 章</span>
               <button
                 onClick={handleLike}
-                className={`flex items-center gap-1 hover:text-pink-500 transition ${data.userState.isLiked ? 'text-pink-500' : 'text-muted-foreground'}`}
+                className={`flex items-center gap-1 hover:text-cinnabar transition ${data.userState.isLiked ? 'text-cinnabar' : 'text-muted-foreground'}`}
               >
                 <Heart className={`w-3.5 h-3.5 ${data.userState.isLiked ? 'fill-current' : ''}`} />
                 {pub.likeCount}
               </button>
               <button
                 onClick={handleCollect}
-                className={`flex items-center gap-1 hover:text-amber-500 transition ${data.userState.isCollected ? 'text-amber-500' : 'text-muted-foreground'}`}
+                className={`flex items-center gap-1 hover:text-gold transition ${data.userState.isCollected ? 'text-gold' : 'text-muted-foreground'}`}
               >
                 <Bookmark className={`w-3.5 h-3.5 ${data.userState.isCollected ? 'fill-current' : ''}`} />
                 {pub.collectCount}
@@ -408,7 +549,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
         {currentChapter && (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">{currentChapter.title}</h2>
+              <h2 className="text-lg font-semibold font-display">{currentChapter.title}</h2>
               <span className="text-xs text-muted-foreground">
                 第 {currentIndex + 1} / {allChapters.length} 章
               </span>
@@ -420,7 +561,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
               </div>
             ) : (
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <div className="text-base leading-loose whitespace-pre-wrap font-serif">
+                <div className="text-base leading-loose whitespace-pre-wrap bg-card rounded-[14px] border border-border px-6 sm:px-10 py-8">
                   {chapterContent || '（本章暂无内容）'}
                 </div>
               </div>
@@ -453,7 +594,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
 
         {/* 章节目录 */}
         <details className="mt-6">
-          <summary className="cursor-pointer text-sm font-medium hover:text-teal-">
+          <summary className="cursor-pointer text-sm font-medium hover:text-primary">
             查看目录（{allChapters.length} 章）
           </summary>
           <div className="mt-2 max-h-60 overflow-y-auto border rounded p-2 space-y-1">
@@ -462,7 +603,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
                 key={c.id}
                 onClick={() => setCurrentChapter(c)}
                 className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted transition ${
-                  currentChapter?.id === c.id ? 'bg-indigo-600/15 text-teal- dark:text-teal-' : ''
+                  currentChapter?.id === c.id ? 'bg-primary/10 text-primary' : ''
                 }`}
               >
                 <span className="text-muted-foreground text-xs mr-2">第{i + 1}章</span>

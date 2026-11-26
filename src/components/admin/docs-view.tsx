@@ -124,7 +124,7 @@ function Pre({ children }: { children: string }) {
 
 function Tag({ children, color = 'violet' }: { children: string; color?: string }) {
   const colors: Record<string, string> = {
-    violet: 'bg-indigo-600/10 text-teal-',
+    violet: 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400',
     blue: 'bg-blue-500/10 text-blue-600',
     emerald: 'bg-emerald-500/10 text-emerald-600',
     amber: 'bg-amber-500/10 text-amber-600',

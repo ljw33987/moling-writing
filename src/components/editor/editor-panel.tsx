@@ -23,6 +23,8 @@ import {
   RotateCcw,
   Indent,
   AlignJustify,
+  Undo2,
+  Redo2,
 } from 'lucide-react'
 import { api, CHAPTER_STATUS } from '@/lib/helpers'
 import type { Chapter, NovelDetail } from './editor-view'
@@ -77,6 +79,8 @@ export function EditorPanel({
   const [coreEvent, setCoreEvent] = useState('')
   const [indent, setIndent] = useState(true)
   const [fontSize, setFontSize] = useState(17)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   // 内联 AI 操作（润色 / 扩写 / 缩写 / 续写 / 转文风）
   const handleInlineAI = async (preset: string, targetStyle?: string) => {
@@ -189,6 +193,8 @@ export function EditorPanel({
 
   const status = CHAPTER_STATUS[chapter.status] || CHAPTER_STATUS.draft
 
+  const currentVolume = novel.volumes.find((v) => v.id === chapter.volumeId)
+
   return (
     <div className="h-full flex flex-col bg-background relative">
       {/* 本地离线草稿恢复提示 */}
@@ -212,47 +218,68 @@ export function EditorPanel({
         </div>
       )}
 
-      {/* 顶部章节信息 */}
-      <div className="h-14 border-b border-border flex items-center px-6 gap-3 shrink-0">
-        <Input
-          value={chapter.title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          className="border-0 px-0 h-auto text-lg font-semibold focus-visible:ring-0 bg-transparent"
-          placeholder="章节标题"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-              {status.label}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {Object.entries(CHAPTER_STATUS).map(([k, v]) => (
-              <DropdownMenuItem key={k} onClick={() => onStatusChange(k)}>
-                <span className={`w-1.5 h-1.5 rounded-full ${v.dot} mr-2`} />
-                {v.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Popover open={genChapterOpen} onOpenChange={setGenChapterOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-1.5 shrink-0 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
-              disabled={aiLoading}
-            >
-              {aiLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Wand2 className="w-3.5 h-3.5" />
+      {/* 顶部章节标题与格式工具栏（严格对齐 Studio Zero 设计稿） */}
+      <div className="bg-card border-b border-border px-4 sm:px-7 pt-3.5 shrink-0">
+        <div className="max-w-[740px] mx-auto flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <Input
+              value={chapter.title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              className="border-0 px-0 h-auto text-[22px] font-bold tracking-tight focus-visible:ring-0 bg-transparent shadow-none"
+              placeholder="章节标题"
+            />
+            <div className="flex items-center gap-2 mt-1 text-[11.5px] text-muted-foreground">
+              {currentVolume && <span>{currentVolume.title}</span>}
+              {currentVolume && <span>·</span>}
+              <span className="tnum">{chapter.words.toLocaleString()} 字</span>
+              {chapter.words > 0 && (
+                <>
+                  <span>·</span>
+                  <span>约 {Math.ceil(chapter.words / 400)} 分钟阅读</span>
+                </>
               )}
-              一键生成
-            </Button>
-          </PopoverTrigger>
+              {aiLoading && (
+                <span className="text-primary flex items-center gap-1 ml-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  AI 写入草稿中...
+                </span>
+              )}
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 shrink-0 rounded-[9px] text-xs">
+                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                {status.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {Object.entries(CHAPTER_STATUS).map(([k, v]) => (
+                <DropdownMenuItem key={k} onClick={() => onStatusChange(k)}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${v.dot} mr-2`} />
+                  {v.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Popover open={genChapterOpen} onOpenChange={setGenChapterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5 shrink-0 rounded-[9px] text-xs bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] hover:opacity-95 text-white border-0 shadow-xs"
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="w-3.5 h-3.5" />
+                )}
+                一键生成
+              </Button>
+            </PopoverTrigger>
           <PopoverContent className="w-96" align="end">
             <div className="space-y-3">
               <div>
@@ -295,109 +322,125 @@ export function EditorPanel({
         </Popover>
       </div>
 
-      {/* 工具栏 */}
-      <div className="min-h-9 border-b border-border bg-muted/20 flex flex-wrap items-center px-3 sm:px-4 py-1 gap-1 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => tiptapRef.current?.toggleBold()}
-          title="粗体 (Ctrl+B)"
-        >
-          <Bold className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => tiptapRef.current?.toggleItalic()}
-          title="斜体 (Ctrl+I)"
-        >
-          <Italic className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => tiptapRef.current?.toggleHeading()}
-          title="小节标题"
-        >
-          <Heading className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => tiptapRef.current?.toggleBlockquote()}
-          title="引用"
-        >
-          <Quote className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => tiptapRef.current?.toggleBulletList()}
-          title="列表"
-        >
-          <List className="w-3.5 h-3.5" />
-        </Button>
+        {/* 格式工具栏 */}
+        <div className="max-w-[740px] mx-auto flex flex-wrap items-center gap-1 mt-3 pb-2.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-[7px]"
+            disabled={!canUndo}
+            onClick={() => tiptapRef.current?.undo()}
+            title="撤销上一步 (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-[7px]"
+            disabled={!canRedo}
+            onClick={() => tiptapRef.current?.redo()}
+            title="重做 / 恢复 (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </Button>
 
-        <div className="mx-1 h-4 w-px bg-border" />
+          <div className="mx-1 h-4 w-px bg-border" />
 
-        <Button
-          variant={indent ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-7 px-2 text-xs gap-1"
-          onClick={() => setIndent((v) => !v)}
-          title="切换首行缩进两字"
-        >
-          <Indent className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">首行缩进</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => setFontSize((s) => (s === 15 ? 17 : s === 17 ? 19 : 15))}
-          title="切换正文字号"
-        >
-          {fontSize}px
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs gap-1"
-          onClick={() => {
-            tiptapRef.current?.autoFormat()
-            toast.success('已完成一键排版（清理空行与多余空格）')
-          }}
-          title="一键清理多余空行与段首空格"
-        >
-          <AlignJustify className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">一键排版</span>
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-[7px]"
+            onClick={() => tiptapRef.current?.toggleBold()}
+            title="粗体 (Ctrl+B)"
+          >
+            <Bold className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-[7px]"
+            onClick={() => tiptapRef.current?.toggleItalic()}
+            title="斜体 (Ctrl+I)"
+          >
+            <Italic className="w-3.5 h-3.5" />
+          </Button>
 
-        <span className="ml-2 text-[11px] text-muted-foreground hidden xl:inline">
-          输入 @ 引用设定 · AI 草稿独立于撤销栈
-        </span>
+          <div className="mx-1 h-4 w-px bg-border" />
 
-        <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-          {aiLoading ? (
-            <span className="text-teal- flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              AI 写入草稿中...
-            </span>
-          ) : (
-            <>
-              <span>{chapter.words} 字</span>
-              {chapter.words > 0 && (
-                <span className="text-muted-foreground/70">
-                  约 {Math.ceil(chapter.words / 400)} 分钟阅读
-                </span>
-              )}
-            </>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1 rounded-[7px]"
+            onClick={() => tiptapRef.current?.toggleHeading()}
+            title="小节标题"
+          >
+            <Heading className="w-3 h-3" />
+            <span>小节标题</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1 rounded-[7px]"
+            onClick={() => tiptapRef.current?.toggleBlockquote()}
+            title="引用"
+          >
+            <Quote className="w-3 h-3" />
+            <span>引用</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1 rounded-[7px]"
+            onClick={() => tiptapRef.current?.toggleBulletList()}
+            title="列表"
+          >
+            <List className="w-3 h-3" />
+            <span>列表</span>
+          </Button>
+
+          <div className="mx-1 h-4 w-px bg-border" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-7 px-2.5 text-xs gap-1 rounded-[7px] ${
+              indent
+                ? 'bg-[var(--brand-soft)] text-[var(--brand-ink)] font-medium border border-[var(--brand-line)]'
+                : 'border border-border'
+            }`}
+            onClick={() => setIndent((v) => !v)}
+            title="切换首行缩进两字"
+          >
+            <Indent className="w-3 h-3" />
+            <span>首行缩进</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs rounded-[7px] tnum"
+            onClick={() => setFontSize((s) => (s === 15 ? 17 : s === 17 ? 19 : 15))}
+            title="切换正文字号"
+          >
+            {fontSize}px
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1 rounded-[7px]"
+            onClick={() => {
+              tiptapRef.current?.autoFormat()
+              toast.success('已完成一键排版（清理空行与多余空格）')
+            }}
+            title="一键清理多余空行与段首空格"
+          >
+            <AlignJustify className="w-3 h-3" />
+            <span>一键排版</span>
+          </Button>
+
+          <span className="ml-auto text-[11px] text-muted-foreground hidden sm:inline">
+            输入 @ 引用设定
+          </span>
         </div>
       </div>
 
@@ -416,69 +459,69 @@ export function EditorPanel({
             setSelectedText(text)
             setInlineMenuOpen(!!text)
           }}
+          onHistoryChange={(u, r) => {
+            setCanUndo(u)
+            setCanRedo(r)
+          }}
           onSaveShortcut={onManualSave}
         />
 
-        {/* 内联 AI 悬浮菜单 */}
+        {/* 内联 AI 悬浮条（深色胶囊直达操作，不遮挡正文） */}
         {selectedText && inlineMenuOpen && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-            <Popover open={inlineMenuOpen} onOpenChange={setInlineMenuOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="gap-1.5 shadow-lg border-teal-"
-                  onClick={(e) => e.preventDefault()}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1.5 py-1 rounded-[10px] bg-[#1B1B24] dark:bg-[#262A36] text-white border border-white/10 shadow-xl">
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => handleInlineAI('polish')}
+              className="h-7 px-2.5 rounded-[7px] text-xs font-medium hover:bg-white/10 inline-flex items-center gap-1 text-[#C3C6FF]"
+            >
+              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              润色
+            </button>
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => handleInlineAI('expand')}
+              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
+            >
+              扩写
+            </button>
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => handleInlineAI('shorten')}
+              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
+            >
+              缩写
+            </button>
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => handleInlineAI('continue')}
+              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
+            >
+              续写
+            </button>
+            <span className="w-px h-4 bg-white/15 mx-0.5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={aiLoading}
+                  className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
                 >
-                  {aiLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5 text-teal-" />
-                  )}
-                  AI 处理选中文字
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56" align="center">
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <button
-                    onClick={() => handleInlineAI('polish')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left"
-                  >
-                    润色
-                  </button>
-                  <button
-                    onClick={() => handleInlineAI('expand')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left"
-                  >
-                    扩写
-                  </button>
-                  <button
-                    onClick={() => handleInlineAI('shorten')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left"
-                  >
-                    缩写
-                  </button>
-                  <button
-                    onClick={() => handleInlineAI('continue')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left"
-                  >
-                    续写
-                  </button>
-                  <button
-                    onClick={() => handleInlineAI('style_change', '古风')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left col-span-2"
-                  >
-                    转古风文风
-                  </button>
-                  <button
-                    onClick={() => handleInlineAI('style_change', '科幻')}
-                    className="px-3 py-2 hover:bg-muted rounded text-left col-span-2"
-                  >
-                    转科幻文风
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
+                  转文风
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center">
+                <DropdownMenuItem onClick={() => handleInlineAI('style_change', '古风')}>
+                  转古风文风
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleInlineAI('style_change', '科幻')}>
+                  转科幻文风
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>

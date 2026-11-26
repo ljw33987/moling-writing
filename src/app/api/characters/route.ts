@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { getOwnedNovel } from '@/lib/ownership'
 
 export async function GET(req: NextRequest) {
   const session = await requireSessionOr401()
@@ -13,6 +14,9 @@ export async function GET(req: NextRequest) {
 
   const where: any = { userId: user.id }
   if (novelId) {
+    if (!await getOwnedNovel(user.id, novelId)) {
+      return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+    }
     where.OR = [{ novelId }, { novelId: null }]
   }
 
@@ -34,6 +38,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { type = 'character', novelId, ...fields } = body
+
+  if (novelId && !await getOwnedNovel(user.id, novelId)) {
+    return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+  }
 
   const data: any = { userId: user.id, novelId: novelId || null }
 
@@ -77,6 +85,20 @@ export async function PATCH(req: NextRequest) {
   const { id, type = 'character', ...fields } = body
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
 
+  if (!['character', 'worldview', 'item'].includes(type)) {
+    return NextResponse.json({ error: '无效的设定类型' }, { status: 400 })
+  }
+  const ownerWhere = { id, userId: session.user.id }
+  const existing = type === 'character'
+    ? await db.character.findFirst({ where: ownerWhere, select: { id: true } })
+    : type === 'worldview'
+      ? await db.worldview.findFirst({ where: ownerWhere, select: { id: true } })
+      : await db.item.findFirst({ where: ownerWhere, select: { id: true } })
+  if (!existing) return NextResponse.json({ error: '未找到设定' }, { status: 404 })
+  if (fields.novelId && !await getOwnedNovel(session.user.id, fields.novelId)) {
+    return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+  }
+
   const allowed: Record<string, string[]> = {
     character: ['name', 'avatar', 'appearance', 'personality', 'background', 'abilities', 'relations', 'novelId'],
     worldview: ['name', 'type', 'description', 'novelId'],
@@ -103,6 +125,17 @@ export async function DELETE(req: NextRequest) {
   const id = url.searchParams.get('id')
   const type = url.searchParams.get('type') || 'character'
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
+
+  if (!['character', 'worldview', 'item'].includes(type)) {
+    return NextResponse.json({ error: '无效的设定类型' }, { status: 400 })
+  }
+  const ownerWhere = { id, userId: session.user.id }
+  const existing = type === 'character'
+    ? await db.character.findFirst({ where: ownerWhere, select: { id: true } })
+    : type === 'worldview'
+      ? await db.worldview.findFirst({ where: ownerWhere, select: { id: true } })
+      : await db.item.findFirst({ where: ownerWhere, select: { id: true } })
+  if (!existing) return NextResponse.json({ error: '未找到设定' }, { status: 404 })
 
   if (type === 'character') await db.character.delete({ where: { id } })
   else if (type === 'worldview') await db.worldview.delete({ where: { id } })

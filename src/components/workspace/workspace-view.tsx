@@ -28,8 +28,10 @@ import {
   LayoutGrid,
   List as ListIcon,
   PenLine,
-  ArrowRight,
   Compass,
+  House,
+  Settings,
+  Layers,
   Upload,
 } from 'lucide-react'
 import {
@@ -38,7 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -84,6 +85,12 @@ interface Novel {
   folderId: string | null
 }
 
+interface ResumeDetails {
+  id: string
+  volumes: { chapters: { id: string; title: string; updatedAt: string }[] }[]
+  autoSerials: { enabled: boolean }[]
+}
+
 interface UserStats {
   user: { name: string | null; penName: string | null; tokens: number; plan: string }
   stats: {
@@ -95,7 +102,7 @@ interface UserStats {
 }
 
 export function WorkspaceView() {
-  const { openNovel, setCurrentFolder, setView } = useAppStore()
+  const { openNovel, setCurrentChapter, setCurrentFolder, setView } = useAppStore()
   const [folders, setFolders] = useState<Folder[]>([])
   const [novels, setNovels] = useState<Novel[]>([])
   const [stats, setStats] = useState<UserStats | null>(null)
@@ -280,14 +287,6 @@ export function WorkspaceView() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   // 生成最近 35 天热力图
   const heatmapData = (() => {
     const days: { date: string; words: number }[] = []
@@ -304,6 +303,32 @@ export function WorkspaceView() {
   const recentNovel = novels.length > 0
     ? [...novels].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
     : null
+
+  const [resumeDetails, setResumeDetails] = useState<ResumeDetails | null>(null)
+  const recentNovelId = recentNovel?.id
+  useEffect(() => {
+    if (!recentNovelId) return
+    let cancelled = false
+    api<{ novel: ResumeDetails }>(`/api/novels?id=${encodeURIComponent(recentNovelId)}`)
+      .then(({ novel }) => {
+        if (!cancelled) setResumeDetails(novel)
+      })
+      .catch(() => {
+        if (!cancelled) setResumeDetails(null)
+      })
+    return () => { cancelled = true }
+  }, [recentNovelId])
+  const details = resumeDetails?.id === recentNovelId ? resumeDetails : null
+  const recentChapters = (details?.volumes.flatMap((volume) => volume.chapters) ?? [])
+    .sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt))
+    .slice(0, 4)
+
+  function resumeWriting(chapterId = recentChapters[0]?.id) {
+    if (!recentNovel) return
+    setCurrentFolder(recentNovel.folderId)
+    openNovel(recentNovel.id)
+    if (chapterId) setCurrentChapter(chapterId)
+  }
 
   const filteredNovels = novels
     .filter((n) => {
@@ -325,199 +350,92 @@ export function WorkspaceView() {
   const todayWords = stats?.stats.todayWords || 0
   const dailyPct = Math.min(100, Math.round((todayWords / dailyGoal) * 100))
 
-  return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-background">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* 创作工作台顶部欢迎与快捷入口（参考白梦写作工作台） */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-              <span>创作工作台</span>
-              <Badge variant="secondary" className="text-xs font-normal">
-                {stats?.user.penName || stats?.user.name || '作者'}
-              </Badge>
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              灵感捕捉、大纲推演与 AI 协同创作中心
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setView('toolbox')}>
-              <Compass className="w-3.5 h-3.5" />
-              AI 工具箱
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setView('settings')}>
-              <Library className="w-3.5 h-3.5" />
-              设定库
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
-              <Upload className="w-3.5 h-3.5" />
-              导入 TXT
-            </Button>
-            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90 text-white" onClick={() => setWizardOpen(true)}>
-              <Sparkles className="w-3.5 h-3.5" />
-              AI 一键建书
-            </Button>
-          </div>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
-        {/* 最近在写：一键续写入口 */}
+  return (
+    <div className="workspace-root flex-1 min-h-0 overflow-y-auto bg-background">
+      <div className="studio-workspace-layout">
+        <div id="workspace-overview" className="studio-workspace-main">
         {recentNovel && (
-          <Card className="border-indigo-500/25 bg-gradient-to-r from-indigo-600/8 via-blue-600/5 to-transparent">
-            <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5 min-w-0">
-                <div className="w-11 h-14 rounded-md bg-gradient-to-br from-indigo-600/20 to-blue-600/20 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-sm font-bold font-serif text-indigo-600 dark:text-indigo-400">
-                    {recentNovel.title.slice(0, 2)}
-                  </span>
+          <Card className="studio-resume">
+            <CardContent className="studio-resume-content">
+              <div className="studio-resume-book">
+                <div className="studio-resume-cover">
+                  {recentNovel.cover ? (
+                    <img src={recentNovel.cover} alt="" className="size-full object-cover" />
+                  ) : (
+                    <span className="font-bold">{recentNovel.title.slice(0, 2)}</span>
+                  )}
                 </div>
-                <div className="min-w-0 space-y-1">
+                <div className="studio-resume-copy">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">
                       最近编辑
                     </Badge>
-                    <span className="font-semibold text-base truncate">{recentNovel.title}</span>
+                    <span className="studio-resume-title font-display break-words">{recentNovel.title}</span>
                     <Badge variant="secondary" className="text-[10px]">{recentNovel.genre}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
-                    {recentNovel.synopsis || '暂无简介，点击右侧继续创作'}
+                    {recentNovel.synopsis || '暂无简介'}
                   </p>
                   <div className="text-[11px] text-muted-foreground flex items-center gap-3">
                     <span>{formatWords(recentNovel.totalWords)} 字</span>
                     <span>更新于 {formatTime(recentNovel.updatedAt)}</span>
                   </div>
+                  <div className="pt-3 text-xs text-muted-foreground">
+                    <label htmlFor="resume-word-goal">今日字数 {todayWords.toLocaleString()} / {dailyGoal.toLocaleString()}</label>
+                    <progress id="resume-word-goal" className="studio-progress" value={dailyPct} max={100} />
+                  </div>
+                  {recentChapters[0] && <p className="text-sm">当前章节 · {recentChapters[0].title}</p>}
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => resumeWriting()}
+                  >
+                    <PenLine className="w-4 h-4" />继续写作
+                  </Button>
                 </div>
               </div>
-              <Button
-                className="gap-1.5 shrink-0"
-                onClick={() => {
-                  setCurrentFolder(recentNovel.folderId)
-                  openNovel(recentNovel.id)
-                }}
-              >
-                <PenLine className="w-4 h-4" />
-                继续创作
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
+              <aside className="studio-resume-activity">
+                <section>
+                  <h2><Sparkles />自动连载</h2>
+                  <p>{!details ? '状态暂不可用' : details.autoSerials.some((task) => task.enabled) ? '已开启' : '未开启'}</p>
+                </section>
+                <section>
+                  <h2>最近章节</h2>
+                  {recentChapters.length > 0 ? (
+                    <ul>{recentChapters.map((chapter) => (
+                      <li key={chapter.id}>
+                        <button type="button" onClick={() => resumeWriting(chapter.id)}>
+                          <span>{chapter.title}</span><time dateTime={chapter.updatedAt}>{formatTime(chapter.updatedAt)}</time>
+                        </button>
+                      </li>
+                    ))}</ul>
+                  ) : <p>{details ? '还没有章节' : '暂无章节记录'}</p>}
+                </section>
+              </aside>
             </CardContent>
           </Card>
         )}
 
-        {/* 数据看板 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-indigo-600/10 to-blue-600/10 border-indigo-500/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">今日新增</CardTitle>
-              <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatWords(todayWords)}
-                <span className="text-sm font-normal text-muted-foreground ml-1">字</span>
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all"
-                    style={{ width: `${dailyPct}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  日更目标 {formatWords(dailyGoal)} 字 · 已完成 {dailyPct}%
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">总字数</CardTitle>
-              <FileText className="w-4 h-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatWords(stats?.stats.totalWords || 0)}
-                <span className="text-sm font-normal text-muted-foreground ml-1">字</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">累计创作字数</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">作品总数</CardTitle>
-              <BookOpen className="w-4 h-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.stats.novelCount || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">本创作资产</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Token 余额</CardTitle>
-              <Sparkles className="w-4 h-4 text-pink-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono">
-                {(stats?.user.tokens || 0).toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats?.user.plan === 'pro' ? '月卡会员' : stats?.user.plan === 'year' ? '年卡会员' : '免费用户'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 创作日历热力图 */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              近期创作日历
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">连续码字，养成习惯</span>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-1 flex-wrap">
-              {heatmapData.map((d) => {
-                const intensity = Math.min(4, Math.floor(d.words / 1000))
-                const colors = [
-                  'bg-muted',
-                  'bg-emerald-200 dark:bg-emerald-900',
-                  'bg-emerald-400 dark:bg-emerald-700',
-                  'bg-emerald-500 dark:bg-emerald-600',
-                  'bg-emerald-600 dark:bg-emerald-500',
-                ]
-                return (
-                  <div
-                    key={d.date}
-                    title={`${d.date}：${d.words} 字`}
-                    className={`w-4 h-4 rounded-sm ${colors[intensity]} hover:ring-2 hover:ring-emerald-300 transition`}
-                  />
-                )
-              })}
-            </div>
-            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-              <span>少</span>
-              <div className="w-3 h-3 rounded-sm bg-muted" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-900" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-400 dark:bg-emerald-700" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-              <div className="w-3 h-3 rounded-sm bg-emerald-600" />
-              <span>多</span>
-              <span className="ml-auto">
-                本月共 {heatmapData.slice(-30).reduce((s, d) => s + d.words, 0)} 字
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* 文件夹 + 小说卡片 */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <section id="workspace-books" className="studio-bookshelf">
+          <header>
+            <h2 className="font-display"><BookOpen />我的作品</h2>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload />导入</Button>
+              <Button size="sm" onClick={() => setWizardOpen(true)}><Plus />新建作品</Button>
+            </div>
+          </header>
+          <div className="studio-bookshelf-body">
           {/* 文件夹侧栏 */}
-          <div className="lg:col-span-1 space-y-2">
+          <details className="workspace-folders space-y-2">
+            <summary className="cursor-pointer text-sm font-medium">文件夹与回收站</summary>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold flex items-center gap-2">
                 <Library className="w-4 h-4" />
@@ -530,9 +448,8 @@ export function WorkspaceView() {
 
             <button
               onClick={() => setSelectedFolder(null)}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between transition ${
-                !selectedFolder ? 'bg-secondary' : 'hover:bg-muted'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between transition ${!selectedFolder ? 'bg-secondary' : 'hover:bg-muted'
+                }`}
             >
               <span className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
@@ -547,9 +464,8 @@ export function WorkspaceView() {
               <div key={f.id} className="group">
                 <button
                   onClick={() => setSelectedFolder(f.id)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between transition ${
-                    selectedFolder === f.id ? 'bg-secondary' : 'hover:bg-muted'
-                  }`}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between transition ${selectedFolder === f.id ? 'bg-secondary' : 'hover:bg-muted'
+                    }`}
                 >
                   <span className="flex items-center gap-2 truncate">
                     <span className={`w-2.5 h-2.5 rounded-full ${FOLDER_COLORS[f.color] || 'bg-slate-500'}`} />
@@ -608,16 +524,16 @@ export function WorkspaceView() {
               <Trash2 className="w-4 h-4" />
               回收站
             </button>
-          </div>
+          </details>
 
           {/* 小说卡片网格 / 列表 */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="font-semibold flex items-center gap-2">
                 <span>
                   {selectedFolder
                     ? folders.find((f) => f.id === selectedFolder)?.name || '作品'
-                    : '我的作品'}
+                    : '全部作品'}
                 </span>
                 <span className="text-muted-foreground font-normal text-sm">({filteredNovels.length})</span>
               </h3>
@@ -642,11 +558,10 @@ export function WorkspaceView() {
                       key={st.id}
                       type="button"
                       onClick={() => setStatusFilter(st.id)}
-                      className={`px-2 py-1 text-xs rounded transition ${
-                        statusFilter === st.id
+                      className={`px-2 py-1 text-xs rounded transition ${statusFilter === st.id
                           ? 'bg-background shadow-sm font-medium'
                           : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                        }`}
                     >
                       {st.label}
                     </button>
@@ -689,8 +604,8 @@ export function WorkspaceView() {
             {filteredNovels.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center mb-4">
-                    <Wand2 className="w-8 h-8 text-teal-" />
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/15 to-gold/15 flex items-center justify-center mb-4">
+                    <Wand2 className="w-8 h-8 text-primary" />
                   </div>
                   <h4 className="font-semibold mb-1">
                     {novels.length === 0 ? '开始你的第一部作品' : '没有匹配的作品'}
@@ -709,7 +624,7 @@ export function WorkspaceView() {
                 </CardContent>
               </Card>
             ) : layoutMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="studio-novel-grid">
                 {filteredNovels.map((n) => (
                   <NovelCard
                     key={n.id}
@@ -734,8 +649,8 @@ export function WorkspaceView() {
                     className="group flex items-center justify-between gap-4 p-3.5 border rounded-lg bg-card hover:shadow-sm hover:border-primary/40 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-12 rounded bg-gradient-to-br from-indigo-600/20 to-blue-600/15 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold font-serif">{n.title.slice(0, 2)}</span>
+                      <div className="w-10 h-12 rounded bg-gradient-to-br from-primary/15 to-gold/10 border border-border/60 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-primary/80">{n.title.slice(0, 2)}</span>
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -760,6 +675,119 @@ export function WorkspaceView() {
               </div>
             )}
           </div>
+          </div>
+        </section>
+
+        {/* 数据看板 */}
+        <div id="workspace-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-primary/10 to-jade/10 border-primary/25">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">今日新增</CardTitle>
+              <TrendingUp className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-display">
+                {formatWords(todayWords)}
+                <span className="text-sm font-normal text-muted-foreground ml-1">字</span>
+              </div>
+              <div className="mt-2 space-y-1">
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-jade rounded-full transition-all"
+                    style={{ width: `${dailyPct}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  日更目标 {formatWords(dailyGoal)} 字 · 已完成 {dailyPct}%
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">总字数</CardTitle>
+              <FileText className="w-4 h-4 text-jade" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-display">
+                {formatWords(stats?.stats.totalWords || 0)}
+                <span className="text-sm font-normal text-muted-foreground ml-1">字</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">累计创作字数</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">作品总数</CardTitle>
+              <BookOpen className="w-4 h-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-display">{stats?.stats.novelCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">本创作资产</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Token 余额</CardTitle>
+              <Sparkles className="w-4 h-4 text-cinnabar" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono font-display">
+                {(stats?.user.tokens || 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats?.user.plan === 'pro' ? '月卡会员' : stats?.user.plan === 'year' ? '年卡会员' : '免费用户'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 创作日历热力图 */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              近期创作日历
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">连续码字，养成习惯</span>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-1 flex-wrap">
+              {heatmapData.map((d) => {
+                const intensity = Math.min(4, Math.floor(d.words / 1000))
+                const colors = [
+                  'bg-muted',
+                  'bg-jade/25',
+                  'bg-jade/50',
+                  'bg-jade/75',
+                  'bg-jade',
+                ]
+                return (
+                  <div
+                    key={d.date}
+                    title={`${d.date}：${d.words} 字`}
+                    className={`w-4 h-4 rounded-[3px] ${colors[intensity]} hover:ring-2 hover:ring-jade/40 transition`}
+                  />
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+              <span>少</span>
+              <div className="w-3 h-3 rounded-[3px] bg-muted" />
+              <div className="w-3 h-3 rounded-[3px] bg-jade/25" />
+              <div className="w-3 h-3 rounded-[3px] bg-jade/50" />
+              <div className="w-3 h-3 rounded-[3px] bg-jade/75" />
+              <div className="w-3 h-3 rounded-[3px] bg-jade" />
+              <span>多</span>
+              <span className="ml-auto">
+                本月共 {heatmapData.slice(-30).reduce((s, d) => s + d.words, 0)} 字
+              </span>
+            </div>
+          </CardContent>
+        </Card>
         </div>
       </div>
 
@@ -786,9 +814,8 @@ export function WorkspaceView() {
                   <button
                     key={k}
                     onClick={() => setNewFolderColor(k)}
-                    className={`w-7 h-7 rounded-full ${v} ${
-                      newFolderColor === k ? 'ring-2 ring-offset-2 ring-foreground' : ''
-                    }`}
+                    className={`w-7 h-7 rounded-full ${v} ${newFolderColor === k ? 'ring-2 ring-offset-2 ring-foreground' : ''
+                      }`}
                   />
                 ))}
               </div>
@@ -837,8 +864,8 @@ export function WorkspaceView() {
             ) : (
               trashNovels.map((n) => (
                 <div key={n.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                  <div className="w-10 h-14 rounded bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-teal-/60">
+                  <div className="w-10 h-14 rounded bg-gradient-to-br from-primary/15 to-gold/10 border border-border/60 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-primary/60">
                       {n.title.slice(0, 2)}
                     </span>
                   </div>
@@ -954,47 +981,55 @@ function NovelCard({
   onDelete: () => void
 }) {
   const genreColors: Record<string, string> = {
-    玄幻: 'bg-indigo-600/10 text-teal-',
-    言情: 'bg-pink-500/10 text-pink-600',
-    科幻: 'bg-cyan-500/10 text-cyan-600',
-    悬疑: 'bg-slate-500/10 text-slate-600',
-    历史: 'bg-amber-500/10 text-amber-600',
-    都市: 'bg-emerald-500/10 text-emerald-600',
-    武侠: 'bg-orange-500/10 text-orange-600',
-    游戏: 'bg-blue-500/10 text-blue-600',
-    奇幻: 'bg-indigo-500/10 text-indigo-600',
-    军事: 'bg-red-500/10 text-red-600',
+    玄幻: 'bg-primary/10 text-primary',
+    言情: 'bg-cinnabar/10 text-cinnabar',
+    科幻: 'bg-jade/10 text-jade',
+    悬疑: 'bg-ink-soft/10 text-ink-soft',
+    历史: 'bg-gold/15 text-gold',
+    都市: 'bg-primary/10 text-primary',
+    武侠: 'bg-gold/15 text-gold',
+    游戏: 'bg-jade/10 text-jade',
+    奇幻: 'bg-primary/10 text-primary',
+    军事: 'bg-cinnabar/10 text-cinnabar',
   }
 
   return (
-    <Card className="group overflow-hidden hover:shadow-md transition cursor-pointer" onClick={onOpen}>
-      <div className="aspect-[3/2] bg-gradient-to-br from-indigo-600/20 via-sky-500/15 to-amber-500/10 relative">
+    <Card
+      className="studio-novel-card group overflow-hidden hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/40 transition-all duration-200 cursor-pointer"
+      onClick={onOpen}
+    >
+      <div className="studio-novel-cover bg-gradient-to-br from-primary/12 via-gold/10 to-jade/10 relative overflow-hidden">
         {novel.cover ? (
-          <img src={novel.cover} alt={novel.title} className="w-full h-full object-cover" />
+          <img
+            src={novel.cover}
+            alt={novel.title}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-3xl font-bold text-teal-/60 font-serif">
+            <span className="text-3xl font-bold text-primary/60">
               {novel.title.slice(0, 2)}
             </span>
           </div>
         )}
-        <div className="absolute top-2 left-2">
-          <Badge className={genreColors[novel.genre] || 'bg-muted text-muted-foreground'}>
+        <div className="absolute top-2.5 left-2.5">
+          <Badge className={`${genreColors[novel.genre] || 'bg-muted text-muted-foreground'} backdrop-blur-xs shadow-2xs`}>
             {novel.genre}
           </Badge>
         </div>
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2.5 right-2.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="opacity-0 group-hover:opacity-100 bg-background/80 backdrop-blur rounded p-1 hover:bg-background"
+                aria-label="作品操作"
+                className="bg-background/85 backdrop-blur-xs rounded-md p-1 hover:bg-background shadow-xs transition"
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem className="text-red-600" onClick={onDelete}>
+              <DropdownMenuItem className="text-cinnabar focus:text-cinnabar" onClick={onDelete}>
                 <Trash2 className="w-3.5 h-3.5 mr-2" />
                 删除
               </DropdownMenuItem>
@@ -1003,30 +1038,35 @@ function NovelCard({
         </div>
       </div>
       <CardContent className="p-4">
-        <h4 className="font-semibold truncate">{novel.title}</h4>
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 h-9">
+        <h4 className="font-semibold truncate group-hover:text-primary transition-colors">
+          <button type="button" className="max-w-full truncate text-left" onClick={(event) => {
+            event.stopPropagation()
+            onOpen()
+          }}>{novel.title}</button>
+        </h4>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 h-9 leading-relaxed">
           {novel.synopsis || '暂无简介'}
         </p>
-        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground tabular-nums">
           <span>{formatWords(novel.totalWords)} 字</span>
           <span>{formatTime(novel.updatedAt)}</span>
         </div>
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-border/50">
           <Badge
             variant="outline"
             className={
               novel.status === 'ongoing'
-                ? 'text-emerald-600 border-emerald-300'
+                ? 'text-jade border-jade/40 bg-jade/10'
                 : novel.status === 'completed'
-                ? 'text-blue-600 border-blue-300'
-                : 'text-amber-600 border-amber-300'
+                  ? 'text-primary border-primary/40 bg-primary/10'
+                  : 'text-gold border-gold/40 bg-gold/10'
             }
           >
             {novel.status === 'ongoing' ? '连载中' : novel.status === 'completed' ? '已完结' : '暂停'}
           </Badge>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            打开
-            <ChevronRight className="w-3 h-3" />
+          <span className="text-xs font-medium text-muted-foreground group-hover:text-primary flex items-center gap-0.5 transition-colors">
+            进入写作
+            <ChevronRight className="w-3.5 h-3.5" />
           </span>
         </div>
       </CardContent>

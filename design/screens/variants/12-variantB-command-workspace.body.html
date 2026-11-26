@@ -1,0 +1,172 @@
+<div style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)">
+  <!--MINIBAR-->
+
+  <div class="content">
+    <div style="padding:40px 44px 40px;max-width:1180px;margin:0 auto">
+
+      <!-- 大标题 -->
+      <div style="text-align:center;margin-bottom:34px">
+        <h1 style="font-size:30px;font-weight:700;letter-spacing:-.03em">今天想写点什么？</h1>
+        <p style="font-size:13.5px;color:var(--ink-3);margin-top:9px">
+          继续《剑起长安》的第 12 章，或者从一句灵感开始一部新书。
+        </p>
+      </div>
+
+      <!-- 启动器磁贴 -->
+      <div class="launch-grid">
+        <div class="launch big" style="grid-column:span 2;background:linear-gradient(120deg,#EEF0FF,#FBF7FF);border-color:var(--brand-line)">
+          <div class="launch-ic" style="background:linear-gradient(140deg,#4F46E5,#7C3AED);color:#fff">
+            <svg class="ic ic-lg"><use href="#i-pen"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <h4 style="font-size:15.5px">继续写作</h4>
+              <span class="badge badge-brand">最近编辑</span>
+            </div>
+            <p style="margin-top:4px;font-size:12.5px">剑起长安 · 第 12 章 夜入皇城 · 2 小时前更新</p>
+            <div style="margin-top:11px;max-width:340px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-bottom:5px">
+                <span>今日字数 <b class="mono" style="color:var(--ink-2)">1,240 / 3,000</b></span><span class="mono" style="color:var(--ink-3)">41%</span>
+              </div>
+              <div class="progress grad"><i style="width:41%"></i></div>
+            </div>
+          </div>
+          <button class="btn btn-primary">继续写作</button>
+        </div>
+
+        <div class="launch big">
+          <div class="launch-ic" style="background:var(--violet-soft);color:var(--violet)">
+            <svg class="ic ic-lg"><use href="#i-sparkles"/></svg>
+          </div>
+          <div>
+            <h4>AI 建书</h4>
+            <p>一句话 → 简介 + 大纲 + 角色</p>
+          </div>
+          <svg class="ic go"><use href="#i-arrow-right"/></svg>
+        </div>
+
+        <div class="launch">
+          <div class="launch-ic" style="background:var(--cyan-soft);color:var(--cyan)">
+            <svg class="ic ic-lg"><use href="#i-wand"/></svg>
+          </div>
+          <div>
+            <h4>AI 工具箱</h4>
+            <p>18 个预设 · 起名 / 拆书 / 审稿</p>
+          </div>
+          <svg class="ic go"><use href="#i-arrow-right"/></svg>
+        </div>
+
+        <div class="launch">
+          <div class="launch-ic" style="background:var(--amber-soft);color:var(--amber)">
+            <svg class="ic ic-lg"><use href="#i-layers"/></svg>
+          </div>
+          <div>
+            <h4>设定库</h4>
+            <p>27 张设定卡 · 全局共享</p>
+          </div>
+          <svg class="ic go"><use href="#i-arrow-right"/></svg>
+        </div>
+
+        <div class="launch">
+          <div class="launch-ic" style="background:var(--green-soft);color:var(--green)">
+            <svg class="ic ic-lg"><use href="#i-book-open"/></svg>
+          </div>
+          <div>
+            <h4>作品广场</h4>
+            <p>1,286 部公开作品</p>
+          </div>
+          <svg class="ic go"><use href="#i-arrow-right"/></svg>
+        </div>
+
+        <div class="launch">
+          <div class="launch-ic" style="background:var(--surface-3);color:var(--ink-2)">
+            <svg class="ic ic-lg"><use href="#i-user"/></svg>
+          </div>
+          <div>
+            <h4>账号与设置</h4>
+            <p>资料 / 会员 / 模型配置</p>
+          </div>
+          <svg class="ic go"><use href="#i-arrow-right"/></svg>
+        </div>
+      </div>
+
+      <!-- 最近作品 -->
+      <div class="section-hd" style="margin-top:26px">
+        <svg class="ic"><use href="#i-book"/></svg>
+        <h2>最近的作品</h2>
+        <div class="section-hd-right">
+          <button class="btn btn-sm btn-outline">全部 12 部</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div class="book">
+          <div class="book-cover" style="height:84px;background:linear-gradient(145deg,#312E81,#4C1D95)">
+            <span style="position:absolute;left:13px;top:11px;color:rgba(255,255,255,.22);font-size:32px;font-weight:800">剑</span>
+          </div>
+          <div class="book-body" style="padding:11px 12px 12px">
+            <div class="book-title">剑起长安</div>
+            <div class="book-sub" style="margin-top:4px"><span class="mono">128,400 字</span><span>·</span><span>2 小时前</span></div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="height:84px;background:linear-gradient(145deg,#0F766E,#0E7490)">
+            <span style="position:absolute;left:13px;top:11px;color:rgba(255,255,255,.22);font-size:32px;font-weight:800">深</span>
+          </div>
+          <div class="book-body" style="padding:11px 12px 12px">
+            <div class="book-title">深海回声</div>
+            <div class="book-sub" style="margin-top:4px"><span class="mono">86,200 字</span><span>·</span><span>昨天</span></div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="height:84px;background:linear-gradient(145deg,#B45309,#DC2626)">
+            <span style="position:absolute;left:13px;top:11px;color:rgba(255,255,255,.22);font-size:32px;font-weight:800">红</span>
+          </div>
+          <div class="book-body" style="padding:11px 12px 12px">
+            <div class="book-title">重回1998</div>
+            <div class="book-sub" style="margin-top:4px"><span class="mono">213,600 字</span><span>·</span><span>3 天前</span></div>
+          </div>
+        </div>
+        <div class="book">
+          <div class="book-cover" style="height:84px;background:linear-gradient(145deg,#1E293B,#475569)">
+            <span style="position:absolute;left:13px;top:11px;color:rgba(255,255,255,.22);font-size:32px;font-weight:800">仙</span>
+          </div>
+          <div class="book-body" style="padding:11px 12px 12px">
+            <div class="book-title">太上忘情录</div>
+            <div class="book-sub" style="margin-top:4px"><span class="mono">58,090 字</span><span>·</span><span>5 天前</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部：统计 + 日历 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">
+        <div class="stat">
+          <div class="stat-ic"><svg class="ic ic-sm"><use href="#i-zap"/></svg></div>
+          <div class="stat-v mono">1,240</div>
+          <div class="stat-k">今日新增字数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic cyan"><svg class="ic ic-sm"><use href="#i-type"/></svg></div>
+          <div class="stat-v mono">486,290</div>
+          <div class="stat-k">累计总字数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic violet"><svg class="ic ic-sm"><use href="#i-book"/></svg></div>
+          <div class="stat-v mono">12</div>
+          <div class="stat-k">作品总数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-ic amber"><svg class="ic ic-sm"><use href="#i-wallet"/></svg></div>
+          <div class="stat-v mono">128,460</div>
+          <div class="stat-k">Token 余额</div>
+        </div>
+      </div>
+
+      <div class="note" style="margin-top:16px">
+        <svg class="ic ic-sm"><use href="#i-info"/></svg>
+        <span>按 <b>⌘K</b> 随时唤起命令面板，直接跳转到任意作品、章节或 AI 功能——界面不常驻任何导航栏。</span>
+      </div>
+
+    </div>
+  </div>
+</div>

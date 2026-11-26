@@ -53,7 +53,7 @@ const PROVIDER_STYLES: Record<string, { label: string; gradient: string; bg: str
   deepseek: { label: 'DS', gradient: 'from-blue-500 to-cyan-500', bg: 'bg-blue-500/10', border: 'border-blue-200 dark:border-blue-800', text: 'text-blue-600' },
   openai: { label: 'GPT', gradient: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-600' },
   claude: { label: 'CL', gradient: 'from-orange-500 to-amber-500', bg: 'bg-orange-500/10', border: 'border-orange-200 dark:border-orange-800', text: 'text-orange-600' },
-  gemini: { label: 'GM', gradient: 'from-indigo-600 to-purple-500', bg: 'bg-indigo-600/10', border: 'border-teal- dark:border-teal-', text: 'text-teal-' },
+  gemini: { label: 'GM', gradient: 'from-indigo-600 to-purple-500', bg: 'bg-indigo-600/10', border: 'border-indigo-500/30', text: 'text-indigo-600 dark:text-indigo-400' },
   grok: { label: 'GK', gradient: 'from-slate-600 to-slate-800', bg: 'bg-slate-500/10', border: 'border-slate-300 dark:border-slate-700', text: 'text-slate-600' },
   minimax: { label: 'MM', gradient: 'from-pink-500 to-rose-500', bg: 'bg-pink-500/10', border: 'border-pink-200 dark:border-pink-800', text: 'text-pink-600' },
   custom: { label: 'API', gradient: 'from-gray-500 to-gray-600', bg: 'bg-gray-500/10', border: 'border-gray-200 dark:border-gray-800', text: 'text-gray-600' },
@@ -359,7 +359,7 @@ export function AiConfigPanel() {
                             className="h-7 text-xs gap-1"
                             onClick={() => handleSetDefault(c)}
                           >
-                            <Star className={`w-3 h-3 ${c.isDefault ? 'fill-violet-500 text-teal-' : ''}`} />
+                            <Star className={`w-3 h-3 ${c.isDefault ? 'fill-violet-500 text-indigo-600 dark:text-indigo-400' : ''}`} />
                             {c.isDefault ? '取消默认' : '设默认'}
                           </Button>
                           <Button
@@ -438,7 +438,7 @@ export function AiConfigPanel() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[10px] text-teal- hover:underline flex items-center gap-0.5 mt-1.5"
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 mt-1.5"
                     >
                       获取 Key <ExternalLink className="w-2.5 h-2.5" />
                     </a>

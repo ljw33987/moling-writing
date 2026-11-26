@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { getOwnedFolder } from '@/lib/ownership'
 
 // GET /api/folders - 获取所有文件夹（含小说数与字数）
 export async function GET() {
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { name, color = 'slate', parentId = null } = body
+  if (parentId && !await getOwnedFolder(user.id, parentId)) {
+    return NextResponse.json({ error: 'parent folder not found' }, { status: 404 })
+  }
   if (!name?.trim()) return NextResponse.json({ error: '名称不能为空' }, { status: 400 })
 
   const maxOrder = await db.folder.aggregate({
@@ -73,6 +77,12 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json()
   const { id, name, color, sortOrder, parentId } = body
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const existing = await db.folder.findFirst({ where: { id, userId: session.user.id }, select: { id: true } })
+  if (!existing) return NextResponse.json({ error: 'folder not found' }, { status: 404 })
+  if (parentId && (parentId === id || !await getOwnedFolder(session.user.id, parentId))) {
+    return NextResponse.json({ error: 'invalid parent folder' }, { status: 400 })
+  }
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
 
   const data: any = {}
@@ -91,6 +101,9 @@ export async function DELETE(req: NextRequest) {
 
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const existing = await db.folder.findFirst({ where: { id, userId: session.user.id }, select: { id: true } })
+  if (!existing) return NextResponse.json({ error: 'folder not found' }, { status: 404 })
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
   await db.folder.delete({ where: { id } })
   return NextResponse.json({ ok: true })

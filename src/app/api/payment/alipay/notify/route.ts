@@ -64,20 +64,26 @@ export async function POST(req: NextRequest) {
       return new NextResponse('fail', { status: 400 })
     }
 
-    // 事务：更新订单 + 增加 Token
-    await db.$transaction([
-      db.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'paid',
-          paidAt: new Date(),
-        },
-      }),
-      db.user.update({
+    // Claim the pending order in the same transaction as crediting the balance.
+    const paidAt = new Date()
+    const claimed = await db.$transaction(async (tx) => {
+      const result = await tx.order.updateMany({
+        where: { id: order.id, status: 'pending' },
+        data: { status: 'paid', paidAt },
+      })
+      if (result.count !== 1) return false
+      await tx.user.update({
         where: { id: order.userId },
         data: { tokens: { increment: order.tokens } },
-      }),
-    ])
+      })
+      return true
+    })
+    if (!claimed) {
+      const latest = await db.order.findUnique({ where: { id: order.id }, select: { status: true } })
+      return latest?.status === 'paid'
+        ? new NextResponse('success')
+        : new NextResponse('fail', { status: 409 })
+    }
 
     console.log(`[Alipay Notify] 支付成功: 订单 ${out_trade_no}, 支付宝交易号 ${trade_no}, 金额 ¥${total_amount}, Token +${order.tokens}`)
 

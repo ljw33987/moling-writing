@@ -50,9 +50,6 @@ interface Props {
   novelTitle: string
   chapterId: string | null
   onJumpChapter?: (chapterId: string) => void
-  onContentReload?: () => void
-  wordGoal?: number
-  totalWords?: number
 }
 
 // ============ 全文搜索 ============
@@ -107,7 +104,7 @@ function SearchTool({ novelId, onJumpChapter }: { novelId: string; onJumpChapter
                   onJumpChapter?.(r.chapterId)
                   setOpen(false)
                 }}
-                className="w-full text-left p-2 hover:bg-muted rounded text-sm border border-transparent hover:border-teal-"
+                className="w-full text-left p-2 hover:bg-muted rounded text-sm border border-transparent hover:border-indigo-500/30"
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <FileText className="w-3 h-3 text-muted-foreground" />
@@ -166,15 +163,16 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7" title="导出">
+        <Button size="sm" className="h-8 gap-1.5" title="导出" aria-label="导出">
           <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">导出</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64" align="end">
         <div className="space-y-3">
           {/* ZIP 导出（推荐） */}
-          <div className="bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border border-teal- dark:border-teal- rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-teal- dark:text-teal-">
+          <div className="bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/20 border border-indigo-500/30 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400">
               <Archive className="w-3.5 h-3.5" />
               全书 ZIP 压缩包（推荐）
             </div>
@@ -243,7 +241,7 @@ function ExportTool({ novelId, novelTitle, chapterId }: { novelId: string; novel
 }
 
 // ============ 版本历史 ============
-function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onReload?: () => void }) {
+export function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onReload?: () => void }) {
   const [open, setOpen] = useState(false)
   const [revisions, setRevisions] = useState<any[]>([])
   const [current, setCurrent] = useState<any>(null)
@@ -306,8 +304,8 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7" title="版本历史" disabled={!chapterId}>
-          <History className="w-4 h-4" />
+        <Button variant="ghost" size="sm" className="h-8 gap-1.5" title="版本历史" disabled={!chapterId}>
+          <History className="w-4 h-4" />版本历史
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-96" align="end">
@@ -339,7 +337,7 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
               </div>
             ) : (
               revisions.map((r) => (
-                <div key={r.id} className="group flex items-center gap-2 p-2 hover:bg-muted/50 rounded text-xs border border-transparent hover:border-teal-">
+                <div key={r.id} className="group flex items-center gap-2 p-2 hover:bg-muted/50 rounded text-xs border border-transparent hover:border-indigo-500/30">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{r.title}</div>
                     <div className="text-muted-foreground">
@@ -358,7 +356,7 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
                   </button>
                   <button
                     onClick={() => handleRollback(r.id)}
-                    className="opacity-0 group-hover:opacity-100 text-teal- hover:bg-violet-50 dark:hover:bg-violet-950/30 p-1 rounded"
+                    className="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 p-1 rounded"
                     title="回滚到此版本"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -389,7 +387,7 @@ function HistoryTool({ chapterId, onReload }: { chapterId: string | null; onRelo
 }
 
 // ============ 字数目标 ============
-function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; wordGoal: number; totalWords: number }) {
+export function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; wordGoal: number; totalWords: number }) {
   const [open, setOpen] = useState(false)
   const [goal, setGoal] = useState(wordGoal || 0)
   const [saving, setSaving] = useState(false)
@@ -423,7 +421,10 @@ function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; word
         <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" title="字数目标">
           <Target className="w-3.5 h-3.5" />
           {goal > 0 ? (
-            <span className="text-muted-foreground">{progress}%</span>
+            <>
+              <span>{formatWords(totalWords)} / {formatWords(goal)} 字</span>
+              <progress className="studio-footer-progress" aria-label="全书字数进度" value={progress} max={100} />
+            </>
           ) : (
             <span className="text-muted-foreground">设目标</span>
           )}
@@ -485,13 +486,11 @@ function WordGoalTool({ novelId, wordGoal, totalWords }: { novelId: string; word
 }
 
 // ============ 主组件 ============
-export function EditorToolbar({ novelId, novelTitle, chapterId, onJumpChapter, onContentReload, wordGoal, totalWords }: Props) {
+export function EditorToolbar({ novelId, novelTitle, chapterId, onJumpChapter }: Props) {
   return (
     <>
       <SearchTool novelId={novelId} onJumpChapter={onJumpChapter} />
       <ExportTool novelId={novelId} novelTitle={novelTitle} chapterId={chapterId} />
-      <HistoryTool chapterId={chapterId} onReload={onContentReload} />
-      <WordGoalTool novelId={novelId} wordGoal={wordGoal || 0} totalWords={totalWords || 0} />
       <PublishTool novelId={novelId} novelTitle={novelTitle} />
     </>
   )

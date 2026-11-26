@@ -65,65 +65,66 @@ export function AdminView() {
   const { t } = useI18n()
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">管理后台</h2>
-            <p className="text-sm text-muted-foreground">平台运营数据与用户管理</p>
-          </div>
-        </div>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="studio-subnav rounded-none h-[46px] justify-start shrink-0">
+          <TabsTrigger value="overview" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <TrendingUp className="w-3.5 h-3.5" />
+            {t("ad.overview")}
+          </TabsTrigger>
+          <TabsTrigger value="users" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Users className="w-3.5 h-3.5" />
+            {t("ad.users")}
+          </TabsTrigger>
+          <TabsTrigger value="novels" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <BookOpen className="w-3.5 h-3.5" />
+            {t("ad.novels")}
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <CreditCard className="w-3.5 h-3.5" />
+            {t("ad.orders")}
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <MessageSquare className="w-3.5 h-3.5" />
+            {t("ad.aiLogs")}
+          </TabsTrigger>
+          <TabsTrigger value="announcements" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Megaphone className="w-3.5 h-3.5" />
+            {t("ad.announcements")}
+          </TabsTrigger>
+          <TabsTrigger value="broadcast" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Send className="w-3.5 h-3.5" />
+            {t("ad.broadcast")}
+          </TabsTrigger>
+          <TabsTrigger value="email" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Mail className="w-3.5 h-3.5" />
+            {t("ad.email")}
+          </TabsTrigger>
+          <TabsTrigger value="redeem" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Ticket className="w-3.5 h-3.5" />
+            {t("ad.redeemCodes")}
+          </TabsTrigger>
+          <TabsTrigger value="docs" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <BookOpen className="w-3.5 h-3.5" />
+            {t("ad.docs")}
+          </TabsTrigger>
+          <TabsTrigger value="config" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Settings className="w-3.5 h-3.5" />
+            {t("ad.config")}
+          </TabsTrigger>
+        </TabsList>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
-            <TabsTrigger value="overview" className="gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5" />
-              {t("ad.overview")}
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1.5">
-              <Users className="w-3.5 h-3.5" />
-              {t("ad.users")}
-            </TabsTrigger>
-            <TabsTrigger value="novels" className="gap-1.5">
-              <BookOpen className="w-3.5 h-3.5" />
-              {t("ad.novels")}
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-1.5">
-              <CreditCard className="w-3.5 h-3.5" />
-              {t("ad.orders")}
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5" />
-              {t("ad.aiLogs")}
-            </TabsTrigger>
-            <TabsTrigger value="announcements" className="gap-1.5">
-              <Megaphone className="w-3.5 h-3.5" />
-              {t("ad.announcements")}
-            </TabsTrigger>
-            <TabsTrigger value="broadcast" className="gap-1.5">
-              <Send className="w-3.5 h-3.5" />
-              {t("ad.broadcast")}
-            </TabsTrigger>
-            <TabsTrigger value="email" className="gap-1.5">
-              <Mail className="w-3.5 h-3.5" />
-              {t("ad.email")}
-            </TabsTrigger>
-            <TabsTrigger value="redeem" className="gap-1.5">
-              <Ticket className="w-3.5 h-3.5" />
-              {t("ad.redeemCodes")}
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-1.5">
-              <BookOpen className="w-3.5 h-3.5" />
-              {t("ad.docs")}
-            </TabsTrigger>
-            <TabsTrigger value="config" className="gap-1.5">
-              <Settings className="w-3.5 h-3.5" />
-              {t("ad.config")}
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-[10px] ai-brand-mark flex items-center justify-center">
+                <Shield className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">管理后台</h2>
+                <p className="text-xs text-muted-foreground">平台运营数据与用户管理</p>
+              </div>
+            </div>
 
           <TabsContent value="overview" className="mt-4">
             <OverviewTab />
@@ -158,8 +159,9 @@ export function AdminView() {
           <TabsContent value="config" className="mt-4">
             <PlatformConfigTab />
           </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      </Tabs>
     </div>
   )
 }
@@ -206,7 +208,7 @@ function OverviewTab() {
 
   const o = data.overview
   const cards = [
-    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-teal-', bg: 'bg-indigo-600/10' },
+    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/10' },
     { label: '作品总数', value: o.totalNovels, icon: BookOpen, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { label: '章节总数', value: o.totalChapters, icon: FileText, color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { label: 'AI 调用次数', value: o.totalMessages, icon: MessageSquare, color: 'text-pink-500', bg: 'bg-pink-500/10' },
@@ -450,7 +452,7 @@ function UsersTab() {
                           <div className="font-medium truncate flex items-center gap-1">
                             {u.penName || u.name || '未命名'}
                             {u.role === 'admin' && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-teal-">
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-indigo-600 dark:text-indigo-400">
                                 ADMIN
                               </Badge>
                             )}
@@ -499,7 +501,7 @@ function UsersTab() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 text-xs text-teal-"
+                            className="h-7 text-xs text-indigo-600 dark:text-indigo-400"
                             onClick={() => handleSetRole(u, 'admin')}
                           >
                             设管理员
@@ -645,7 +647,7 @@ function NovelsTab() {
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-16 rounded bg-gradient-to-br from-indigo-600/30 to-blue-600/30 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-teal-">
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     {n.title.slice(0, 2)}
                   </span>
                 </div>
@@ -897,7 +899,7 @@ function MessagesTab() {
                       m.role === 'user'
                         ? 'text-emerald-600 text-xs'
                         : m.role === 'assistant'
-                        ? 'text-teal- text-xs'
+                        ? 'text-indigo-600 dark:text-indigo-400 text-xs'
                         : 'text-slate-500 text-xs'
                     }
                   >
@@ -1668,7 +1670,7 @@ function RedeemCodesTab() {
                       </div>
                     </td>
                     <td className="p-3 text-xs">
-                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-teal-'}>
+                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-indigo-600 dark:text-indigo-400'}>
                         {c.rewardDesc}
                       </Badge>
                     </td>
@@ -2182,7 +2184,7 @@ function AnnouncementsTab() {
     info: { label: '通知', color: 'text-blue-600', bg: 'bg-blue-500/10' },
     warning: { label: '提醒', color: 'text-amber-600', bg: 'bg-amber-500/10' },
     success: { label: '好消息', color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-    maintenance: { label: '维护', color: 'text-teal-', bg: 'bg-indigo-600/10' },
+    maintenance: { label: '维护', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/10' },
   }
 
   if (loading && !data) {
@@ -2200,7 +2202,7 @@ function AnnouncementsTab() {
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">总公告</div><div className="text-xl font-bold">{data.stats.total}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">已发布</div><div className="text-xl font-bold text-emerald-600">{data.stats.published}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">草稿</div><div className="text-xl font-bold text-amber-600">{data.stats.draft}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-teal-">{data.stats.pinned}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{data.stats.pinned}</div></CardContent></Card>
         </div>
       )}
 
@@ -2450,7 +2452,7 @@ function BroadcastTab() {
 
   const typeConfig: Record<string, { label: string; color: string }> = {
     notice: { label: '通知', color: 'text-blue-600' },
-    system: { label: '系统', color: 'text-teal-' },
+    system: { label: '系统', color: 'text-indigo-600 dark:text-indigo-400' },
     warning: { label: '警告', color: 'text-amber-600' },
     reward: { label: '奖励', color: 'text-emerald-600' },
   }
@@ -2588,7 +2590,7 @@ function BroadcastTab() {
                       {item.userId === null ? (
                         <Badge variant="outline" className="text-xs text-blue-600">{t('ad.broadcast')}</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-teal-">单发</Badge>
+                        <Badge variant="outline" className="text-xs text-indigo-600 dark:text-indigo-400">单发</Badge>
                       )}
                       {item.emailSent && (
                         <Badge variant="outline" className="text-xs text-emerald-600">

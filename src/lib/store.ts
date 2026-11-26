@@ -56,9 +56,47 @@ interface AppState {
   setPresetOpen: (v: boolean) => void
   setForceChangePassword: (v: boolean) => void
   backToWorkspace: () => void
+  restoreFromHistory: (state: {
+    view: ViewType
+    currentNovelId: string | null
+    currentChapterId: string | null
+  }) => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
+function buildUrlForState(
+  view: ViewType,
+  novelId: string | null,
+  chapterId: string | null
+): string {
+  if (typeof window === 'undefined') return '/'
+  const params = new URLSearchParams()
+  if (view && view !== 'workspace') params.set('view', view)
+  if (view === 'editor' && novelId) params.set('novelId', novelId)
+  if (view === 'editor' && chapterId) params.set('chapterId', chapterId)
+  const qs = params.toString()
+  return qs ? `/?${qs}` : '/'
+}
+
+export function pushAppHistory(
+  view: ViewType,
+  currentNovelId: string | null,
+  currentChapterId: string | null
+) {
+  if (typeof window === 'undefined') return
+  const nextUrl = buildUrlForState(view, currentNovelId, currentChapterId)
+  const cur = window.history.state
+  if (
+    cur &&
+    cur.view === view &&
+    cur.currentNovelId === currentNovelId &&
+    cur.currentChapterId === currentChapterId
+  ) {
+    return
+  }
+  window.history.pushState({ view, currentNovelId, currentChapterId }, '', nextUrl)
+}
+
+export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   authLoading: true,
 
@@ -78,9 +116,17 @@ export const useAppStore = create<AppState>((set) => ({
 
   setUser: (u) => set({ user: u }),
   setAuthLoading: (b) => set({ authLoading: b }),
-  setView: (v) => set({ view: v }),
-  openNovel: (novelId) =>
-    set({ view: 'editor', currentNovelId: novelId, currentChapterId: null }),
+  setView: (v) => {
+    const { currentNovelId, currentChapterId } = get()
+    const nextNovel = v === 'editor' ? currentNovelId : null
+    const nextChapter = v === 'editor' ? currentChapterId : null
+    set({ view: v })
+    pushAppHistory(v, nextNovel, nextChapter)
+  },
+  openNovel: (novelId) => {
+    set({ view: 'editor', currentNovelId: novelId, currentChapterId: null })
+    pushAppHistory('editor', novelId, null)
+  },
   setCurrentChapter: (id) => set({ currentChapterId: id }),
   setCurrentFolder: (id) => set({ currentFolderId: id }),
   setEditorMode: (m) => set({ editorMode: m }),
@@ -90,6 +136,15 @@ export const useAppStore = create<AppState>((set) => ({
   toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
   setPresetOpen: (v) => set({ presetOpen: v }),
   setForceChangePassword: (v) => set({ forceChangePassword: v }),
-  backToWorkspace: () =>
-    set({ view: 'workspace', currentNovelId: null, currentChapterId: null }),
+  backToWorkspace: () => {
+    set({ view: 'workspace', currentNovelId: null, currentChapterId: null })
+    pushAppHistory('workspace', null, null)
+  },
+  restoreFromHistory: (state) => {
+    set({
+      view: state.view || 'workspace',
+      currentNovelId: state.currentNovelId ?? null,
+      currentChapterId: state.currentChapterId ?? null,
+    })
+  },
 }))

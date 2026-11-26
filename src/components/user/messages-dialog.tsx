@@ -52,12 +52,12 @@ const annTypeConfig: Record<string, { label: string; icon: any; color: string }>
   info: { label: '通知', icon: Info, color: 'text-blue-500' },
   warning: { label: '提醒', icon: AlertTriangle, color: 'text-amber-500' },
   success: { label: '好消息', icon: CheckCircle2, color: 'text-emerald-500' },
-  maintenance: { label: '维护', icon: Wrench, color: 'text-teal-' },
+  maintenance: { label: '维护', icon: Wrench, color: 'text-indigo-600 dark:text-indigo-400' },
 }
 
 const msgTypeConfig: Record<string, { label: string; icon: any; color: string }> = {
   notice: { label: '通知', icon: Bell, color: 'text-blue-500' },
-  system: { label: '系统', icon: Info, color: 'text-teal-' },
+  system: { label: '系统', icon: Info, color: 'text-indigo-600 dark:text-indigo-400' },
   warning: { label: '警告', icon: AlertCircle, color: 'text-amber-500' },
   reward: { label: '奖励', icon: Gift, color: 'text-emerald-500' },
 }
@@ -156,7 +156,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Bell className="w-4 h-4 text-teal-" />
+            <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             消息中心
             <button
               onClick={() => onOpenChange(false)}
@@ -274,7 +274,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                     <div
                       key={a.id}
                       className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/30 transition ${
-                        !a.isRead ? 'border-teal- bg-violet-50/30 dark:bg-violet-950/10' : ''
+                        !a.isRead ? 'border-indigo-500/30 bg-violet-50/30 dark:bg-violet-950/10' : ''
                       }`}
                       onClick={() => handleOpenAnn(a)}
                     >
@@ -313,7 +313,7 @@ export function MessagesDialog({ open, onOpenChange, onUnreadChange }: Props) {
                   <div
                     key={m.id}
                     className={`p-3 border rounded-lg cursor-pointer hover:bg-muted/30 transition group ${
-                      !m.isRead ? 'border-teal- bg-violet-50/30 dark:bg-violet-950/10' : ''
+                      !m.isRead ? 'border-indigo-500/30 bg-violet-50/30 dark:bg-violet-950/10' : ''
                     }`}
                     onClick={() => handleOpenMsg(m)}
                   >

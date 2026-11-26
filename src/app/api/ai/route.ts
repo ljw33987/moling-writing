@@ -4,6 +4,7 @@ import { requireSessionOr401 } from '@/lib/auth'
 import { callThirdPartyAI } from '@/lib/ai-providers'
 import { getPlatformDefaultAI } from '@/lib/platform-ai'
 import { assembleNovelContext } from '@/lib/context-assembler'
+import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // 预设指令库
@@ -201,6 +202,16 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const { action, preset, message, context, novelId, chapterId, targetStyle } = body
+
+    if (novelId && !await getOwnedNovel(user.id, novelId)) {
+      return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+    }
+    if (chapterId) {
+      const chapter = await getOwnedChapter(user.id, chapterId)
+      if (!chapter || (novelId && chapter.novelId !== novelId)) {
+        return NextResponse.json({ error: '未找到章节' }, { status: 404 })
+      }
+    }
 
     let systemPrompt = '你是一位专业的网文创作助手，帮助作者完成小说创作任务。回复请使用中文。'
     let userPrompt = message || ''

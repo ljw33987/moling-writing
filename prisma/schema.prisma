@@ -118,6 +118,8 @@ model AutoSerial {
   nextRunAt      DateTime?
   status         String   @default("idle") // idle / running / paused / error
   totalGenerated Int      @default(0) // 已自动生成章节数
+  startChapterNum Int?    // 起始章节号（可选，设置后从该章号开始写并顺延）
+  targetVolumeId String?  // 写入目标分卷 ID（可选）
   lastError      String?
   plotDirection  String?  // 剧情走向提示（用户给 AI 的方向）
   createdAt      DateTime @default(now())

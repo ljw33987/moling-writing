@@ -31,10 +31,12 @@ import {
   Image as ImageIcon,
   Download,
   Store,
+  FileUp,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
 import { PromptMarketPanel } from './prompt-market-panel'
+import { MarkdownRenderer, markdownToPlainText } from '@/components/ai/markdown-renderer'
 
 interface ToolDef {
   id: string
@@ -138,6 +140,12 @@ export function AiToolboxView() {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // 整本拆书状态（支持百万字级 TXT / MD）
+  const [bookFileName, setBookFileName] = useState('')
+  const [bookChapters, setBookChapters] = useState<Array<{ title: string; content: string }>>([])
+  const [deconstructMode, setDeconstructMode] = useState<'sample' | 'batch'>('sample')
+  const [deconstructProgress, setDeconstructProgress] = useState('')
+
   // 原创封面生成器状态
   const [coverTitle, setCoverTitle] = useState('太虚问道')
   const [coverAuthor, setCoverAuthor] = useState('青云客')
@@ -160,14 +168,139 @@ export function AiToolboxView() {
       .catch(() => {})
   }, [])
 
+  function splitBookChapters(text: string): Array<{ title: string; content: string }> {
+    const normalized = text.replace(/\r\n?/g, '\n')
+    const regex = /(?:^|\n)[ \t　]*(第[零一二三四五六七八九十百千万0-9]{1,8}[章节回卷集].{0,40}|Chapter\s+\d+[^\n]{0,40})(?=\n|$)/gi
+    const matches = Array.from(normalized.matchAll(regex))
+    if (matches.length < 2) {
+      // 按每 3000 字自动切片
+      const chunks: Array<{ title: string; content: string }> = []
+      for (let i = 0; i < normalized.length; i += 3000) {
+        chunks.push({
+          title: `第 ${chunks.length + 1} 段`,
+          content: normalized.slice(i, i + 3000),
+        })
+      }
+      return chunks
+    }
+    const chapters: Array<{ title: string; content: string }> = []
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index ?? 0
+      const end = i + 1 < matches.length ? (matches[i + 1].index ?? normalized.length) : normalized.length
+      const title = matches[i][1].trim()
+      const body = normalized.slice(start, end).trim()
+      if (body.length > 30) {
+        chapters.push({ title, content: body })
+      }
+    }
+    return chapters
+  }
+
+  const handleDeconstructFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const buf = await file.arrayBuffer()
+    let text = new TextDecoder('utf-8', { fatal: false }).decode(buf)
+    if ((text.match(/\uFFFD/g) || []).length > 5) {
+      try {
+        text = new TextDecoder('gbk', { fatal: false }).decode(buf)
+      } catch {}
+    }
+    const chapters = splitBookChapters(text)
+    setBookFileName(file.name)
+    setBookChapters(chapters)
+    setPrompt(text)
+    toast.success(`已加载《${file.name}》：共 ${chapters.length} 章，约 ${(text.length / 10000).toFixed(1)} 万字`)
+    e.target.value = ''
+  }
+
   const handleRunAi = async () => {
     if (!activeTool || !prompt.trim()) {
-      toast.error('请先填写输入内容')
+      toast.error('请先填写输入内容，或上传整本小说 / 抓取网页')
       return
     }
     setLoading(true)
     setOutput('')
+    setDeconstructProgress('')
     try {
+      // 整本长文本拆书（超过 6000 字时启用采样或分批精拆）
+      if (activeTool.id === 'deconstruct' && prompt.length > 6000) {
+        const chapters = bookChapters.length > 0 ? bookChapters : splitBookChapters(prompt)
+        if (deconstructMode === 'sample') {
+          setDeconstructProgress('正在采样全书核心章节并生成拆书报告...')
+          const picks: Array<{ title: string; content: string }> = []
+          // 黄金前三章 + 中段均匀采样 + 末章
+          picks.push(...chapters.slice(0, 3))
+          if (chapters.length > 6) {
+            const step = Math.floor((chapters.length - 4) / 4)
+            for (let idx = 3; idx < chapters.length - 1 && picks.length < 7; idx += Math.max(1, step)) {
+              picks.push(chapters[idx])
+            }
+          }
+          if (chapters.length > 3) picks.push(chapters[chapters.length - 1])
+
+          const sampleDigest = picks
+            .map((c) => `【${c.title}】\n${c.content.slice(0, 1400)}`)
+            .join('\n\n---\n\n')
+
+          const r = await api<{ reply: string }>('/api/ai', {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'chat',
+              preset: 'deconstruct',
+              message: `这是一本完整小说（《${bookFileName || '导入作品'}》，共 ${chapters.length} 章、约 ${(prompt.length / 10000).toFixed(1)} 万字）。以下是抽取的黄金开篇与全书代表章节，请进行系统性整本拆书分析（包含：核心卖点与题材定位、黄金三章钩子结构、主线升级节奏、核心人物塑造、爽点分布与可复用大纲模板）：\n\n${sampleDigest}`,
+            }),
+          })
+          setOutput(r.reply || '')
+          toast.success('整本快速脉络拆解完成')
+        } else {
+          // 分批精拆：百万字级长篇最多分 12 批覆盖全书前中后期，每批均匀抽样章节片段后汇总
+          const maxBatches = prompt.length > 500000 ? 12 : 8
+          const groupSize = Math.max(1, Math.ceil(chapters.length / maxBatches))
+          const batches: Array<{ label: string; text: string }> = []
+          for (let i = 0; i < chapters.length; i += groupSize) {
+            const slice = chapters.slice(i, i + groupSize)
+            const label = `${slice[0].title} ~ ${slice[slice.length - 1].title}`
+            // 若该批次章节较多，均匀抽取最多 6 章代表片段，确保每阶段头尾都有覆盖
+            const pickCount = Math.min(6, slice.length)
+            const perCap = Math.floor(9000 / pickCount)
+            const picked: typeof slice = []
+            for (let k = 0; k < pickCount; k++) {
+              const idx = pickCount === 1 ? 0 : Math.round((k * (slice.length - 1)) / (pickCount - 1))
+              picked.push(slice[idx])
+            }
+            const joined = picked.map((c) => `【${c.title}】\n${c.content.slice(0, perCap)}`).join('\n\n')
+            batches.push({ label, text: joined })
+          }
+
+          const summaries: string[] = []
+          for (let b = 0; b < batches.length; b++) {
+            setDeconstructProgress(`正在精拆第 ${b + 1} / ${batches.length} 阶段（${batches[b].label}）...`)
+            const r = await api<{ reply: string }>('/api/ai', {
+              method: 'POST',
+              body: JSON.stringify({
+                action: 'chat',
+                message: `请作为资深网文主编，提炼以下小说阶段（${batches[b].label}）的核心剧情推进、出场关键角色、金手指/实力变化、爽点设计与埋下的伏笔（300字以内，条理清晰）：\n\n${batches[b].text}`,
+              }),
+            })
+            summaries.push(`### 阶段 ${b + 1}：${batches[b].label}\n${r.reply}`)
+          }
+
+          setDeconstructProgress('正在汇总全书阶段摘要，生成完整拆书总报告...')
+          const finalRes = await api<{ reply: string }>('/api/ai', {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'chat',
+              preset: 'deconstruct',
+              message: `以下是小说《${bookFileName || '导入作品'}》（共 ${chapters.length} 章、约 ${(prompt.length / 10000).toFixed(1)} 万字）全书各阶段的拆解摘要，请综合输出一份完整的「整本拆书总报告」（涵盖核心卖点、全书结构、节奏曲线、人物弧光与可复用仿写大纲）：\n\n${summaries.join('\n\n')}`,
+            }),
+          })
+          setOutput(`${finalRes.reply}\n\n---\n\n## 各阶段拆解明细\n\n${summaries.join('\n\n')}`)
+          toast.success('全书分批深度精拆完成')
+        }
+        return
+      }
+
       const r = await api<{ reply: string }>('/api/ai', {
         method: 'POST',
         body: JSON.stringify({
@@ -182,6 +315,7 @@ export function AiToolboxView() {
       toast.error(e.message || '生成失败')
     } finally {
       setLoading(false)
+      setDeconstructProgress('')
     }
   }
 
@@ -226,13 +360,13 @@ export function AiToolboxView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-background">
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-background">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* 页头 */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-indigo-" />
+            <h1 className="text-2xl font-bold font-display flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-gold" />
               AI 网文创作工具箱
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -243,7 +377,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'ai' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'ai' ? 'bg-gradient-to-r from-indigo-600 to-blue-600' : ''}
+              className={mode === 'ai' ? 'bg-primary rounded-full shadow-sm' : ''}
               onClick={() => setMode('ai')}
             >
               AI 生成与拆书
@@ -251,7 +385,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'market' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'market' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
+              className={mode === 'market' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
               onClick={() => setMode('market')}
             >
               <Store className="w-3.5 h-3.5" />
@@ -260,7 +394,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'txt' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'txt' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
+              className={mode === 'txt' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
               onClick={() => setMode('txt')}
             >
               <Upload className="w-3.5 h-3.5" />
@@ -269,7 +403,7 @@ export function AiToolboxView() {
             <Button
               variant={mode === 'cover' ? 'default' : 'outline'}
               size="sm"
-              className={mode === 'cover' ? 'bg-gradient-to-r from-indigo-600 to-blue-600 gap-1.5' : 'gap-1.5'}
+              className={mode === 'cover' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
               onClick={() => setMode('cover')}
             >
               <ImageIcon className="w-3.5 h-3.5" />
@@ -289,7 +423,7 @@ export function AiToolboxView() {
         ) : mode === 'cover' ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">原创小说封面生成器（无版权风险）</CardTitle>
+              <CardTitle className="text-lg font-display">原创小说封面生成器（无版权风险）</CardTitle>
               <CardDescription>
                 输入书名、笔名与宣传语，实时生成 3:4 竖版原创封面图，支持直接下载 PNG 或一键应用到作品
               </CardDescription>
@@ -325,7 +459,7 @@ export function AiToolboxView() {
                 </div>
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Button
-                    className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                    className="gap-1.5 bg-primary rounded-full shadow-sm hover:bg-primary/90"
                     onClick={() => {
                       const svg = document.getElementById('bifeng-cover-svg')
                       if (!svg) return
@@ -421,7 +555,7 @@ export function AiToolboxView() {
         ) : mode === 'txt' ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">TXT 长文本智能分章导入</CardTitle>
+              <CardTitle className="text-lg font-display">TXT 长文本智能分章导入</CardTitle>
               <CardDescription>
                 自动识别 `第X章` / `第X回` / `Chapter N` 等章节标题，一键拆分并导入指定作品的新分卷
               </CardDescription>
@@ -469,7 +603,7 @@ export function AiToolboxView() {
                 <Button
                   onClick={handleImportTxt}
                   disabled={importing}
-                  className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                  className="gap-1.5 bg-primary rounded-full shadow-sm hover:bg-primary/90"
                 >
                   {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   开始智能分章并导入
@@ -478,87 +612,222 @@ export function AiToolboxView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* 左侧工具卡片矩阵 */}
-            <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* 左侧紧凑工具导航栏 */}
+            <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
               {TOOLS.map((tool) => {
                 const selected = activeTool?.id === tool.id
                 return (
-                  <Card
+                  <button
                     key={tool.id}
-                    onClick={() => setActiveTool(tool)}
-                    className={`cursor-pointer transition hover:border-indigo-400 ${
-                      selected ? 'border-indigo-600 bg-indigo-600/5 shadow-sm' : ''
+                    type="button"
+                    onClick={() => {
+                      setActiveTool(tool)
+                      setOutput('')
+                    }}
+                    className={`w-full text-left rounded-[14px] border p-2.5 flex items-center gap-3 transition-all bg-card hover:border-[var(--brand-line)] hover:shadow-sm ${
+                      selected
+                        ? 'border-primary/60 bg-primary/8 shadow-xs ring-1 ring-primary/20'
+                        : 'border-border bg-card hover:bg-muted/50 hover:border-primary/30'
                     }`}
                   >
-                    <CardHeader className="p-3.5 flex flex-row items-center gap-3.5 space-y-0">
-                      <img
-                        src={tool.image}
-                        alt={tool.title}
-                        className="w-14 h-14 rounded-xl shadow-sm shrink-0 object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <CardTitle className="text-sm truncate">{tool.title}</CardTitle>
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {tool.badge}
-                          </Badge>
-                        </div>
-                        <CardDescription className="text-xs mt-1 line-clamp-2">{tool.desc}</CardDescription>
+                    <img
+                      src={tool.image}
+                      alt={tool.title}
+                      className="w-10 h-10 rounded-lg shadow-2xs shrink-0 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
+                          {tool.title}
+                        </span>
+                        <Badge variant={selected ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
+                          {tool.badge}
+                        </Badge>
                       </div>
-                    </CardHeader>
-                  </Card>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{tool.desc}</p>
+                    </div>
+                  </button>
                 )
               })}
             </div>
 
-            {/* 右侧工作区 */}
-            <div className="lg:col-span-7">
+            {/* 右侧创作工作台 */}
+            <div className="lg:col-span-8">
               {activeTool && (
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                    <img
-                      src={activeTool.image}
-                      alt={activeTool.title}
-                      className="w-12 h-12 rounded-xl shadow-sm shrink-0 object-cover"
-                    />
-                    <div>
-                      <CardTitle className="text-lg">{activeTool.title}</CardTitle>
-                      <CardDescription>{activeTool.desc}</CardDescription>
+                <Card className="shadow-xs border-border/80">
+                  <CardHeader className="pb-4 border-b border-border/60 flex flex-row items-center justify-between gap-4 space-y-0">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <img
+                        src={activeTool.image}
+                        alt={activeTool.title}
+                        className="w-11 h-11 rounded-xl shadow-xs shrink-0 object-cover"
+                      />
+                      <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+                          <span>{activeTool.title}</span>
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            {activeTool.badge}
+                          </Badge>
+                        </CardTitle>
+                        <CardDescription className="text-xs mt-0.5 truncate">{activeTool.desc}</CardDescription>
+                      </div>
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs shrink-0"
+                      onClick={() => setPrompt(activeTool.placeholder.replace(/^例：/, ''))}
+                    >
+                      填入示例
+                    </Button>
                   </CardHeader>
-                  <CardContent className="flex-1 flex flex-col gap-4">
-                    <Textarea
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder={activeTool.placeholder}
-                      rows={5}
-                    />
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        onClick={handleRunAi}
-                        disabled={loading}
-                        className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
-                      >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        立即生成
-                      </Button>
-                    </div>
 
-                    {output && (
-                      <div className="flex-1 flex flex-col gap-2 rounded-lg border bg-muted/20 p-4">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>生成结果</span>
-                          <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleCopy}>
-                            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                            复制
-                          </Button>
+                  <CardContent className="p-5 space-y-4">
+                    {/* 拆书专属：整本上传（支持百万字级） */}
+                    {activeTool.id === 'deconstruct' && (
+                      <div className="rounded-xl border border-border bg-[var(--surface-2)] p-3.5 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <label className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] border border-border bg-card hover:bg-muted text-xs font-medium cursor-pointer transition-colors">
+                            <FileUp className="w-3.5 h-3.5 text-primary" />
+                            <span>上传整本 TXT / MD</span>
+                            <input
+                              type="file"
+                              accept=".txt,.md,text/plain"
+                              onChange={handleDeconstructFile}
+                              className="hidden"
+                            />
+                          </label>
+                          <span className="text-[11px] text-muted-foreground">
+                            支持百万字级整本小说（自动识别 UTF-8 / GBK 编码并智能分章）
+                          </span>
                         </div>
-                        <div className="text-sm whitespace-pre-wrap leading-relaxed max-h-[420px] overflow-y-auto">
-                          {output}
-                        </div>
+
+                        {(bookFileName || prompt.length > 6000) && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+                            <span className="text-muted-foreground">
+                              {bookFileName ? `已加载「${bookFileName}」` : '长文本模式'}
+                              {bookChapters.length > 0 && ` · 共 ${bookChapters.length} 章`}
+                              {` · 约 ${(prompt.length / 10000).toFixed(1)} 万字`}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setDeconstructMode('sample')}
+                                className={`h-6 px-2.5 rounded-[7px] text-[11px] font-medium border transition-colors ${
+                                  deconstructMode === 'sample'
+                                    ? 'bg-[var(--brand-soft)] text-[var(--brand-ink)] border-[var(--brand-line)]'
+                                    : 'bg-card text-muted-foreground border-border'
+                                }`}
+                              >
+                                快速脉络拆解（省额度）
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeconstructMode('batch')}
+                                className={`h-6 px-2.5 rounded-[7px] text-[11px] font-medium border transition-colors ${
+                                  deconstructMode === 'batch'
+                                    ? 'bg-[var(--brand-soft)] text-[var(--brand-ink)] border-[var(--brand-line)]'
+                                    : 'bg-card text-muted-foreground border-border'
+                                }`}
+                              >
+                                全书分批精拆（更深度）
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    <div className="space-y-2">
+                      <Textarea
+                        value={prompt.length > 30000 ? `${prompt.slice(0, 12000)}\n\n...（完整文本共 ${prompt.length.toLocaleString()} 字，已加载至内存，点击「立即生成」将按整本模式拆解）...` : prompt}
+                        onChange={(e) => {
+                          setPrompt(e.target.value)
+                          if (!e.target.value) {
+                            setBookFileName('')
+                            setBookChapters([])
+                          }
+                        }}
+                        placeholder={activeTool.placeholder}
+                        rows={6}
+                        className="resize-y text-sm leading-relaxed"
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          已输入 {prompt.length.toLocaleString()} 字
+                          {deconstructProgress && (
+                            <span className="ml-2 text-primary font-medium">{deconstructProgress}</span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {prompt && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs text-muted-foreground"
+                              onClick={() => {
+                                setPrompt('')
+                                setOutput('')
+                                setBookFileName('')
+                                setBookChapters([])
+                              }}
+                            >
+                              清空
+                            </Button>
+                          )}
+                          <Button
+                            onClick={handleRunAi}
+                            disabled={loading}
+                            size="sm"
+                            className="h-8 px-4 gap-1.5 bg-primary rounded-full shadow-sm hover:bg-primary/90 text-primary-foreground"
+                          >
+                            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            {loading ? '正在生成...' : '立即生成'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 结构化结果区 */}
+                    <div className="rounded-xl border border-border bg-muted/20 overflow-hidden">
+                      <div className="px-4 py-2.5 border-b border-border/60 bg-muted/30 flex items-center justify-between text-xs">
+                        <span className="font-medium text-muted-foreground">AI 生成结果</span>
+                        {output && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs gap-1"
+                            onClick={() => {
+                              navigator.clipboard.writeText(markdownToPlainText(output))
+                              setCopied(true)
+                              toast.success('已复制纯文本')
+                              setTimeout(() => setCopied(false), 1500)
+                            }}
+                          >
+                            {copied ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
+                            复制结果
+                          </Button>
+                        )}
+                      </div>
+                      <div className="p-4 min-h-[220px] max-h-[460px] overflow-y-auto">
+                        {loading ? (
+                          <div className="h-[180px] flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
+                            <Loader2 className="w-5 h-5 animate-spin text-gold" />
+                            <span>AI 正在深度构思中，请稍候...</span>
+                          </div>
+                        ) : output ? (
+                          <MarkdownRenderer content={output} />
+                        ) : (
+                          <div className="h-[180px] flex flex-col items-center justify-center text-center text-muted-foreground gap-1.5">
+                            <Sparkles className="w-5 h-5 opacity-40" />
+                            <p className="text-xs">输入灵感或点击右上角「填入示例」，生成结果将在此处以结构化排版呈现</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}

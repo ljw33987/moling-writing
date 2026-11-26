@@ -10,15 +10,21 @@ import { useAutosave } from '@/hooks/use-autosave'
 import { AiAssistant } from '@/components/ai/ai-assistant'
 import { AutoSerialPanel } from './auto-serial-panel'
 import { LongNovelTools } from './long-novel-tools'
-import { EditorToolbar } from './editor-toolbar'
+import { EditorToolbar, HistoryTool, WordGoalTool } from './editor-toolbar'
 import { MindmapMainPanel, type MindmapFile } from './mindmap-main-panel'
 import { Button } from '@/components/ui/button'
-import { PanelLeft, PanelRight, Eye, Moon, Sun, Type, Sparkles } from 'lucide-react'
+import { PanelLeft, PanelRight, Eye, Moon, Sun, Type, Sparkles, ArrowLeft } from 'lucide-react'
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
 export interface Volume {
@@ -46,6 +52,7 @@ export interface NovelDetail {
   synopsis: string | null
   outline: string | null
   genre: string
+  wordGoal?: number
   volumes: Volume[]
 }
 
@@ -62,6 +69,7 @@ export function EditorView() {
     setEditorMode,
     theme,
     setTheme,
+    backToWorkspace,
   } = useAppStore()
 
   const [novel, setNovel] = useState<NovelDetail | null>(null)
@@ -69,6 +77,22 @@ export function EditorView() {
   const [loading, setLoading] = useState(true)
   const [mindmapFiles, setMindmapFiles] = useState<MindmapFile[]>([])
   const [activeMindmapId, setActiveMindmapId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileDrawer, setMobileDrawer] = useState<'chapters' | 'assistant' | null>(null)
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)')
+    const update = () => {
+      setIsMobile(media.matches)
+      if (!media.matches) setMobileDrawer(null)
+    }
+    const frame = window.requestAnimationFrame(update)
+    media.addEventListener('change', update)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      media.removeEventListener('change', update)
+    }
+  }, [])
 
   useEffect(() => {
     if (!currentNovelId) return
@@ -187,7 +211,11 @@ export function EditorView() {
 
   const handleManualSave = () => {
     if (!currentChapter) return
-    void flush(currentChapter.id).then(() => toast.success('已保存到服务端'))
+    void flush(currentChapter.id).then((result) => {
+      if (result === 'saved' || result === 'idle') toast.success('同步完成')
+      else if (result === 'offline') toast.error('离线，草稿保存在本机')
+      else if (result === 'error') toast.error('同步失败，草稿保存在本机')
+    })
   }
 
   const handleAcceptRecovery = () => {
@@ -268,12 +296,12 @@ export function EditorView() {
       return
     }
     if (tiptapRef.current) {
-      tiptapRef.current.replaceAllContent(text)
-      toast.success('已替换当前章节正文')
+      tiptapRef.current.replaceSelection(text)
+      toast.success('已插入到正文光标处')
       return
     }
-    handleContentChange(text)
-    toast.success('已替换当前章节正文')
+    handleContentChange(`${currentChapter.content}${currentChapter.content ? '\n\n' : ''}${text}`)
+    toast.success('已添加到正文末尾')
   }
 
   // 替换选中文字
@@ -297,19 +325,40 @@ export function EditorView() {
   )
 
   return (
-    <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden">
+    <div className="studio-editor flex-1 h-full min-h-0 flex flex-col overflow-hidden">
       {/* 顶部工作区工具栏 */}
-      <div className="h-10 shrink-0 border-b border-border bg-card/50 flex items-center px-3 gap-1.5 text-xs overflow-x-auto">
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={toggleLeftPanel} title="切换左侧栏">
+      <div className="studio-editor-bar shrink-0 border-b border-border flex items-center px-3 gap-1.5 text-xs overflow-x-auto">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 gap-1 text-xs shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              window.history.back()
+            } else {
+              backToWorkspace()
+            }
+          }}
+          title="返回上一级"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">返回书架</span>
+        </Button>
+        <div className="h-4 w-px bg-border shrink-0" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => isMobile ? setMobileDrawer('chapters') : toggleLeftPanel()} title={isMobile ? '打开目录与设定' : '切换左侧栏'} aria-label={isMobile ? '打开目录与设定' : '切换左侧栏'}>
           <PanelLeft className="w-4 h-4" />
         </Button>
-        <span className="font-semibold truncate max-w-[160px]">{novel.title}</span>
-        <span className="text-muted-foreground shrink-0">/</span>
-        <span className="text-muted-foreground truncate max-w-[160px]">{currentChapter?.title || '未选择章节'}</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 lg:hidden" onClick={() => setMobileDrawer('assistant')} title="打开 AI 助手" aria-label="打开 AI 助手">
+          <PanelRight className="w-4 h-4" />
+        </Button>
+        <span className="font-display font-semibold truncate max-w-[100px] sm:max-w-[160px] text-ink">{novel.title}</span>
+        <span className="hidden xl:inline text-muted-foreground shrink-0">/</span>
+        <span className="hidden xl:inline text-muted-foreground truncate max-w-[160px]">{currentChapter?.title || '未选择章节'}</span>
 
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           <AutoSerialPanel
             novelId={novel.id}
+            volumes={novel.volumes}
             onChapterCreated={(newId) => {
               void loadNovel()
               if (newId) setCurrentChapter(newId)
@@ -319,32 +368,31 @@ export function EditorView() {
             novelId={novel.id}
             chapterId={currentChapterId}
             chapterContent={currentChapter?.content || ''}
+            volumes={novel.volumes}
             onJumpChapter={setCurrentChapter}
             onInsertAiDraft={handleInsertText}
+            onChapterUpdated={() => void loadNovel()}
           />
           <EditorToolbar
             novelId={novel.id}
             novelTitle={novel.title}
             chapterId={currentChapterId}
             onJumpChapter={setCurrentChapter}
-            onContentReload={loadNovel}
-            wordGoal={(novel as any).wordGoal}
-            totalWords={totalWords}
           />
 
           {saveState === 'saving' ? (
-            <span className="text-amber-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+            <span className="text-gold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
               保存中...
             </span>
           ) : saveState === 'dirty' ? (
-            <span className="text-amber-500">本地已暂存</span>
+            <span className="text-gold">本地已暂存</span>
           ) : saveState === 'offline' ? (
-            <span className="text-orange-500">离线（已存本地）</span>
+            <span className="text-gold">离线（已存本地）</span>
           ) : saveState === 'error' ? (
-            <span className="text-destructive">同步失败（已存本地）</span>
+            <span className="text-cinnabar">同步失败（已存本地）</span>
           ) : saveState === 'saved' ? (
-            <span className="text-emerald-500">已自动保存</span>
+            <span className="text-jade">已自动保存</span>
           ) : null}
 
           <span className="text-muted-foreground">
@@ -387,41 +435,15 @@ export function EditorView() {
           >
             <Eye className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleRightPanel}>
+          <Button variant="ghost" size="icon" className="hidden lg:inline-flex h-8 w-8" onClick={() => toggleRightPanel()} title="切换 AI 助手" aria-label="切换 AI 助手">
             <PanelRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       {/* 三栏布局 */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0 overflow-hidden">
-        {leftPanelOpen && (
-          <>
-            <ResizablePanel defaultSize={23} minSize={18} maxSize={35} className="h-full min-h-0 overflow-hidden">
-              <LeftSidebarPanel
-                novel={novel}
-                currentChapterId={currentChapterId}
-                currentChapterContent={currentChapter?.content || ''}
-                mindmapFiles={mindmapFiles}
-                activeMindmapId={activeMindmapId}
-                onSelectChapter={(id) => {
-                  setActiveMindmapId(null)
-                  setCurrentChapter(id)
-                }}
-                onSelectMindmap={(id) => setActiveMindmapId(id)}
-                onCreateMindmap={handleCreateMindmap}
-                onDeleteMindmap={handleDeleteMindmap}
-                onTreeChange={handleTreeChange}
-                onInsertCodexRef={(id) =>
-                  tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
-                }
-              />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-          </>
-        )}
-
-        <ResizablePanel defaultSize={50} minSize={35} className="h-full min-h-0 overflow-hidden">
+      {isMobile ? (
+        <div className="flex-1 min-h-0 overflow-hidden">
           {activeMindmap ? (
             <MindmapMainPanel
               file={activeMindmap}
@@ -445,21 +467,158 @@ export function EditorView() {
               tiptapRef={tiptapRef}
             />
           )}
-        </ResizablePanel>
+        </div>
+      ) : (
+        <ResizablePanelGroup direction="horizontal" autoSaveId={`editor-layout-${novel.id}`} className="flex-1 min-h-0 overflow-hidden">
+          {leftPanelOpen && (
+            <>
+              <ResizablePanel defaultSize={24} minSize={18} maxSize={35} className="h-full min-h-0 overflow-hidden">
+                <LeftSidebarPanel
+                  novel={novel}
+                  currentChapterId={currentChapterId}
+                  currentChapterContent={currentChapter?.content || ''}
+                  mindmapFiles={mindmapFiles}
+                  activeMindmapId={activeMindmapId}
+                  onSelectChapter={(id) => {
+                    setActiveMindmapId(null)
+                    setCurrentChapter(id)
+                    setMobileDrawer(null)
+                  }}
+                  onSelectMindmap={(id) => {
+                    setActiveMindmapId(id)
+                    setMobileDrawer(null)
+                  }}
+                  onCreateMindmap={handleCreateMindmap}
+                  onDeleteMindmap={handleDeleteMindmap}
+                  onTreeChange={handleTreeChange}
+                  onInsertCodexRef={(id) =>
+                    tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
+                  }
+                />
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+            </>
+          )}
 
-        {rightPanelOpen && (
-          <>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={27} minSize={20} maxSize={42} className="h-full min-h-0 overflow-hidden">
-              <AiAssistant
-                novelId={currentNovelId!}
-                chapterId={currentChapterId}
-                onInsertText={handleInsertText}
+          <ResizablePanel defaultSize={48} minSize={35} className="h-full min-h-0 overflow-hidden">
+            {activeMindmap ? (
+              <MindmapMainPanel
+                file={activeMindmap}
+                novelId={novel.id}
+                onChange={handleUpdateMindmap}
+                onBackToEditor={() => setActiveMindmapId(null)}
               />
-            </ResizablePanel>
-          </>
-        )}
-      </ResizablePanelGroup>
+            ) : (
+              <EditorPanel
+                chapter={currentChapter}
+                novel={novel}
+                onContentChange={handleContentChange}
+                onTitleChange={handleTitleChange}
+                onStatusChange={handleStatusChange}
+                editorMode={editorMode}
+                onInsertText={handleInsertText}
+                onManualSave={handleManualSave}
+                recoveryDraft={recoveryDraft}
+                onAcceptRecovery={handleAcceptRecovery}
+                onDismissRecovery={dismissRecovery}
+                tiptapRef={tiptapRef}
+              />
+            )}
+          </ResizablePanel>
+
+          {rightPanelOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={28} minSize={20} maxSize={42} className="studio-ai-column h-full min-h-0 overflow-hidden">
+                <AiAssistant
+                  novelId={currentNovelId!}
+                  chapterId={currentChapterId}
+                  onInsertText={handleInsertText}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      )}
+
+      <footer className="studio-editor-footer text-xs text-muted-foreground">
+        <div className="flex items-center gap-2.5 tnum">
+          <span>本章 <b className="text-foreground font-semibold">{formatWords(currentChapter?.words || 0)}</b> 字</span>
+          <span>·</span>
+          <span>全书 <b className="text-foreground font-semibold">{formatWords(totalWords)}</b> 字</span>
+          {(currentChapter?.words || 0) > 0 && (
+            <>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">约 {Math.ceil((currentChapter?.words || 0) / 400)} 分钟阅读</span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${saveState === 'saved' ? 'bg-[var(--jade)]' : saveState === 'error' ? 'bg-[var(--cinnabar)]' : 'bg-[var(--gold)] animate-pulse'}`} />
+            {saveState === 'saving' ? '保存中...' : saveState === 'dirty' ? '本地已暂存' : saveState === 'offline' ? '离线（已存本地）' : saveState === 'error' ? '同步失败' : '已自动保存'}
+          </span>
+          <WordGoalTool novelId={novel.id} wordGoal={novel.wordGoal ?? 0} totalWords={totalWords} />
+          <HistoryTool chapterId={currentChapterId} onReload={loadNovel} />
+        </div>
+      </footer>
+
+      <nav className="studio-editor-actions lg:hidden" aria-label="写作工具">
+        <Button variant="ghost" onClick={() => setMobileDrawer('chapters')}><PanelLeft />目录</Button>
+        <Button variant="ghost" aria-pressed={editorMode === 'focus'} onClick={() => setEditorMode(editorMode === 'focus' ? 'normal' : 'focus')}><Eye />专注</Button>
+        <Button variant="ghost" onClick={() => setMobileDrawer('assistant')}><PanelRight />AI 助手</Button>
+      </nav>
+
+      <Sheet open={isMobile && mobileDrawer === 'chapters'} onOpenChange={(open) => setMobileDrawer(open ? 'chapters' : null)}>
+        <SheetContent side="left" className="w-[min(88vw,22rem)] p-0 gap-0">
+          <SheetHeader className="border-b px-4 py-3">
+            <SheetTitle>目录与设定</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1">
+            <LeftSidebarPanel
+              novel={novel}
+              currentChapterId={currentChapterId}
+              currentChapterContent={currentChapter?.content || ''}
+              mindmapFiles={mindmapFiles}
+              activeMindmapId={activeMindmapId}
+              onSelectChapter={(id) => {
+                setActiveMindmapId(null)
+                setCurrentChapter(id)
+                setMobileDrawer(null)
+              }}
+              onSelectMindmap={(id) => {
+                setActiveMindmapId(id)
+                setMobileDrawer(null)
+              }}
+              onCreateMindmap={handleCreateMindmap}
+              onDeleteMindmap={handleDeleteMindmap}
+              onTreeChange={handleTreeChange}
+              onInsertCodexRef={(id) => {
+                setMobileDrawer(null)
+                tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isMobile && mobileDrawer === 'assistant'} onOpenChange={(open) => setMobileDrawer(open ? 'assistant' : null)}>
+        <SheetContent side="bottom" className="studio-assistant-sheet p-0 gap-0">
+          <SheetHeader className="border-b px-4 py-3">
+            <SheetTitle>AI 写作助手</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <AiAssistant
+              novelId={currentNovelId!}
+              chapterId={currentChapterId}
+              onInsertText={(text) => {
+                setMobileDrawer(null)
+                handleInsertText(text)
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

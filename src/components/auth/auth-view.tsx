@@ -136,19 +136,19 @@ export function AuthView() {
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-gradient-to-br from-violet-50 via-pink-50 to-amber-50 dark:from-violet-950/30 dark:via-pink-950/20 dark:to-amber-950/20">
+    <div className="flex-1 overflow-auto bg-gradient-to-br from-amber-50/70 via-background to-primary/5 dark:from-primary/10 dark:via-background dark:to-background">
       <div className="max-w-5xl mx-auto px-4 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center min-h-[calc(100vh-3.5rem)]">
         {/* 左侧介绍 */}
         <div className="hidden lg:block space-y-6">
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="笔锋写作" className="w-12 h-12 rounded-xl shadow-md" />
             <div>
-              <h1 className="text-3xl font-bold">笔锋写作</h1>
+              <h1 className="text-3xl font-bold font-display">笔锋写作</h1>
               <p className="text-sm text-muted-foreground">AI 驱动的网文创作平台</p>
             </div>
           </div>
 
-          <p className="text-lg leading-relaxed">
+          <p className="text-lg leading-relaxed font-display">
             一句话灵感自动生成简介、大纲、角色。
             <br />
             AI 长文本记忆，再不卡文、再不失忆。
@@ -165,8 +165,8 @@ export function AuthView() {
               const Icon = f.icon
               return (
                 <div key={f.title} className="flex items-start gap-3 p-3 bg-card/50 rounded-lg backdrop-blur-sm border border-border">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
                   </div>
                   <div>
                     <div className="font-medium">{f.title}</div>
@@ -179,10 +179,10 @@ export function AuthView() {
         </div>
 
         {/* 右侧表单 */}
-        <Card className="shadow-xl border-teal- dark:border-teal-">
+        <Card className="border-border shadow-sm rounded-[14px]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-teal-" />
+            <CardTitle className="flex items-center gap-2 font-display">
+              <Sparkles className="w-5 h-5 text-gold" />
               开始你的创作之旅
             </CardTitle>
           </CardHeader>
@@ -225,7 +225,7 @@ export function AuthView() {
                 <Button
                   onClick={handleLogin}
                   disabled={loginLoading}
-                  className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                  className="w-full gap-1.5 bg-primary rounded-full shadow-sm hover:opacity-90"
                 >
                   {loginLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   登录
@@ -314,7 +314,7 @@ export function AuthView() {
                 <Button
                   onClick={handleRegister}
                   disabled={regLoading}
-                  className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                  className="w-full gap-1.5 bg-primary rounded-full shadow-sm hover:opacity-90"
                 >
                   {regLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   注册并赠送 10000 Token

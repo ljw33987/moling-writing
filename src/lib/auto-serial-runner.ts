@@ -66,7 +66,19 @@ export async function runAutoSerialChapter(taskId: string): Promise<{
     })
     if (!novel) throw new Error('作品不存在')
 
-    let targetVolume = novel.volumes[novel.volumes.length - 1]
+    const extraRows = await db.$queryRaw<Array<{ startChapterNum: number | null; targetVolumeId: string | null }>>`
+      SELECT startChapterNum, targetVolumeId FROM AutoSerial WHERE id = ${task.id} LIMIT 1
+    `.catch(() => [])
+    const configuredStartNum = (task as any).startChapterNum ?? extraRows[0]?.startChapterNum ?? null
+    const configuredTargetVolId = (task as any).targetVolumeId ?? extraRows[0]?.targetVolumeId ?? null
+
+    let targetVolume = configuredTargetVolId
+      ? novel.volumes.find((v) => v.id === configuredTargetVolId)
+      : undefined
+    if (!targetVolume) {
+      const nonOutline = novel.volumes.filter((v) => !v.isOutline)
+      targetVolume = nonOutline[nonOutline.length - 1] || novel.volumes[novel.volumes.length - 1]
+    }
     if (!targetVolume) {
       targetVolume = await db.volume.create({
         data: {
@@ -78,7 +90,12 @@ export async function runAutoSerialChapter(taskId: string): Promise<{
     }
 
     const totalChapters = await db.chapter.count({ where: { novelId: novel.id } })
-    const chapterNum = totalChapters + 1
+    const chapterNum =
+      configuredStartNum && configuredStartNum >= 1 ? configuredStartNum : totalChapters + 1
+    const maxSortInVol = await db.chapter.aggregate({
+      where: { volumeId: targetVolume.id },
+      _max: { sortOrder: true },
+    })
 
     const characters = await db.character.findMany({
       where: {
@@ -200,7 +217,7 @@ ${recentChapters || '（这是开篇第一章）'}
         title,
         content: htmlContent,
         words,
-        sortOrder: totalChapters,
+        sortOrder: (maxSortInVol._max.sortOrder ?? -1) + 1,
         status: 'draft',
         volumeId: targetVolume.id,
         novelId: novel.id,
@@ -230,6 +247,9 @@ ${recentChapters || '（这是开篇第一章）'}
         lastError: null,
       },
     })
+    if (configuredStartNum && configuredStartNum >= 1) {
+      await db.$executeRaw`UPDATE AutoSerial SET startChapterNum = ${configuredStartNum + 1} WHERE id = ${task.id}`
+    }
 
     return {
       ok: true,

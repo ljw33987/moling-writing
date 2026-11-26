@@ -135,8 +135,8 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
               key={cat}
               size="sm"
               variant={category === cat ? 'default' : 'outline'}
-              className={`h-7 text-xs ${
-                category === cat ? 'bg-gradient-to-r from-indigo-600 to-blue-600' : ''
+              className={`h-7 text-xs rounded-full ${
+                category === cat ? 'bg-primary shadow-sm' : ''
               }`}
               onClick={() => setCategory(cat)}
             >
@@ -160,7 +160,7 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
             <DialogTrigger asChild>
               <Button
                 size="sm"
-                className="h-8 gap-1 text-xs bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90 shrink-0"
+                className="h-8 gap-1 text-xs bg-primary hover:bg-primary/90 rounded-full shadow-sm shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 发布模板
@@ -219,7 +219,7 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
                     size="sm"
                     onClick={handlePublish}
                     disabled={submitting}
-                    className="bg-gradient-to-r from-indigo-600 to-blue-600"
+                    className="bg-primary hover:bg-primary/90 rounded-full shadow-sm"
                   >
                     {submitting && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
                     确认发布
@@ -239,19 +239,19 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((item) => (
-            <Card key={item.id} className="flex flex-col hover:border-indigo-400/70 transition">
+            <Card key={item.id} className="flex flex-col hover:border-primary/40 transition">
               <CardHeader className="p-4 pb-2 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="secondary" className="text-[10px]">
                     {item.category}
                   </Badge>
                   {item.isOfficial && (
-                    <Badge className="text-[10px] bg-amber-500/90 hover:bg-amber-500">
+                    <Badge className="text-[10px] bg-gold text-white hover:bg-gold/90">
                       精选官方
                     </Badge>
                   )}
                 </div>
-                <CardTitle className="text-sm leading-snug">{item.title}</CardTitle>
+                <CardTitle className="text-sm leading-snug font-display">{item.title}</CardTitle>
                 <CardDescription className="text-xs line-clamp-2">{item.description}</CardDescription>
               </CardHeader>
               <CardContent className="p-4 pt-2 flex-1 flex flex-col justify-between gap-3">
@@ -263,7 +263,7 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
                   <div className="flex items-center gap-3">
                     <span>@{item.authorName}</span>
                     <span className="flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-amber-500" />
+                      <Flame className="w-3 h-3 text-gold" />
                       {item.useCount}
                     </span>
                   </div>
@@ -274,7 +274,7 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
                       className="h-7 px-2 text-xs gap-1"
                       onClick={() => handleLike(item.id)}
                     >
-                      <Heart className="w-3.5 h-3.5 text-rose-500" />
+                      <Heart className="w-3.5 h-3.5 text-cinnabar" />
                       {item.likesCount}
                     </Button>
                     <Button
@@ -291,7 +291,7 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
                     </Button>
                     <Button
                       size="sm"
-                      className="h-7 px-2.5 text-xs gap-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+                      className="h-7 px-2.5 text-xs gap-1 bg-primary hover:bg-primary/90 rounded-full shadow-sm"
                       onClick={() => handleUse(item)}
                     >
                       <Sparkles className="w-3 h-3" />

@@ -11,7 +11,7 @@ export function CodexRefChip({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper
       as="span"
-      className="codex-ref inline-block cursor-pointer whitespace-nowrap border-b-2 border-teal-/70 px-0.5 text-teal- hover:bg-indigo-600/10 dark:text-teal- data-[missing=true]:border-muted-foreground data-[missing=true]:text-muted-foreground"
+      className="codex-ref inline-block cursor-pointer whitespace-nowrap border-b-2 border-indigo-500/70 px-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600/10 dark:text-indigo-600 dark:text-indigo-400 data-[missing=true]:border-muted-foreground data-[missing=true]:text-muted-foreground"
       data-missing={!entry}
       title={entry?.summary ?? '该设定条目已删除或尚未加载'}
     >

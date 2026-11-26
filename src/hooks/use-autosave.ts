@@ -47,24 +47,25 @@ export function useAutosave(
   }, [saveToServer])
 
   const flush = useCallback(async (targetChapterId?: string) => {
-    if (savingRef.current || pendingRef.current.size === 0) return
+    if (savingRef.current) return 'busy' as const
+    if (pendingRef.current.size === 0) return 'idle' as const
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setState('offline')
-      return
+      return 'offline' as const
     }
     const id =
       targetChapterId && pendingRef.current.has(targetChapterId)
         ? targetChapterId
         : pendingRef.current.keys().next().value
-    if (!id) return
+    if (!id) return 'idle' as const
     const content = pendingRef.current.get(id)
-    if (content === undefined) return
+    if (content === undefined) return 'idle' as const
 
     if (cleanRef.current.get(id) === content) {
       pendingRef.current.delete(id)
       await idbDel(`moling:draft:${id}`).catch(() => {})
       if (pendingRef.current.size === 0) setState('idle')
-      return
+      return 'idle' as const
     }
 
     savingRef.current = true
@@ -78,12 +79,16 @@ export function useAutosave(
       }
       setSavedAt(new Date())
       setState(pendingRef.current.size > 0 ? 'dirty' : 'saved')
+      return pendingRef.current.size > 0 ? 'dirty' as const : 'saved' as const
     } catch {
       setState(
         typeof navigator !== 'undefined' && !navigator.onLine
           ? 'offline'
           : 'error'
       )
+      return typeof navigator !== 'undefined' && !navigator.onLine
+        ? 'offline' as const
+        : 'error' as const
     } finally {
       savingRef.current = false
       if (pendingRef.current.size > 0) {

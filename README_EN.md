@@ -108,9 +108,9 @@ bun run dev
 cd mini-services/auto-serial && bun run dev
 ```
 
-Open `http://localhost:3000`. Admin account is auto-created:
-- Email: `admin@moli.com`
-- Password: `admin123`
+Open `http://localhost:3000`. In development, the default admin account is `admin@moli.com` / `admin123`.
+
+For production, set a unique `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in the environment before first startup. The fixed development credentials are never created in production.
 
 ## 🗺️ Roadmap
 

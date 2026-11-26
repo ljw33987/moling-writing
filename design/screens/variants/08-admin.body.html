@@ -1,0 +1,218 @@
+<div class="adm">
+  <!-- 管理后台左侧导航 -->
+  <nav class="adm-nav">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px 14px">
+      <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(140deg,#4F46E5,#7C3AED);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800">墨</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;letter-spacing:-.01em">墨灵写作</div>
+        <div style="font-size:10px;color:var(--ink-4);font-weight:600;letter-spacing:.06em">ADMIN</div>
+      </div>
+    </div>
+
+    <div class="grp">运营</div>
+    <button class="on"><svg class="ic ic-sm"><use href="#i-chart"/></svg>总览</button>
+    <button><svg class="ic ic-sm"><use href="#i-users"/></svg>用户</button>
+    <button><svg class="ic ic-sm"><use href="#i-book"/></svg>作品</button>
+    <button><svg class="ic ic-sm"><use href="#i-card"/></svg>订单</button>
+
+    <div class="grp">AI</div>
+    <button><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 日志</button>
+    <button><svg class="ic ic-sm"><use href="#i-sliders"/></svg>平台配置</button>
+
+    <div class="grp">运营内容</div>
+    <button><svg class="ic ic-sm"><use href="#i-megaphone"/></svg>公告</button>
+    <button><svg class="ic ic-sm"><use href="#i-send"/></svg>群发</button>
+    <button><svg class="ic ic-sm"><use href="#i-mail"/></svg>邮箱配置</button>
+    <button><svg class="ic ic-sm"><use href="#i-card"/></svg>兑换码</button>
+    <button><svg class="ic ic-sm"><use href="#i-file"/></svg>平台文档</button>
+
+    <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--line)">
+      <button><svg class="ic ic-sm"><use href="#i-arrow-left"/></svg>返回工作台</button>
+    </div>
+  </nav>
+
+  <!-- 主区 -->
+  <div class="adm-main">
+    <div style="max-width:1320px;margin:0 auto">
+
+      <div class="page-hd">
+        <div>
+          <h1>平台总览</h1>
+          <p>运营数据、用户与内容管理 · 实时同步</p>
+        </div>
+        <div class="page-hd-right">
+          <button class="btn btn-outline"><svg class="ic ic-sm"><use href="#i-download"/></svg>导出数据</button>
+          <button class="btn btn-outline"><svg class="ic ic-sm"><use href="#i-refresh"/></svg>刷新</button>
+          <button class="btn btn-primary"><svg class="ic ic-sm"><use href="#i-plus"/></svg>新建公告</button>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-k">注册用户</span><div class="stat-ic" style="margin:0;width:28px;height:28px"><svg class="ic ic-sm"><use href="#i-users"/></svg></div></div>
+          <div class="kpi-v mono">12,846</div>
+          <div class="kpi-d up"><svg class="ic" style="width:12px;height:12px"><use href="#i-trend"/></svg>+8.2% 较上周</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-k">作品总数</span><div class="stat-ic violet" style="margin:0;width:28px;height:28px"><svg class="ic ic-sm"><use href="#i-book"/></svg></div></div>
+          <div class="kpi-v mono">38,209</div>
+          <div class="kpi-d up"><svg class="ic" style="width:12px;height:12px"><use href="#i-trend"/></svg>+12.6% 较上周</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-k">AI 调用次数</span><div class="stat-ic cyan" style="margin:0;width:28px;height:28px"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg></div></div>
+          <div class="kpi-v mono">1,042,338</div>
+          <div class="kpi-d up"><svg class="ic" style="width:12px;height:12px"><use href="#i-trend"/></svg>+21.4% 较上周</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-k">本月总收入</span><div class="stat-ic amber" style="margin:0;width:28px;height:28px"><svg class="ic ic-sm"><use href="#i-wallet"/></svg></div></div>
+          <div class="kpi-v mono">¥86,420</div>
+          <div class="kpi-d down"><svg class="ic" style="width:12px;height:12px"><use href="#i-trend"/></svg>-3.1% 较上周</div>
+        </div>
+      </div>
+
+      <!-- 图表 + 侧栏 -->
+      <div style="display:grid;grid-template-columns:1fr 330px;gap:14px;margin-top:14px">
+        <div class="chart-card">
+          <div class="card-hd">
+            <svg class="ic ic-sm"><use href="#i-trend"/></svg>
+            <h3>近 7 天新增趋势</h3>
+            <div class="card-hd-right">
+              <span class="badge"><span style="width:7px;height:7px;border-radius:2px;background:#6366F1;display:inline-block"></span>新增用户</span>
+              <span class="badge"><span style="width:7px;height:7px;border-radius:2px;background:#A855F7;display:inline-block"></span>新增作品</span>
+            </div>
+          </div>
+          <div style="padding:14px 16px 6px">
+            <svg class="chart-svg" viewBox="0 0 760 168" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6366F1" stop-opacity=".22"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></linearGradient>
+                <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A855F7" stop-opacity=".18"/><stop offset="1" stop-color="#A855F7" stop-opacity="0"/></linearGradient>
+              </defs>
+              <g stroke="#E8E9F0" stroke-width="1">
+                <line x1="0" y1="20" x2="760" y2="20"/><line x1="0" y1="56" x2="760" y2="56"/>
+                <line x1="0" y1="92" x2="760" y2="92"/><line x1="0" y1="128" x2="760" y2="128"/><line x1="0" y1="160" x2="760" y2="160"/>
+              </g>
+              <path d="M0 118 L113 104 L226 112 L340 78 L453 86 L566 52 L680 44 L760 32 L760 160 L0 160 Z" fill="url(#bg1)"/>
+              <path d="M0 140 L113 132 L226 138 L340 118 L453 124 L566 104 L680 96 L760 84 L760 160 L0 160 Z" fill="url(#bg2)"/>
+              <polyline points="0,118 113,104 226,112 340,78 453,86 566,52 680,44 760,32" fill="none" stroke="#6366F1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="0,140 113,132 226,138 340,118 453,124 566,104 680,96 760,84" fill="none" stroke="#A855F7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="760" cy="32" r="4" fill="#6366F1"/><circle cx="760" cy="84" r="4" fill="#A855F7"/>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-4);padding-top:6px">
+              <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-hd">
+            <svg class="ic ic-sm" style="color:var(--brand)"><use href="#i-cloud"/></svg>
+            <h3>数据备份</h3>
+          </div>
+          <div class="card-pad" style="display:flex;flex-direction:column;gap:8px;flex:1">
+            <button class="btn btn-sm btn-outline" style="justify-content:flex-start"><svg class="ic ic-sm"><use href="#i-download"/></svg>全量备份（JSON）</button>
+            <button class="btn btn-sm btn-outline" style="justify-content:flex-start"><svg class="ic ic-sm"><use href="#i-book"/></svg>仅作品数据</button>
+            <button class="btn btn-sm btn-outline" style="justify-content:flex-start"><svg class="ic ic-sm"><use href="#i-users"/></svg>仅用户数据</button>
+            <button class="btn btn-sm btn-outline" style="justify-content:flex-start"><svg class="ic ic-sm"><use href="#i-card"/></svg>仅订单数据</button>
+            <button class="btn btn-sm btn-outline" style="justify-content:flex-start"><svg class="ic ic-sm"><use href="#i-layers"/></svg>仅设定库数据</button>
+            <div style="margin-top:auto;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-4);line-height:1.6">
+              上次备份：今天 03:00 自动任务 · 42.6 MB
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表格 -->
+      <div class="card" style="margin-top:14px;overflow:hidden">
+        <div class="card-hd">
+          <svg class="ic ic-sm"><use href="#i-users"/></svg>
+          <h3>最近用户</h3>
+          <div class="card-hd-right">
+            <div class="search-box" style="width:210px;height:30px">
+              <svg class="ic ic-sm"><use href="#i-search"/></svg><span>搜索邮箱 / 笔名</span>
+            </div>
+            <button class="btn btn-sm btn-outline">全部用户</button>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:230px">用户</th><th>Token</th><th>套餐</th><th>作品</th><th>AI 调用</th><th>注册时间</th><th style="text-align:right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span class="avatar" style="width:26px;height:26px;border-radius:8px;font-size:10px">梧</span>
+                  <div>
+                    <div class="em" style="display:flex;align-items:center;gap:6px">梧攸笙歌 <span class="badge badge-brand" style="height:17px;font-size:9.5px">ADMIN</span></div>
+                    <div style="font-size:11px;color:var(--ink-4)">wysg@moli.com</div>
+                  </div>
+                </div>
+              </td>
+              <td class="mono">128,460</td>
+              <td><span class="badge badge-brand">年卡</span></td>
+              <td class="mono">12</td>
+              <td class="mono">3,208</td>
+              <td style="color:var(--ink-3)">2025-11-02</td>
+              <td style="text-align:right"><button class="btn btn-xs btn-outline">调 Token</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span class="avatar" style="width:26px;height:26px;border-radius:8px;font-size:10px;background:linear-gradient(140deg,#0EA5E9,#0891B2)">潮</span>
+                  <div>
+                    <div class="em">潮汐观测员</div>
+                    <div style="font-size:11px;color:var(--ink-4)">tide@moli.com</div>
+                  </div>
+                </div>
+              </td>
+              <td class="mono">42,180</td>
+              <td><span class="badge badge-brand">月卡</span></td>
+              <td class="mono">5</td>
+              <td class="mono">1,046</td>
+              <td style="color:var(--ink-3)">2025-12-18</td>
+              <td style="text-align:right"><button class="btn btn-xs btn-outline">调 Token</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span class="avatar" style="width:26px;height:26px;border-radius:8px;font-size:10px;background:linear-gradient(140deg,#F59E0B,#DC2626)">九</span>
+                  <div>
+                    <div class="em" style="display:flex;align-items:center;gap:6px">九十年代 <span class="badge badge-rose" style="height:17px;font-size:9.5px">封禁</span></div>
+                    <div style="font-size:11px;color:var(--ink-4)">nineties@moli.com</div>
+                  </div>
+                </div>
+              </td>
+              <td class="mono">0</td>
+              <td><span class="badge">免费</span></td>
+              <td class="mono">0</td>
+              <td class="mono">0</td>
+              <td style="color:var(--ink-3)">2026-01-09</td>
+              <td style="text-align:right"><button class="btn btn-xs btn-soft">解封</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span class="avatar" style="width:26px;height:26px;border-radius:8px;font-size:10px;background:linear-gradient(140deg,#64748B,#1E293B)">云</span>
+                  <div>
+                    <div class="em">云外真人</div>
+                    <div style="font-size:11px;color:var(--ink-4)">cloud@moli.com</div>
+                  </div>
+                </div>
+              </td>
+              <td class="mono">8,930</td>
+              <td><span class="badge">免费</span></td>
+              <td class="mono">2</td>
+              <td class="mono">318</td>
+              <td style="color:var(--ink-3)">2026-02-24</td>
+              <td style="text-align:right"><button class="btn btn-xs btn-outline">调 Token</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>

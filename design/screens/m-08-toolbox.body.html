@@ -1,0 +1,150 @@
+<div class="m-shell">
+  <!--MSTATUS-->
+
+  <div class="m-topbar">
+    <button class="m-iconbtn"><svg class="ic" style="transform:rotate(180deg)"><use href="#i-chev-right"/></svg></button>
+    <div style="flex:1">
+      <div style="font-size:17px;font-weight:700;letter-spacing:-.02em">AI 工具箱</div>
+      <div style="font-size:10.5px;color:var(--ink-3);margin-top:1px">开书 · 拆书 · 起名 · 审稿</div>
+    </div>
+    <button class="m-iconbtn"><svg class="ic"><use href="#i-search"/></svg></button>
+  </div>
+
+  <div class="m-scroll">
+    <div class="m-pad">
+
+      <!-- 模式切换 -->
+      <div class="m-seg">
+        <button class="on">生成拆书</button>
+        <button>模板市场</button>
+        <button>TXT 分章</button>
+        <button>封面生成</button>
+      </div>
+
+      <!-- 工具宫格 -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-grid"/></svg>
+        <h2>选择工具</h2>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+        <div class="m-card" style="padding:13px;border-color:var(--brand);box-shadow:var(--shadow-md)">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-book"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">书名与简介</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">一句话卖点 → 书名+简介</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--violet-soft);color:var(--violet);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-bulb"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">金手指脑洞</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">给主角一件不讲道理的东西</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--cyan-soft);color:var(--cyan);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-zap"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">黄金三章</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">留存率最高的三章写法</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--amber-soft);color:var(--amber);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-tag"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">网文起名器</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">书名 / 章节名 / 角色名</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--green-soft);color:var(--green);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-users"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">精彩冲突对话</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">台词张力拉满的对话段</div>
+        </div>
+        <div class="m-card" style="padding:13px">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--rose-soft);color:var(--rose);display:grid;place-items:center;margin-bottom:9px">
+            <svg class="ic ic-sm"><use href="#i-route"/></svg>
+          </div>
+          <div style="font-size:13px;font-weight:650">卡文破局</div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5">给三条不同走向</div>
+        </div>
+      </div>
+
+      <!-- 工作台 -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-wand"/></svg>
+        <h2>书名与爆款简介</h2>
+      </div>
+
+      <div class="m-card pad">
+        <div class="m-field">
+          <label>一句话卖点</label>
+          <div class="inp area">少年剑修觉醒血瞳，被卷入宗门内乱，却发现自己是百年棋局里的一枚弃子。</div>
+        </div>
+        <div style="display:flex;align-items:center;margin-top:9px">
+          <span style="font-size:11px;color:var(--ink-4)">已输入 42 字</span>
+          <button class="btn btn-xs btn-ghost" style="margin-left:auto">清空</button>
+        </div>
+        <button class="m-btn primary" style="margin-top:12px"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>立即生成</button>
+      </div>
+
+      <!-- 结果 -->
+      <div class="m-sec">
+        <svg class="ic"><use href="#i-wand"/></svg>
+        <h2>AI 生成结果</h2>
+        <button class="more">复制全部 ›</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="m-card" style="padding:13px;border-color:var(--brand-line);background:linear-gradient(160deg,#F8F8FF,#fff)">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:13.5px;font-weight:650">剑起长安</span>
+            <span class="badge badge-brand" style="height:19px;font-size:10px">推荐</span>
+            <span style="margin-left:auto;font-size:10px;color:var(--ink-4)">八字 · 古典感</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-2);line-height:1.7;margin-top:7px">
+            残玉一梦踏长安，血瞳少年执剑入局——他以为自己在复仇，其实只是别人棋盘上的一子。
+          </div>
+          <div style="display:flex;gap:7px;margin-top:10px">
+            <button class="btn btn-xs btn-soft" style="flex:1">套用</button>
+            <button class="btn btn-xs btn-outline" style="flex:1">保存</button>
+          </div>
+        </div>
+
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:13.5px;font-weight:650">我在长安等一场雪</span>
+            <span class="badge badge-outline" style="height:19px;font-size:10px">文艺</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-2);line-height:1.7;margin-top:7px">
+            边关的雪落了三百年，长安的城破了两回，只有那个提剑的少年，还站在旧年月的门前。
+          </div>
+          <div style="display:flex;gap:7px;margin-top:10px">
+            <button class="btn btn-xs btn-outline" style="flex:1">套用</button>
+            <button class="btn btn-xs btn-outline" style="flex:1">保存</button>
+          </div>
+        </div>
+
+        <div class="m-card" style="padding:13px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:13.5px;font-weight:650">血瞳剑心</span>
+            <span class="badge badge-outline" style="height:19px;font-size:10px">直白</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-2);line-height:1.7;margin-top:7px">
+            三年边关，一朝入京。林渊提剑而来，只为问一句：那年的真相，到底是谁掩下了。
+          </div>
+          <div style="display:flex;gap:7px;margin-top:10px">
+            <button class="btn btn-xs btn-outline" style="flex:1">套用</button>
+            <button class="btn btn-xs btn-outline" style="flex:1">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!--MTAB:toolbox-->
+</div>

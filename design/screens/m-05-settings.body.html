@@ -1,0 +1,162 @@
+<div class="m-shell">
+  <!--MSTATUS-->
+
+  <div class="m-topbar">
+    <div style="flex:1">
+      <div style="font-size:17px;font-weight:700;letter-spacing:-.02em">设定库</div>
+      <div style="font-size:10.5px;color:var(--ink-3);margin-top:1px">27 张设定卡 · 全局共享</div>
+    </div>
+    <button class="m-iconbtn"><svg class="ic"><use href="#i-search"/></svg></button>
+    <button class="m-iconbtn" style="color:var(--brand)"><svg class="ic"><use href="#i-plus"/></svg></button>
+  </div>
+
+  <div class="m-scroll">
+    <div class="m-pad">
+
+      <!-- 批量生成 -->
+      <div class="m-card" style="background:linear-gradient(120deg,#F7F7FF,#FDF7FF);border-color:var(--brand-line);padding:14px;display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:13px;flex:none;background:linear-gradient(140deg,#6366F1,#A855F7);display:grid;place-items:center;color:#fff;box-shadow:0 4px 12px -3px rgba(124,58,237,.5)">
+          <svg class="ic"><use href="#i-sparkles"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px;font-weight:650">批量生成全套设定</div>
+          <div style="font-size:11px;color:var(--ink-3);margin-top:2px;line-height:1.5">3 角色 + 2 世界观 + 2 道具，共 7 张</div>
+        </div>
+        <svg class="ic ic-sm" style="color:var(--brand)"><use href="#i-chev-right"/></svg>
+      </div>
+
+      <!-- 类型切换 -->
+      <div class="m-seg" style="margin-top:14px">
+        <button class="on">角色卡 12</button>
+        <button>世界观 6</button>
+        <button>道具 9</button>
+      </div>
+
+      <!-- 搜索 -->
+      <div class="m-field" style="margin-top:12px">
+        <div class="inp" style="height:42px"><svg class="ic ic-sm" style="color:var(--ink-4);margin-right:8px"><use href="#i-search"/></svg>搜索角色 / 世界观 / 道具…</div>
+      </div>
+
+      <!-- 设定卡（单列大卡，便于滑动浏览） -->
+      <div style="display:flex;flex-direction:column;gap:11px;margin-top:14px">
+        <div class="m-card" style="overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 14px;background:linear-gradient(120deg,#EEF0FF,#F5F0FF)">
+            <div style="width:38px;height:38px;border-radius:12px;flex:none;background:linear-gradient(140deg,#4F46E5,#7C3AED);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:700">林</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:14.5px;font-weight:650">林渊</span>
+                <span class="badge badge-brand" style="height:19px;font-size:10px">主要角色</span>
+              </div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:2px">主角 · 边关剑修 · 17 岁</div>
+            </div>
+            <svg class="ic ic-sm" style="color:var(--ink-4)"><use href="#i-more"/></svg>
+          </div>
+          <div style="padding:12px 14px">
+            <div style="font-size:12.5px;color:var(--ink-2);line-height:1.7">
+              因一块残玉觉醒血瞳，被卷入宗门内乱的百年棋局。沉默、克制，习惯用身体记住所有危险。
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">
+              <span class="tag">性格 · 隐忍</span><span class="tag">血瞳</span><span class="tag">剑修</span><span class="tag">边关出身</span>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:12px">
+              <button class="btn btn-xs btn-soft" style="flex:1"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 背景小传</button>
+              <button class="btn btn-xs btn-outline" style="flex:1"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card" style="overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 14px;background:linear-gradient(120deg,#E7F6F0,#EFF9F5)">
+            <div style="width:38px;height:38px;border-radius:12px;flex:none;background:linear-gradient(140deg,#059669,#0E7490);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:700">血</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:14.5px;font-weight:650">血影卫</span>
+                <span class="badge badge-cyan" style="height:19px;font-size:10px">势力</span>
+              </div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:2px">组织 · 直属皇城的暗卫</div>
+            </div>
+            <svg class="ic ic-sm" style="color:var(--ink-4)"><use href="#i-more"/></svg>
+          </div>
+          <div style="padding:12px 14px">
+            <div style="font-size:12.5px;color:var(--ink-2);line-height:1.7">
+              直接听命于当朝天子，不入六部编制。成员皆以「影」为姓，佩无鞘短刃，夜间行走不留痕。
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">
+              <span class="tag">暗卫</span><span class="tag">皇权</span><span class="tag">无鞘刃</span><span class="tag">不入六部</span>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:12px">
+              <button class="btn btn-xs btn-soft" style="flex:1"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 扩写</button>
+              <button class="btn btn-xs btn-outline" style="flex:1"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card" style="overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 14px;background:linear-gradient(120deg,#FDF1DF,#FEF7EC)">
+            <div style="width:38px;height:38px;border-radius:12px;flex:none;background:linear-gradient(140deg,#D97706,#DC2626);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:700">残</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:14.5px;font-weight:650">玄阴残玉</span>
+                <span class="badge badge-amber" style="height:19px;font-size:10px">道具</span>
+              </div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:2px">可觉醒血脉的上古遗物</div>
+            </div>
+            <svg class="ic ic-sm" style="color:var(--ink-4)"><use href="#i-more"/></svg>
+          </div>
+          <div style="padding:12px 14px">
+            <div style="font-size:12.5px;color:var(--ink-2);line-height:1.7">
+              半块温润黑玉，触之刺骨。饮血后开启「血瞳」，代价是每用一次，眼底便多一道血丝。
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">
+              <span class="tag">上古遗物</span><span class="tag">有代价</span><span class="tag">主线关键</span>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:12px">
+              <button class="btn btn-xs btn-soft" style="flex:1"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 扩写</button>
+              <button class="btn btn-xs btn-outline" style="flex:1"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-card" style="overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 14px;background:linear-gradient(120deg,#FDE9EE,#FDF0F4)">
+            <div style="width:38px;height:38px;border-radius:12px;flex:none;background:linear-gradient(140deg,#E11D48,#9F1239);display:grid;place-items:center;color:#fff;font-size:15px;font-weight:700">沈</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:14.5px;font-weight:650">沈青梧</span>
+                <span class="badge badge-rose" style="height:19px;font-size:10px">主要角色</span>
+              </div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:2px">女主 · 长安司 · 典簿</div>
+            </div>
+            <svg class="ic ic-sm" style="color:var(--ink-4)"><use href="#i-more"/></svg>
+          </div>
+          <div style="padding:12px 14px">
+            <div style="font-size:12.5px;color:var(--ink-2);line-height:1.7">
+              掌长安城卷宗的女官，见过太多秘密却只肯说一半。看似冷淡，实则在等一个能托付之人。
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">
+              <span class="tag">冷淡</span><span class="tag">典簿</span><span class="tag">知情者</span><span class="tag">感情线</span>
+            </div>
+            <div style="display:flex;gap:7px;margin-top:12px">
+              <button class="btn btn-xs btn-soft" style="flex:1"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 背景小传</button>
+              <button class="btn btn-xs btn-outline" style="flex:1"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新建 -->
+      <button class="m-btn outline" style="margin-top:14px;border-style:dashed">
+        <svg class="ic ic-sm"><use href="#i-plus-circle"/></svg>新建角色卡
+      </button>
+
+      <div class="m-tip" style="margin-top:14px">
+        <svg class="ic ic-sm" style="flex:none;margin-top:1px"><use href="#i-info"/></svg>
+        <span>写作时可在编辑器输入 <b>@</b> 快速引用任意设定卡，内容会自动注入 AI 上下文。</span>
+      </div>
+
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!--MTAB:settings-->
+</div>

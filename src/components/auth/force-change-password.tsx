@@ -80,7 +80,7 @@ export function ForceChangePasswordDialog({ open, onClose }: Props) {
       <DialogContent className="max-w-md" closable={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gold flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-white" />
             </div>
             安全提醒
@@ -89,13 +89,13 @@ export function ForceChangePasswordDialog({ open, onClose }: Props) {
 
         <div className="space-y-4 py-2">
           {/* 警告信息 */}
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-3 space-y-1.5">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+          <div className="bg-gold/10 border border-gold/30 rounded-lg p-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-gold">
               <Shield className="w-3.5 h-3.5" />
               检测到您正在使用默认密码
             </div>
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              出于安全考虑，请立即修改密码{isDefaultEmail && '和邮箱'}。默认密码 <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">admin123</code> 已公开在 README 中，存在安全风险。
+            <p className="text-xs text-gold/80">
+              出于安全考虑，请立即修改密码{isDefaultEmail && '和邮箱'}。默认密码 <code className="bg-gold/20 px-1 rounded">admin123</code> 已公开在 README 中，存在安全风险。
             </p>
           </div>
 
@@ -114,7 +114,7 @@ export function ForceChangePasswordDialog({ open, onClose }: Props) {
           {/* 修改邮箱 */}
           <div className="space-y-1.5">
             <Label className="text-xs">
-              登录邮箱 {isDefaultEmail && <span className="text-amber-600">*（建议修改默认邮箱）</span>}
+              登录邮箱 {isDefaultEmail && <span className="text-gold">*（建议修改默认邮箱）</span>}
             </Label>
             <Input
               type="email"

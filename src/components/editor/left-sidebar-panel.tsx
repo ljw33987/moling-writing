@@ -159,13 +159,11 @@ export function LeftSidebarPanel({
 
   // 大纲编辑状态
   const [synopsis, setSynopsis] = useState(novel.synopsis || '')
-  const [outline, setOutline] = useState(novel.outline || '')
   const [savingOutline, setSavingOutline] = useState(false)
 
   useEffect(() => {
     setSynopsis(novel.synopsis || '')
-    setOutline(novel.outline || '')
-  }, [novel.id, novel.synopsis, novel.outline])
+  }, [novel.id, novel.synopsis])
 
   // 设定速查状态
   const [codexQuery, setCodexQuery] = useState('')
@@ -216,9 +214,9 @@ export function LeftSidebarPanel({
     try {
       await api('/api/novels', {
         method: 'PATCH',
-        body: JSON.stringify({ id: novel.id, synopsis, outline }),
+        body: JSON.stringify({ id: novel.id, synopsis }),
       })
-      toast.success('简介与大纲已保存')
+      toast.success('作品简介已保存')
       onTreeChange()
     } catch (e: any) {
       toast.error(e.message || '保存失败')
@@ -232,32 +230,42 @@ export function LeftSidebarPanel({
     : codexItems
 
   return (
-    <div className="h-full flex flex-col bg-card/30 border-r border-border">
+    <div className="h-full flex flex-col bg-card border-r border-border">
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as 'chapters' | 'outline' | 'mindmap' | 'codex' | 'notes')}
-        className="flex-1 flex flex-col overflow-hidden"
+        className="flex-1 flex flex-col min-h-0 overflow-hidden gap-0"
       >
-        <TabsList className="grid grid-cols-5 rounded-none border-b border-border h-9 bg-muted/30 px-1 shrink-0 gap-0.5">
-          <TabsTrigger value="chapters" className="text-[11px] gap-1 h-7 px-1">
-            <FileText className="w-3 h-3 shrink-0" />
-            <span>目录</span>
+        <TabsList className="h-10 w-full grid grid-cols-5 rounded-none bg-card border-b border-border p-0 shrink-0">
+          <TabsTrigger
+            value="chapters"
+            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+          >
+            目录
           </TabsTrigger>
-          <TabsTrigger value="outline" className="text-[11px] gap-1 h-7 px-1">
-            <BookText className="w-3 h-3 shrink-0" />
-            <span>大纲</span>
+          <TabsTrigger
+            value="outline"
+            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+          >
+            简介
           </TabsTrigger>
-          <TabsTrigger value="mindmap" className="text-[11px] gap-1 h-7 px-1">
-            <Network className="w-3 h-3 shrink-0" />
-            <span>导图</span>
+          <TabsTrigger
+            value="mindmap"
+            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+          >
+            导图
           </TabsTrigger>
-          <TabsTrigger value="codex" className="text-[11px] gap-1 h-7 px-1">
-            <Users className="w-3 h-3 shrink-0" />
-            <span>设定</span>
+          <TabsTrigger
+            value="codex"
+            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+          >
+            设定
           </TabsTrigger>
-          <TabsTrigger value="notes" className="text-[11px] gap-1 h-7 px-1">
-            <StickyNote className="w-3 h-3 shrink-0" />
-            <span>速记</span>
+          <TabsTrigger
+            value="notes"
+            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+          >
+            速记
           </TabsTrigger>
         </TabsList>
 
@@ -276,29 +284,19 @@ export function LeftSidebarPanel({
             <Textarea
               value={synopsis}
               onChange={(e) => setSynopsis(e.target.value)}
-              rows={4}
-              className="text-xs resize-none"
+              rows={10}
+              className="text-xs resize-y"
               placeholder="输入作品简介..."
-            />
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground">全书大纲 / 分卷细纲</div>
-            <Textarea
-              value={outline}
-              onChange={(e) => setOutline(e.target.value)}
-              rows={12}
-              className="text-xs"
-              placeholder="输入总大纲或分卷脉络，AI 续写时会自动注入上下文..."
             />
           </div>
           <Button
             size="sm"
-            className="w-full gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+            className="w-full gap-1.5 bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white border-0 hover:opacity-95"
             onClick={handleSaveOutline}
             disabled={savingOutline}
           >
             <Save className="w-3.5 h-3.5" />
-            {savingOutline ? '保存中...' : '保存大纲'}
+            {savingOutline ? '保存中...' : '保存简介'}
           </Button>
         </TabsContent>
 
@@ -448,7 +446,7 @@ export function LeftSidebarPanel({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-indigo- dark:text-indigo-"
+                          className="h-5 px-1.5 text-[10px] text-indigo-600 dark:text-indigo-400 dark:text-indigo-600 dark:text-indigo-400"
                           onClick={() => onInsertCodexRef(item.id)}
                           title="插入 @ 引用到当前光标"
                         >

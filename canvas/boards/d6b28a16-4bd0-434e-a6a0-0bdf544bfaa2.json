@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "nodes": [
+    {
+      "id": "bc6d67fd-da36-49c2-a41f-4bbd731a4e7f",
+      "type": "asset",
+      "data": {
+        "assetId": "7da17af6-2603-486c-8340-a1ccc3398267",
+        "mediaType": "image"
+      },
+      "title": "工作台与写作编辑器"
+    },
+    {
+      "id": "6ec0a20e-d60a-4133-ac64-997c4faae943",
+      "type": "asset",
+      "data": {
+        "assetId": "582954de-4905-4a1b-8649-17f26b093ae7",
+        "mediaType": "image"
+      },
+      "title": "设定库 · 角色详情"
+    },
+    {
+      "id": "54fa51df-3137-4012-86a4-4f4300a1e461",
+      "type": "asset",
+      "data": {
+        "assetId": "1664d8c7-dc9b-402e-95e0-ad5a843e8510",
+        "mediaType": "image"
+      },
+      "title": "作品广场"
+    },
+    {
+      "id": "f5fb3afd-2bd5-45c0-9942-813e36aa46ac",
+      "type": "asset",
+      "data": {
+        "assetId": "fa7d5bef-597c-4bb7-89fd-8e07d93ded59",
+        "mediaType": "image"
+      },
+      "title": "移动端写作流程"
+    }
+  ],
+  "edges": [],
+  "id": "d6b28a16-4bd0-434e-a6a0-0bdf544bfaa2"
+}

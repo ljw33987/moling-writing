@@ -26,7 +26,7 @@ export function AiDraftBlock({ node, getPos, editor, updateAttributes }: NodeVie
 
   return (
     <NodeViewWrapper
-      className="ai-draft my-3 rounded-r-md border-l-4 border-teal- bg-indigo-600/5 py-2 pl-4 pr-3 data-[status=locked]:border-muted-foreground"
+      className="ai-draft ai-draft-surface my-3 rounded-r-[10px] py-2.5 pl-4 pr-3 data-[status=locked]:border-muted-foreground"
       data-status={status}
     >
       <div
@@ -34,9 +34,10 @@ export function AiDraftBlock({ node, getPos, editor, updateAttributes }: NodeVie
         contentEditable={false}
       >
         <span
-          className="ai-draft-label font-semibold tracking-wider text-teal- dark:text-teal-"
+          className="ai-draft-label inline-flex items-center gap-1.5 font-semibold tracking-wide text-[var(--violet)]"
           aria-live="polite"
         >
+          <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]" />
           {labelText}
         </span>
         {status === 'streaming' ? (
@@ -48,21 +49,21 @@ export function AiDraftBlock({ node, getPos, editor, updateAttributes }: NodeVie
             <button
               type="button"
               onClick={accept}
-              className="rounded border border-teal-/40 bg-indigo-600/15 px-2 py-0.5 text-xs font-medium text-teal- hover:bg-indigo-600/25 dark:text-teal-"
+              className="rounded-[7px] border border-[var(--brand-line)] bg-[var(--brand-soft)] px-2.5 py-0.5 text-xs font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
             >
               采纳
             </button>
             <button
               type="button"
               onClick={reject}
-              className="rounded border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+              className="rounded-[7px] border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
             >
               丢弃
             </button>
             <button
               type="button"
               onClick={toggleLock}
-              className="rounded border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+              className="rounded-[7px] border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
             >
               {status === 'locked' ? '解锁' : '锁定'}
             </button>

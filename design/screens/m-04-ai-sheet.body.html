@@ -1,0 +1,112 @@
+<div class="m-shell">
+  <!--MSTATUS-->
+
+  <!-- 底层：编辑器（被遮罩压暗） -->
+  <div class="m-topbar">
+    <button class="m-iconbtn"><svg class="ic" style="transform:rotate(180deg)"><use href="#i-chev-right"/></svg></button>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:650">剑起长安</div>
+      <div style="font-size:10.5px;color:var(--ink-3);margin-top:1px">第 12 章 · 夜入皇城</div>
+    </div>
+    <button class="m-iconbtn"><svg class="ic"><use href="#i-more"/></svg></button>
+  </div>
+
+  <div class="m-ed-paper">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span class="badge badge-amber" style="height:22px">待润色</span>
+      <span style="font-size:11px;color:var(--ink-4)">2,412 字</span>
+    </div>
+    <h1>夜入皇城</h1>
+    <div class="m-prose" style="margin-top:18px">
+      <p>长安城的夜，比边关的刀更冷。</p>
+      <p>林渊贴着墙根走，指节扣在剑柄上，青铜的凉意顺着骨缝往上爬。皇城宵禁已过三条街，巡夜的甲士却比往日多了一倍——<span class="hl">他们不是来抓贼的</span>。</p>
+      <p>城楼上的灯火被风压得很低，像随时会坠下来。他数着灯笼的个数——九盏。三盏暗，两盏晃。这是宗门的规矩，暗灯是暗哨，晃灯是换防。</p>
+    </div>
+  </div>
+
+  <!-- 遮罩 -->
+  <div class="m-scrim"></div>
+
+  <!-- AI 助手上滑抽屉 -->
+  <div class="m-sheet" style="height:734px">
+    <div class="handle"></div>
+
+    <div class="hd">
+      <div style="width:32px;height:32px;border-radius:11px;flex:none;background:linear-gradient(140deg,#6366F1,#A855F7);display:grid;place-items:center;color:#fff;box-shadow:0 3px 10px -2px rgba(124,58,237,.5)">
+        <svg class="ic ic-sm"><use href="#i-sparkles"/></svg>
+      </div>
+      <div style="flex:1">
+        <h3>写作 AI 助手</h3>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:1px">@多文件分析 · 已注入世界观/大纲/前情</div>
+      </div>
+      <button class="m-iconbtn" style="width:32px;height:32px"><svg class="ic ic-sm"><use href="#i-trash"/></svg></button>
+      <button class="m-iconbtn" style="width:32px;height:32px"><svg class="ic ic-sm"><use href="#i-x"/></svg></button>
+    </div>
+
+    <!-- 预设指令 -->
+    <div class="m-ai-presets">
+      <span class="preset"><svg class="ic"><use href="#i-book"/></svg>黄金三章</span>
+      <span class="preset"><svg class="ic"><use href="#i-users"/></svg>精彩对话</span>
+      <span class="preset"><svg class="ic"><use href="#i-bulb"/></svg>卡文破局</span>
+      <span class="preset"><svg class="ic"><use href="#i-tag"/></svg>网文起名</span>
+      <span class="preset"><svg class="ic"><use href="#i-shield-check"/></svg>毒点检查</span>
+      <span class="preset"><svg class="ic"><use href="#i-wand"/></svg>去 AI 味</span>
+      <span class="preset"><svg class="ic"><use href="#i-plus"/></svg>更多 11 个</span>
+    </div>
+
+    <!-- 对话流 -->
+    <div class="m-scroll" style="padding:4px 16px 12px">
+      <div class="m-msg">
+        <div class="who"><span class="av" style="background:var(--surface-3);color:var(--ink-3)"><svg class="ic" style="width:12px;height:12px"><use href="#i-user"/></svg></span>我</div>
+        <div class="bd">分析当前章节的剧情节奏，指出哪里拖沓、哪里留了钩子。</div>
+      </div>
+
+      <div class="m-msg ai">
+        <div class="who">
+          <span class="av" style="background:var(--brand-soft);color:var(--brand)"><svg class="ic" style="width:12px;height:12px"><use href="#i-sparkles"/></svg></span>
+          AI 助手
+          <span class="badge badge-violet" style="height:17px;font-size:9.5px">长文记忆</span>
+        </div>
+        <div class="bd">
+          <p style="margin-bottom:8px"><b>节奏诊断 · 整体合格，2 处可收紧</b></p>
+          <p style="margin-bottom:6px">1️⃣ <b>第 2 段</b>「他们不是来抓贼的」是本章第一个钩子，位置很好，建议保留并把血瞳反应再提前半句。</p>
+          <p style="margin-bottom:6px">2️⃣ <b>第 4 段</b>数灯笼的解释偏长（110 字），可压缩到 40 字内。</p>
+          <p style="margin-bottom:6px">3️⃣ <b>结尾</b>悬念留得住，但缺少下一章方向，建议末尾补一个外部触发。</p>
+          <p style="color:var(--ink-3);font-size:11.5px">与全书大纲、角色设定一致，无逻辑冲突。</p>
+        </div>
+        <div class="acts">
+          <button class="btn btn-xs btn-primary"><svg class="ic ic-sm"><use href="#i-download"/></svg>插入正文</button>
+          <button class="btn btn-xs btn-outline"><svg class="ic ic-sm"><use href="#i-copy"/></svg>复制</button>
+          <button class="btn btn-xs btn-ghost">压缩第 4 段</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="m-ai-input">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">
+        <span class="badge badge-brand" style="gap:4px"><svg class="ic"><use href="#i-file"/></svg>第 12 章 <svg class="ic"><use href="#i-x"/></svg></span>
+        <span class="badge badge-brand" style="gap:4px"><svg class="ic"><use href="#i-users"/></svg>林渊 <svg class="ic"><use href="#i-x"/></svg></span>
+        <span class="badge badge-outline" style="gap:4px"><svg class="ic"><use href="#i-plus"/></svg>引用设定</span>
+      </div>
+      <div class="box">
+        <p>输入问题，或输入 @ 引用多个章节/设定…</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+          <span style="font-size:11px;color:var(--ink-3);font-weight:600;display:inline-flex;align-items:center;gap:4px">
+            <svg class="ic" style="width:12px;height:12px"><use href="#i-sparkles"/></svg>moling_v4_pro
+            <svg class="ic" style="width:11px;height:11px"><use href="#i-chev-down"/></svg>
+          </span>
+          <span style="font-size:10px;color:var(--ink-4)">预估 320 Token</span>
+          <button style="margin-left:auto;width:34px;height:34px;border-radius:11px;background:linear-gradient(140deg,#6366F1,#7C3AED);color:#fff;display:grid;place-items:center;box-shadow:0 3px 10px -2px rgba(99,102,241,.6)">
+            <svg class="ic ic-sm"><use href="#i-send"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin:9px 0">
+        <span class="badge badge-outline">深度解读分析</span>
+        <span class="badge badge-outline">对比检查逻辑漏洞</span>
+      </div>
+    </div>
+    <div class="m-safe"></div>
+  </div>
+</div>

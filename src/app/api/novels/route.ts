@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { getOwnedFolder } from '@/lib/ownership'
 
 // GET /api/novels?folderId=xxx 或 /api/novels?id=xxx 或 /api/novels?trash=true
 export async function GET(req: NextRequest) {
@@ -14,8 +15,8 @@ export async function GET(req: NextRequest) {
   const trash = url.searchParams.get('trash') === 'true'
 
   if (id) {
-    const novel = await db.novel.findUnique({
-      where: { id },
+    const novel = await db.novel.findFirst({
+      where: { id, userId: user.id },
       include: {
         volumes: {
           orderBy: { sortOrder: 'asc' },
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
         autoSerials: true,
       },
     })
-    if (!novel || novel.userId !== user.id) {
+    if (!novel) {
       return NextResponse.json({ error: '未找到' }, { status: 404 })
     }
     return NextResponse.json({ novel })
@@ -57,6 +58,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { title, cover, author, genre, tags, synopsis, outline, folderId } = body
+
+  if (folderId && !await getOwnedFolder(user.id, folderId)) {
+    return NextResponse.json({ error: 'folder not found' }, { status: 404 })
+  }
 
   if (!title?.trim()) return NextResponse.json({ error: '书名不能为空' }, { status: 400 })
 
@@ -93,8 +98,13 @@ export async function PATCH(req: NextRequest) {
   if (url.searchParams.get('restore') === 'true') {
     const id = url.searchParams.get('id')
     if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
+    const ownedNovel = await db.novel.findFirst({
+      where: { id, userId: session.user.id, deleted: true },
+      select: { id: true },
+    })
+    if (!ownedNovel) return NextResponse.json({ error: '未找到作品' }, { status: 404 })
     await db.novel.update({
-      where: { id },
+      where: { id: ownedNovel.id },
       data: { deleted: false, deletedAt: null },
     })
     return NextResponse.json({ ok: true, message: '已从回收站恢复' })
@@ -104,13 +114,22 @@ export async function PATCH(req: NextRequest) {
   const { id, ...data } = body
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
 
+  const ownedNovel = await db.novel.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true },
+  })
+  if (!ownedNovel) return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+
   const allowed = ['title', 'cover', 'author', 'genre', 'tags', 'synopsis', 'outline', 'status', 'folderId', 'wordGoal']
   const updateData: any = {}
   for (const key of allowed) {
     if (data[key] !== undefined) updateData[key] = data[key]
   }
+  if (updateData.folderId && !await getOwnedFolder(session.user.id, updateData.folderId)) {
+    return NextResponse.json({ error: 'folder not found' }, { status: 404 })
+  }
 
-  const novel = await db.novel.update({ where: { id }, data: updateData })
+  const novel = await db.novel.update({ where: { id: ownedNovel.id }, data: updateData })
   return NextResponse.json({ novel })
 }
 
@@ -126,14 +145,20 @@ export async function DELETE(req: NextRequest) {
   const purge = url.searchParams.get('purge') === 'true'
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
 
+  const ownedNovel = await db.novel.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true },
+  })
+  if (!ownedNovel) return NextResponse.json({ error: '未找到作品' }, { status: 404 })
+
   if (purge) {
-    await db.novel.delete({ where: { id } })
+    await db.novel.delete({ where: { id: ownedNovel.id } })
     return NextResponse.json({ ok: true, message: '已永久删除' })
   }
 
   // 软删除
   await db.novel.update({
-    where: { id },
+    where: { id: ownedNovel.id },
     data: { deleted: true, deletedAt: new Date() },
   })
   return NextResponse.json({ ok: true, message: '已移入回收站，30 天内可恢复' })

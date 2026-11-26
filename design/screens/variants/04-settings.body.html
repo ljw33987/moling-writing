@@ -1,0 +1,205 @@
+<div class="app">
+  <!--SIDE:settings-->
+  <div class="main">
+    <!--TOPBAR:<span>设定库</span>-->
+
+    <div class="content">
+      <div class="content-pad content-narrow">
+
+        <div class="page-hd">
+          <div>
+            <h1>设定库</h1>
+            <p>独立管理角色、世界观与道具设定，AI 写作时自动注入上下文。</p>
+          </div>
+          <div class="page-hd-right">
+            <button class="btn btn-outline"><svg class="ic ic-sm"><use href="#i-wand"/></svg>AI 生成设定</button>
+            <button class="btn btn-primary"><svg class="ic ic-sm"><use href="#i-plus"/></svg>新建角色卡</button>
+          </div>
+        </div>
+
+        <!-- 批量生成召唤卡 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px">
+          <div class="card" style="grid-column:span 2;background:linear-gradient(120deg,#F7F7FF,#FDF7FF);border-color:var(--brand-line);display:flex;align-items:center;gap:16px;padding:16px 18px">
+            <div style="width:46px;height:46px;border-radius:14px;flex:none;background:linear-gradient(140deg,#6366F1,#A855F7);display:grid;place-items:center;color:#fff;box-shadow:0 4px 14px -3px rgba(124,58,237,.5)">
+              <svg class="ic ic-lg"><use href="#i-sparkles"/></svg>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:14.5px;font-weight:650">批量生成全套设定</div>
+              <div style="font-size:12px;color:var(--ink-3);margin-top:3px">一次性生成 3 个角色 + 2 个世界观 + 2 个道具/功法，共 7 张设定卡</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-outline">选择类型</button>
+              <button class="btn btn-sm btn-primary">开始生成</button>
+            </div>
+          </div>
+
+          <div class="card" style="display:flex;align-items:center;gap:14px;padding:16px 18px">
+            <div class="stat-ic violet" style="margin:0;width:36px;height:36px"><svg class="ic ic-sm"><use href="#i-users"/></svg></div>
+            <div>
+              <div class="stat-v mono" style="font-size:19px">27</div>
+              <div class="stat-k">已建设定卡 · 全部作品通用</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 类型 Tab + 工具条 -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="seg" style="padding:4px">
+            <button class="on" style="height:30px;padding:0 14px"><svg class="ic ic-sm"><use href="#i-users"/></svg>角色卡 <span class="mono" style="opacity:.6">12</span></button>
+            <button style="height:30px;padding:0 14px"><svg class="ic ic-sm"><use href="#i-globe"/></svg>世界观 <span class="mono" style="opacity:.6">6</span></button>
+            <button style="height:30px;padding:0 14px"><svg class="ic ic-sm"><use href="#i-box"/></svg>道具 / 功法 <span class="mono" style="opacity:.6">9</span></button>
+          </div>
+          <div class="search-box" style="margin-left:auto;width:230px">
+            <svg class="ic ic-sm"><use href="#i-search"/></svg><span>搜索角色 / 世界观 / 道具…</span>
+          </div>
+          <button class="btn btn-sm btn-outline"><svg class="ic ic-sm"><use href="#i-sliders"/></svg>筛选</button>
+        </div>
+
+        <!-- 设定卡网格 -->
+        <div class="set-grid">
+          <!-- 卡 1 -->
+          <div class="set-card">
+            <div class="set-top" style="background:linear-gradient(120deg,#EEF0FF,#F5F0FF)">
+              <div class="set-av" style="background:linear-gradient(140deg,#4F46E5,#7C3AED)">林</div>
+              <div style="flex:1;min-width:0">
+                <div class="set-name">林渊</div>
+                <div class="set-role">主角 · 边关剑修 · 17 岁</div>
+              </div>
+              <span class="badge badge-brand">主要角色</span>
+            </div>
+            <div class="set-body">
+              <div class="set-desc">因一块残玉觉醒血瞳，被卷入宗门内乱的百年棋局。沉默、克制，习惯用身体记住所有危险。</div>
+              <div class="tagrow">
+                <span class="tag">性格 · 隐忍</span>
+                <span class="tag">血瞳</span>
+                <span class="tag">剑修</span>
+                <span class="tag">边关出身</span>
+              </div>
+            </div>
+            <div class="set-foot">
+              <button class="ai-gen"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 背景小传</button>
+              <button class="btn btn-xs btn-outline" style="margin-left:auto"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+              <button class="icon-btn" style="width:26px;height:26px"><svg class="ic ic-sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <!-- 卡 2 -->
+          <div class="set-card">
+            <div class="set-top" style="background:linear-gradient(120deg,#E7F6F0,#EFF9F5)">
+              <div class="set-av" style="background:linear-gradient(140deg,#059669,#0E7490)">血</div>
+              <div style="flex:1;min-width:0">
+                <div class="set-name">血影卫</div>
+                <div class="set-role">组织 · 直属皇城的暗卫</div>
+              </div>
+              <span class="badge badge-cyan">势力</span>
+            </div>
+            <div class="set-body">
+              <div class="set-desc">直接听命于当朝天子，不入六部编制。成员皆以「影」为姓，佩无鞘短刃，夜间行走不留痕。</div>
+              <div class="tagrow">
+                <span class="tag">暗卫</span>
+                <span class="tag">皇权</span>
+                <span class="tag">无鞘刃</span>
+              </div>
+            </div>
+            <div class="set-foot">
+              <button class="ai-gen"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 扩写</button>
+              <button class="btn btn-xs btn-outline" style="margin-left:auto"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+              <button class="icon-btn" style="width:26px;height:26px"><svg class="ic ic-sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <!-- 卡 3 -->
+          <div class="set-card">
+            <div class="set-top" style="background:linear-gradient(120deg,#FDF1DF,#FEF7EC)">
+              <div class="set-av" style="background:linear-gradient(140deg,#D97706,#DC2626)">残</div>
+              <div style="flex:1;min-width:0">
+                <div class="set-name">玄阴残玉</div>
+                <div class="set-role">道具 · 可觉醒血脉的上古遗物</div>
+              </div>
+              <span class="badge badge-amber">道具</span>
+            </div>
+            <div class="set-body">
+              <div class="set-desc">半块温润黑玉，触之刺骨。饮血后开启「血瞳」，代价是每用一次，眼底便多一道血丝。</div>
+              <div class="tagrow">
+                <span class="tag">上古遗物</span>
+                <span class="tag">有代价</span>
+                <span class="tag">主线关键</span>
+              </div>
+            </div>
+            <div class="set-foot">
+              <button class="ai-gen"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 扩写</button>
+              <button class="btn btn-xs btn-outline" style="margin-left:auto"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+              <button class="icon-btn" style="width:26px;height:26px"><svg class="ic ic-sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <!-- 卡 4 -->
+          <div class="set-card">
+            <div class="set-top" style="background:linear-gradient(120deg,#FDE9EE,#FDF0F4)">
+              <div class="set-av" style="background:linear-gradient(140deg,#E11D48,#9F1239)">沈</div>
+              <div style="flex:1;min-width:0">
+                <div class="set-name">沈青梧</div>
+                <div class="set-role">女主 · 长安司 · 典簿</div>
+              </div>
+              <span class="badge badge-rose">主要角色</span>
+            </div>
+            <div class="set-body">
+              <div class="set-desc">掌长安城卷宗的女官，见过太多秘密却只肯说一半。看似冷淡，实则在等一个能托付之人。</div>
+              <div class="tagrow">
+                <span class="tag">冷淡</span>
+                <span class="tag">典簿</span>
+                <span class="tag">知情者</span>
+              </div>
+            </div>
+            <div class="set-foot">
+              <button class="ai-gen"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 背景小传</button>
+              <button class="btn btn-xs btn-outline" style="margin-left:auto"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+              <button class="icon-btn" style="width:26px;height:26px"><svg class="ic ic-sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <!-- 卡 5 -->
+          <div class="set-card">
+            <div class="set-top" style="background:linear-gradient(120deg,#E6F6FA,#EFF8FB)">
+              <div class="set-av" style="background:linear-gradient(140deg,#0891B2,#1D4ED8)">玄</div>
+              <div style="flex:1;min-width:0">
+                <div class="set-name">玄冥剑诀</div>
+                <div class="set-role">功法 · 边关剑修秘传</div>
+              </div>
+              <span class="badge badge-cyan">功法</span>
+            </div>
+            <div class="set-body">
+              <div class="set-desc">共九重，以「藏锋、蓄势、斩念」为纲。修至第七重可在出剑前的一瞬斩断对手的判断。</div>
+              <div class="tagrow">
+                <span class="tag">剑诀</span>
+                <span class="tag">九重</span>
+                <span class="tag">藏锋</span>
+              </div>
+            </div>
+            <div class="set-foot">
+              <button class="ai-gen"><svg class="ic ic-sm"><use href="#i-sparkles"/></svg>AI 扩写</button>
+              <button class="btn btn-xs btn-outline" style="margin-left:auto"><svg class="ic ic-sm"><use href="#i-link"/></svg>引用</button>
+              <button class="icon-btn" style="width:26px;height:26px"><svg class="ic ic-sm"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <!-- 卡 6：新建 -->
+          <div style="border:1.5px dashed var(--line-2);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:216px;background:rgba(255,255,255,.5)">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--surface-3);display:grid;place-items:center;color:var(--ink-3)">
+              <svg class="ic"><use href="#i-plus-circle"/></svg>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink-2)">新建角色卡</div>
+            <div style="font-size:11.5px;color:var(--ink-4)">或用 AI 一键生成</div>
+          </div>
+        </div>
+
+        <!-- 底部提示 -->
+        <div class="note" style="margin-top:18px">
+          <svg class="ic ic-sm"><use href="#i-info"/></svg>
+          <span>设定库为<b>全局共享</b>，写作时可在编辑器输入 <b>@</b> 快速引用任意设定卡；被引用的内容会自动注入 AI 上下文并计费。</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
