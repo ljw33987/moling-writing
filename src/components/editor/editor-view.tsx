@@ -53,6 +53,7 @@ export interface NovelDetail {
   outline: string | null
   genre: string
   wordGoal?: number
+  writingStyleId?: string | null
   volumes: Volume[]
 }
 
@@ -289,19 +290,19 @@ export function EditorView() {
     loadNovel()
   }
 
-  // 插入正文：用干净的纯文本段落替换左侧当前章节的全部正文（不带颜色或草稿框）
+  // 插入正文：先清空当前章节正文，再用干净的纯文本段落全部替换写入
   const handleInsertText = (text: string) => {
     if (!currentChapter) {
       toast.error('请先选择一个章节')
       return
     }
     if (tiptapRef.current) {
-      tiptapRef.current.replaceSelection(text)
-      toast.success('已插入到正文光标处')
+      tiptapRef.current.replaceAllContent(text)
+      toast.success('已清空原正文并全部替换写入')
       return
     }
-    handleContentChange(`${currentChapter.content}${currentChapter.content ? '\n\n' : ''}${text}`)
-    toast.success('已添加到正文末尾')
+    handleContentChange(text)
+    toast.success('已清空原正文并全部替换写入')
   }
 
   // 替换选中文字
@@ -491,6 +492,9 @@ export function EditorView() {
                   onCreateMindmap={handleCreateMindmap}
                   onDeleteMindmap={handleDeleteMindmap}
                   onTreeChange={handleTreeChange}
+                  onWritingStyleChange={(styleId) =>
+                    setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
+                  }
                   onInsertCodexRef={(id) =>
                     tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
                   }
@@ -533,6 +537,12 @@ export function EditorView() {
                 <AiAssistant
                   novelId={currentNovelId!}
                   chapterId={currentChapterId}
+                  writingStyleId={novel.writingStyleId ?? null}
+                  chapters={novel.volumes.flatMap((v) => v.chapters.map((c) => ({ id: c.id, title: c.title, words: c.words })))}
+                  onWritingStyleChange={(styleId) =>
+                    setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
+                  }
+                  onChaptersUpdated={() => void loadNovel()}
                   onInsertText={handleInsertText}
                 />
               </ResizablePanel>
@@ -593,6 +603,9 @@ export function EditorView() {
               onCreateMindmap={handleCreateMindmap}
               onDeleteMindmap={handleDeleteMindmap}
               onTreeChange={handleTreeChange}
+              onWritingStyleChange={(styleId) =>
+                setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
+              }
               onInsertCodexRef={(id) => {
                 setMobileDrawer(null)
                 tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
@@ -611,6 +624,12 @@ export function EditorView() {
             <AiAssistant
               novelId={currentNovelId!}
               chapterId={currentChapterId}
+              writingStyleId={novel.writingStyleId ?? null}
+              chapters={novel.volumes.flatMap((v) => v.chapters.map((c) => ({ id: c.id, title: c.title, words: c.words })))}
+              onWritingStyleChange={(styleId) =>
+                setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
+              }
+              onChaptersUpdated={() => void loadNovel()}
               onInsertText={(text) => {
                 setMobileDrawer(null)
                 handleInsertText(text)

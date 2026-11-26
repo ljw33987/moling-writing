@@ -188,8 +188,19 @@ export function PlatformConfigTab() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">注册赠送 Token 数量</Label>
-            <Input type="number" value={registerTokens} onChange={(e) => setRegisterTokens(Number(e.target.value))} className="h-9 w-48" />
+            <Label className="text-xs">注册赠送字数（自动按 3 字 ≈ 1 Token 换算）</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step={3000}
+                value={registerTokens * 3}
+                onChange={(e) => setRegisterTokens(Math.max(0, Math.ceil(Number(e.target.value) / 3)))}
+                className="h-9 w-48"
+              />
+              <span className="text-xs text-muted-foreground">
+                字（≈ {registerTokens.toLocaleString()} Token）
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -213,21 +224,33 @@ export function PlatformConfigTab() {
           {rechargeEnabled && (
             <>
               <div className="flex items-center justify-between">
-                <Label className="text-xs">充值套餐（自定义价格和额度）</Label>
+                <Label className="text-xs">充值套餐（按字数配置，自动换算为 Token：3 字 ≈ 1 Token）</Label>
                 <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={addPackage}>
                   <Plus className="w-3 h-3" /> 添加套餐
                 </Button>
               </div>
               {packages.length === 0 ? (
                 <div className="text-xs text-muted-foreground text-center py-4 border border-dashed rounded">
-                  暂无自定义套餐，将使用默认套餐（5万¥9.9 / 20万¥29.9 / 100万¥99.9）
+                  暂无自定义套餐，将使用默认套餐（15万字¥9.9 / 60万字¥29.9 / 300万字¥99.9）
                 </div>
               ) : (
                 <div className="space-y-2">
                   {packages.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 border rounded-lg">
+                    <div key={i} className="flex flex-wrap items-center gap-2 p-2 border rounded-lg">
                       <Input placeholder="套餐名" value={p.name} onChange={(e) => updatePackage(i, 'name', e.target.value)} className="h-8 text-xs w-28" />
-                      <Input type="number" placeholder="Token" value={p.tokens} onChange={(e) => updatePackage(i, 'tokens', Number(e.target.value))} className="h-8 text-xs w-32" />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step={10000}
+                          placeholder="充值字数"
+                          value={Math.round((p.tokens || 0) * 3)}
+                          onChange={(e) => updatePackage(i, 'tokens', Math.max(1, Math.ceil(Number(e.target.value) / 3)))}
+                          className="h-8 text-xs w-32"
+                        />
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          字 (≈{(p.tokens || 0).toLocaleString()} Token)
+                        </span>
+                      </div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">¥</span>
                         <Input type="number" step="0.1" placeholder="价格" value={p.price} onChange={(e) => updatePackage(i, 'price', Number(e.target.value))} className="h-8 text-xs w-20" />

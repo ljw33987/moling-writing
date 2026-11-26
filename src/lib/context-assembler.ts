@@ -118,9 +118,16 @@ export async function assembleNovelContext(params: {
 
   let remaining = budgetTokens
 
-  // 1. 作品定位与大纲
+  // 1. 作品定位与大纲（附带已有章节目录，防止 AI 重复章名或重复已写剧情）
   if (novel) {
-    const raw = `【当前小说】\n书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || '（未设定）'}\n大纲：${novel.outline || '（未设定）'}`
+    const existingList = allChapters.slice(-30).map((c) =>
+      c.id === currentChapter?.id ? `${c.title}（当前所在章）` : c.title
+    )
+    const chapterIndexText =
+      existingList.length > 0
+        ? `\n已有章节目录（严禁重复使用已有章节标题或重写已写剧情）：${existingList.join(' / ')}`
+        : ''
+    const raw = `【当前小说】\n书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || '（未设定）'}\n大纲：${novel.outline || '（未设定）'}${chapterIndexText}`
     const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.22))
     const fitted = fitToBudget(raw, layerBudget)
     const tokens = estimateTokens(fitted.text)
@@ -260,22 +267,25 @@ export async function assembleNovelContext(params: {
     })
   }
 
-  // 6. 当前章正文尾部（吃掉剩余预算）
+  // 6. 当前章正文尾部（吃掉剩余预算；头部信息不参与尾部截断，避免丢失当前章节标题）
   if (currentChapter && remaining > 0) {
     const plainBody = stripHtml(currentChapter.content || '')
-    const raw = `【当前章节】\n标题：${currentChapter.title}\n核心事件：${currentChapter.summary || '（未设定）'}\n前文末尾：\n${plainBody || '（暂无正文）'}`
-    const fitted = fitToBudget(raw, remaining, true)
-    const tokens = estimateTokens(fitted.text)
+    const charCount = plainBody.replace(/\s/g, '').length
+    const header = `【当前所在章节：${currentChapter.title}（已写 ${charCount} 字）】\n核心事件：${currentChapter.summary || '（未设定）'}\n提示：若创作下一章，请紧接下方末尾推进新剧情，并起一个全新的章节名，切勿重复「${currentChapter.title}」的标题或已写情节。\n已写正文末尾：\n`
+    const bodyBudget = Math.max(200, remaining - estimateTokens(header))
+    const fittedBody = fitToBudget(plainBody || '（暂无正文）', bodyBudget, true)
+    const raw = header + fittedBody.text
+    const tokens = estimateTokens(raw)
     remaining = Math.max(0, remaining - tokens)
-    if (fitted.trimmed) trimmedLayers.push('recent_body')
+    if (fittedBody.trimmed) trimmedLayers.push('recent_body')
     layers.push({
       key: 'recent_body',
       label: '当前章节正文',
       tokens,
       budgetTokens: remaining + tokens,
-      trimmed: fitted.trimmed,
+      trimmed: fittedBody.trimmed,
       itemCount: 1,
-      preview: fitted.text,
+      preview: raw,
     })
   }
 

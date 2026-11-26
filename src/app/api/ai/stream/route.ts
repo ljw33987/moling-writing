@@ -7,6 +7,7 @@ import { getPlatformConfig, getPlatformDefaultAI } from '@/lib/platform-ai'
 import { getPlatformProAiFromEnv, parseModelMappings } from '@/lib/ai-models'
 import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
+import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // POST /api/ai/stream - 流式 AI 调用（SSE）
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { action, preset, message, novelId, chapterId, targetStyle, modelId, referencedItems } = body
+  const { action, preset, message, novelId, chapterId, targetStyle, modelId, referencedItems, writingStyleId, promptTags } = body
 
   if (novelId && !await getOwnedNovel(user.id, novelId)) {
     return NextResponse.json({ error: '未找到作品' }, { status: 404 })
@@ -40,10 +41,14 @@ export async function POST(req: NextRequest) {
   let extraContext = ''
 
   // 分层装配长篇上下文（大纲 + @引用设定 + 时间线 + 前情摘要 + 当前正文）
+  const refChapters = Array.isArray(referencedItems)
+    ? referencedItems.filter((r: any) => r?.type === 'chapter' && r?.title)
+    : []
+
   if (novelId) {
     const [assembled, explicitRefs] = await Promise.all([
       assembleNovelContext({ novelId, chapterId }),
-      resolveReferencedContext(novelId, referencedItems || []),
+      resolveReferencedContext(novelId, referencedItems || [], refChapters.length >= 2 ? 32000 : 24000),
     ])
     extraContext = [assembled.contextText, explicitRefs].filter(Boolean).join('\n\n')
   }
@@ -72,6 +77,27 @@ export async function POST(req: NextRequest) {
 
   if (matchedMapping?.isPro || modelId === 'moling_v4_pro') {
     systemPrompt += '\n\n【深度分析与精修模式】请对引用材料与上下文进行结构化、深层次的推演、拆解与高质量输出。'
+  }
+
+  // 注入个人写作风格（显式选择或作品绑定的文风）
+  const activeStyle = await resolveWritingStyleForNovel(user.id, novelId, writingStyleId)
+  if (activeStyle) {
+    systemPrompt += `\n\n${buildWritingStyleInstruction(activeStyle)}`
+  }
+
+  if (refChapters.length >= 2) {
+    const chapterList = refChapters.map((c: any, idx: number) => `${idx + 1}. ${c.title}`).join('、')
+    systemPrompt += `\n\n【多章节协同任务强制规范】用户本次显式 @ 引用了 ${refChapters.length} 个章节（${chapterList}）。如果用户要求修改、润色、去AI味或重写，你必须按顺序逐一全部处理并输出这 ${refChapters.length} 个章节的完整内容，严禁只输出最后一章或遗漏任何一章！每一章都必须严格以二级标题 \`## 章节原标题\`（例如 \`## ${refChapters[0].title}\`）单独成行开头，紧接着输出该章完整正文，以便系统自动分章精准写回对应章节。`
+    if (action !== 'edit' && userPrompt) {
+      userPrompt = `请对以下全部 ${refChapters.length} 个引用章节（${chapterList}）依次执行指令，务必逐章全部输出且每章以 \`## 章节原标题\` 开头：\n\n${userPrompt}`
+    }
+  }
+
+  if (Array.isArray(promptTags) && promptTags.length > 0) {
+    const validTags = promptTags.map((t: any) => String(t || '').trim()).filter(Boolean)
+    if (validTags.length > 0) {
+      systemPrompt += `\n\n【附加创作与输出要求】\n${validTags.map((t: string, idx: number) => `${idx + 1}. ${t}`).join('\n')}`
+    }
   }
 
   let targetAiConfig: { baseUrl: string; apiKey: string; model: string } | null = null
@@ -154,7 +180,7 @@ export async function POST(req: NextRequest) {
                       fullReply += delta
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
                     }
-                  } catch {}
+                  } catch { }
                 }
               }
             }
@@ -195,7 +221,7 @@ export async function POST(req: NextRequest) {
                         fullReply += delta
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
                       }
-                    } catch {}
+                    } catch { }
                   }
                 }
               }
@@ -235,7 +261,7 @@ export async function POST(req: NextRequest) {
                       fullReply += delta
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
                     }
-                  } catch {}
+                  } catch { }
                 }
               }
             }

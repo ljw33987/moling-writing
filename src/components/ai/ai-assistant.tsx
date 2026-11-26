@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Popover,
@@ -44,12 +45,16 @@ import {
   List,
   Plus,
   RefreshCw,
+  Feather,
+  Tag,
+  Pencil,
 } from 'lucide-react'
-import { api } from '@/lib/helpers'
+import { api, countWords } from '@/lib/helpers'
 import { toast } from 'sonner'
 import { PLATFORM_MODEL_ALIASES, type PublicAiModel } from '@/lib/ai-models'
 import type { AiReferenceOption } from '@/app/api/ai/references/route'
 import { MarkdownRenderer, markdownToPlainText } from './markdown-renderer'
+import { WritingStyleDialog, type WritingStyleItem } from './writing-style-dialog'
 
 interface Preset {
   id: string
@@ -74,9 +79,169 @@ interface Message {
   isError?: boolean
 }
 
+interface PromptTag {
+  id: string
+  label: string
+  prompt: string
+  builtin?: boolean
+}
+
+const BUILTIN_PROMPT_TAGS: PromptTag[] = [
+  {
+    id: 'explain_changes',
+    label: '简要说明修改点',
+    prompt:
+      '请在所有修改内容输出的最后，单独用 `## 修改说明` 作为标题，用 3-5 条简短要点概括本次主要修改了哪些地方（如删掉了哪些 AI 套话、调整了哪段节奏或对话）。',
+    builtin: true,
+  },
+  {
+    id: 'keep_plot',
+    label: '保留原剧情与人设',
+    prompt: '严格保留原有剧情事件顺序与人物设定，只优化文风、句式和语言质感，不要擅自增删关键情节。',
+    builtin: true,
+  },
+  {
+    id: 'more_action',
+    label: '增强画面与动作感',
+    prompt: '减少抽象心理总结与说教句，多用具体动作、眼神与环境细节推进场景。',
+    builtin: true,
+  },
+]
+
+interface ChapterBrief {
+  id: string
+  title: string
+  words: number
+}
+
+interface ParsedChapterSection {
+  chapterId: string
+  title: string
+  rawMarkdown: string
+  content: string
+  prevWords: number
+  nextWords: number
+}
+
+function plainToChapterHtml(text: string): string {
+  const lines = text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((l) => l.replace(/^[\s\u3000]+|[\s\u3000]+$/g, ''))
+    .filter(Boolean)
+  if (lines.length === 0) return '<p></p>'
+  return lines
+    .map((l) => `<p>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+    .join('')
+}
+
+function normalizeChapterHeading(raw: string): string {
+  return raw
+    .replace(/^#+\s*/, '')
+    .replace(/^[【\[]|[】\]]$/g, '')
+    .replace(/[：:]/g, ' ')
+    .replace(/\s+/g, '')
+    .toLowerCase()
+}
+
+function parseMultiChapterSections(
+  content: string,
+  messageRefs: ReferencedItem[] | undefined,
+  allChapters: ChapterBrief[]
+): { preamble: string; sections: ParsedChapterSection[]; postscript: string } {
+  const refChapterIds = new Set(
+    (messageRefs || []).filter((r) => r.type === 'chapter').map((r) => r.id)
+  )
+  const candidates =
+    refChapterIds.size >= 2
+      ? allChapters.filter((c) => refChapterIds.has(c.id))
+      : allChapters
+
+  if (candidates.length < 2 || !content?.trim()) {
+    return { preamble: '', sections: [], postscript: '' }
+  }
+
+  const lines = content.replace(/\r\n?/g, '\n').split('\n')
+  const preambleLines: string[] = []
+  const postscriptLines: string[] = []
+  const matched: Array<{ chapter: ChapterBrief; lines: string[] }> = []
+  let current: { chapter: ChapterBrief; lines: string[] } | null = null
+  let inPostscript = false
+
+  const findMatchingChapter = (line: string): ChapterBrief | null => {
+    const trimmed = line.trim()
+    const isHeading =
+      /^#{1,4}\s+/.test(trimmed) ||
+      /^【.+】$/.test(trimmed) ||
+      /^第[一二三四五六七八九十百千万0-9]+[章节回]/.test(trimmed)
+    if (!isHeading) return null
+    const normLine = normalizeChapterHeading(trimmed)
+    if (!normLine) return null
+    for (const ch of candidates) {
+      const normTitle = normalizeChapterHeading(ch.title)
+      if (!normTitle) continue
+      if (normLine === normTitle || normLine.includes(normTitle) || normTitle.includes(normLine)) {
+        return ch
+      }
+      const chNumMatch = ch.title.match(/第[一二三四五六七八九十百千万0-9]+[章节回]/)
+      const lineNumMatch = trimmed.match(/第[一二三四五六七八九十百千万0-9]+[章节回]/)
+      if (chNumMatch && lineNumMatch && chNumMatch[0] === lineNumMatch[0]) {
+        return ch
+      }
+    }
+    return null
+  }
+
+  for (const line of lines) {
+    const hit = findMatchingChapter(line)
+    if (hit) {
+      inPostscript = false
+      current = { chapter: hit, lines: [] }
+      matched.push(current)
+    } else if (
+      current &&
+      /^#{1,3}\s+(修改说明|修改摘要|本次修改|修改总结|改动说明)/.test(line.trim())
+    ) {
+      inPostscript = true
+      postscriptLines.push(line)
+    } else if (inPostscript) {
+      postscriptLines.push(line)
+    } else if (current) {
+      current.lines.push(line)
+    } else {
+      preambleLines.push(line)
+    }
+  }
+
+  const deduped = new Map<string, ParsedChapterSection>()
+  for (const item of matched) {
+    const rawMd = item.lines.join('\n').trim()
+    const plain = markdownToPlainText(rawMd).trim()
+    const nextWords = countWords(plain)
+    deduped.set(item.chapter.id, {
+      chapterId: item.chapter.id,
+      title: item.chapter.title,
+      rawMarkdown: rawMd,
+      content: plain,
+      prevWords: item.chapter.words || 0,
+      nextWords,
+    })
+  }
+
+  return {
+    preamble: preambleLines.join('\n').trim(),
+    sections: Array.from(deduped.values()),
+    postscript: postscriptLines.join('\n').trim(),
+  }
+}
+
 interface Props {
   novelId: string
   chapterId: string | null
+  writingStyleId?: string | null
+  chapters?: ChapterBrief[]
+  onWritingStyleChange?: (styleId: string | null) => void
+  onChaptersUpdated?: () => void
   onInsertText: (text: string) => void
 }
 
@@ -111,7 +276,15 @@ const REF_TYPE_META: Record<
   },
 }
 
-export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
+export function AiAssistant({
+  novelId,
+  chapterId,
+  writingStyleId,
+  chapters = [],
+  onWritingStyleChange,
+  onChaptersUpdated,
+  onInsertText,
+}: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -122,6 +295,21 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
   const [models, setModels] = useState<PublicAiModel[]>(PLATFORM_MODEL_ALIASES)
   const [selectedModel, setSelectedModel] = useState<string>('moling_v4')
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+
+  // 个人写作风格
+  const [writingStyles, setWritingStyles] = useState<WritingStyleItem[]>([])
+  const [activeStyleId, setActiveStyleId] = useState<string | null>(writingStyleId ?? null)
+  const [styleDialogOpen, setStyleDialogOpen] = useState(false)
+  const [appliedChapters, setAppliedChapters] = useState<Record<number, string[]>>({})
+  const [applyingKey, setApplyingKey] = useState<string | null>(null)
+
+  // 附加提示词标签
+  const [promptTags, setPromptTags] = useState<PromptTag[]>(BUILTIN_PROMPT_TAGS)
+  const [activeTagIds, setActiveTagIds] = useState<string[]>([])
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
+  const [editingTagId, setEditingTagId] = useState<string | null>(null)
+  const [newTagLabel, setNewTagLabel] = useState('')
+  const [newTagPrompt, setNewTagPrompt] = useState('')
 
   // @ 多文件引用状态
   const [availableRefs, setAvailableRefs] = useState<AiReferenceOption[]>([])
@@ -138,7 +326,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
   useEffect(() => {
     api<{ presets: Preset[] }>('/api/ai')
       .then((r) => setPresets(r.presets))
-      .catch(() => {})
+      .catch(() => { })
 
     api<{ models: PublicAiModel[] }>('/api/ai/models')
       .then((r) => {
@@ -146,14 +334,184 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           setModels(r.models)
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
+
+  const loadWritingStyles = useCallback(async () => {
+    try {
+      const res = await api<{ styles: WritingStyleItem[] }>('/api/writing-styles')
+      setWritingStyles(res.styles || [])
+    } catch { }
+  }, [])
+
+  useEffect(() => {
+    void loadWritingStyles()
+    const onUpdated = () => void loadWritingStyles()
+    window.addEventListener('moling:writing-styles-updated', onUpdated)
+    return () => window.removeEventListener('moling:writing-styles-updated', onUpdated)
+  }, [loadWritingStyles])
+
+  useEffect(() => {
+    try {
+      const savedV2 = localStorage.getItem('moling_ai_prompt_tags_v2')
+      if (savedV2) {
+        const parsed = JSON.parse(savedV2)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPromptTags(parsed)
+        }
+      } else {
+        const legacy = localStorage.getItem('moling_ai_prompt_tags')
+        if (legacy) {
+          const parsedLegacy = JSON.parse(legacy)
+          if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+            setPromptTags([...BUILTIN_PROMPT_TAGS, ...parsedLegacy])
+          }
+        }
+      }
+      const savedActive = localStorage.getItem('moling_ai_active_tags')
+      if (savedActive) setActiveTagIds(JSON.parse(savedActive))
+    } catch {}
+  }, [])
+
+  const allPromptTags = promptTags
+
+  const persistPromptTags = (nextTags: PromptTag[], nextActive?: string[]) => {
+    setPromptTags(nextTags)
+    try {
+      localStorage.setItem('moling_ai_prompt_tags_v2', JSON.stringify(nextTags))
+      if (nextActive !== undefined) {
+        localStorage.setItem('moling_ai_active_tags', JSON.stringify(nextActive))
+      }
+    } catch {}
+  }
+
+  const togglePromptTag = (id: string) => {
+    setActiveTagIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      try {
+        localStorage.setItem('moling_ai_active_tags', JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }
+
+  const startEditTag = (tag: PromptTag) => {
+    setEditingTagId(tag.id)
+    setNewTagLabel(tag.label)
+    setNewTagPrompt(tag.prompt)
+    setTagPopoverOpen(true)
+  }
+
+  const resetTagForm = () => {
+    setEditingTagId(null)
+    setNewTagLabel('')
+    setNewTagPrompt('')
+  }
+
+  const handleSavePromptTag = () => {
+    if (!newTagLabel.trim() || !newTagPrompt.trim()) {
+      toast.error('请填写标签名称和提示词说明')
+      return
+    }
+    const label = newTagLabel.trim().slice(0, 20)
+    const prompt = newTagPrompt.trim().slice(0, 500)
+
+    if (editingTagId) {
+      const nextTags = promptTags.map((t) =>
+        t.id === editingTagId ? { ...t, label, prompt } : t
+      )
+      persistPromptTags(nextTags)
+      toast.success(`已更新标签「${label}」`)
+      resetTagForm()
+      return
+    }
+
+    const created: PromptTag = {
+      id: `tag_${Date.now()}`,
+      label,
+      prompt,
+    }
+    const nextTags = [...promptTags, created]
+    const nextActive = [...activeTagIds, created.id]
+    setActiveTagIds(nextActive)
+    persistPromptTags(nextTags, nextActive)
+    resetTagForm()
+    toast.success(`已添加并启用标签「${created.label}」`)
+  }
+
+  const handleDeletePromptTag = (id: string) => {
+    const nextTags = promptTags.filter((t) => t.id !== id)
+    const nextActive = activeTagIds.filter((x) => x !== id)
+    setActiveTagIds(nextActive)
+    persistPromptTags(nextTags, nextActive)
+    if (editingTagId === id) resetTagForm()
+  }
+
+  useEffect(() => {
+    if (writingStyleId !== undefined) {
+      setActiveStyleId(writingStyleId)
+    }
+  }, [writingStyleId])
+
+  useEffect(() => {
+    if (!novelId || writingStyleId !== undefined) return
+    api<{ novel?: { writingStyleId?: string | null } }>(`/api/novels?id=${novelId}`)
+      .then((r) => {
+        setActiveStyleId(r.novel?.writingStyleId || null)
+      })
+      .catch(() => { })
+  }, [novelId, writingStyleId])
+
+  const handleBindStyle = async (styleId: string | null) => {
+    setActiveStyleId(styleId)
+    onWritingStyleChange?.(styleId)
+    if (!novelId) return
+    try {
+      await api('/api/novels', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: novelId, writingStyleId: styleId }),
+      })
+    } catch { }
+  }
+
+  const handleApplyChapterSections = async (msgIdx: number, sections: ParsedChapterSection[]) => {
+    if (sections.length === 0) return
+    const key = sections.length === 1 ? `${msgIdx}-${sections[0].chapterId}` : `${msgIdx}-all`
+    setApplyingKey(key)
+    try {
+      const summaryParts: string[] = []
+      for (const sec of sections) {
+        const html = plainToChapterHtml(sec.content)
+        await api('/api/chapters', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            id: sec.chapterId,
+            content: html,
+            words: sec.nextWords,
+          }),
+        })
+        const delta = sec.nextWords - sec.prevWords
+        const deltaStr = delta >= 0 ? `+${delta}` : `${delta}`
+        summaryParts.push(`${sec.title}(${deltaStr}字)`)
+      }
+      setAppliedChapters((prev) => ({
+        ...prev,
+        [msgIdx]: Array.from(new Set([...(prev[msgIdx] || []), ...sections.map((s) => s.chapterId)])),
+      }))
+      onChaptersUpdated?.()
+      toast.success(`已写回 ${sections.length} 章：${summaryParts.join('、')}`)
+    } catch (e: any) {
+      toast.error(e.message || '写回章节失败')
+    } finally {
+      setApplyingKey(null)
+    }
+  }
 
   const loadReferences = useCallback(() => {
     if (!novelId) return
     api<{ references: AiReferenceOption[] }>(`/api/ai/references?novelId=${novelId}`)
       .then((r) => setAvailableRefs(r.references || []))
-      .catch(() => {})
+      .catch(() => { })
   }, [novelId])
 
   useEffect(() => {
@@ -170,11 +528,11 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
     const q = mentionQuery.trim().toLowerCase()
     const list = q
       ? availableRefs.filter(
-          (r) =>
-            r.title.toLowerCase().includes(q) ||
-            (r.subtitle && r.subtitle.toLowerCase().includes(q)) ||
-            REF_TYPE_META[r.type].label.includes(q)
-        )
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          (r.subtitle && r.subtitle.toLowerCase().includes(q)) ||
+          REF_TYPE_META[r.type].label.includes(q)
+      )
       : availableRefs
     return list.slice(0, 30)
   }, [availableRefs, mentionQuery])
@@ -274,6 +632,10 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           chapterId,
           modelId: selectedModel,
           referencedItems: refsToUse,
+          writingStyleId: activeStyleId || 'none',
+          promptTags: allPromptTags
+            .filter((t) => activeTagIds.includes(t.id))
+            .map((t) => t.prompt),
         }),
       })
 
@@ -357,7 +719,7 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
                   return copy
                 })
               }
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -537,11 +899,10 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
               className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
               <div
-                className={`w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center ${
-                  m.role === 'user'
+                className={`w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center ${m.role === 'user'
                     ? 'bg-[var(--surface-3)] text-foreground'
                     : 'ai-brand-mark text-white'
-                }`}
+                  }`}
               >
                 {m.role === 'user' ? (
                   <UserIcon className="w-3.5 h-3.5" />
@@ -591,53 +952,177 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
                   <div className="inline-block text-[13px] px-3 py-2 rounded-[10px] whitespace-pre-wrap break-words text-left max-w-full bg-[var(--surface-3)] text-foreground border border-border">
                     {m.content}
                   </div>
-                ) : (
-                  <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
-                    <MarkdownRenderer content={m.content} />
-                  </div>
-                )}
-                {m.role === 'assistant' && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    {!m.isError && (
-                      <>
+                ) : (() => {
+                  const refChapCount = (m.references || []).filter((r) => r.type === 'chapter').length
+                  const parsed = !m.isError
+                    ? parseMultiChapterSections(m.content, m.references, chapters)
+                    : { preamble: '', sections: [] }
+                  const isMultiCardMode =
+                    parsed.sections.length >= 2 || (refChapCount >= 2 && parsed.sections.length >= 1)
+                  const appliedSet = new Set(appliedChapters[i] || [])
+
+                  if (!isMultiCardMode) {
+                    return (
+                      <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
+                        <MarkdownRenderer content={m.content} />
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-2.5 max-w-full text-left">
+                      {parsed.preamble && (
+                        <div className="inline-block px-3 py-2 rounded-[10px] bg-card border border-border text-xs">
+                          <MarkdownRenderer content={parsed.preamble} />
+                        </div>
+                      )}
+
+                      {parsed.sections.length >= 2 && (
+                        <div className="flex items-center justify-between gap-2 flex-wrap rounded-[10px] border border-primary/25 bg-primary/5 px-3 py-2">
+                          <span className="text-[11.5px] font-medium text-primary">
+                            共 {parsed.sections.length} 个独立章节结果（可单章或一键全部写入）
+                          </span>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                            disabled={applyingKey !== null || loading}
+                            onClick={() => handleApplyChapterSections(i, parsed.sections)}
+                          >
+                            {applyingKey === `${i}-all` ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            一键全部写入 ({parsed.sections.length}章)
+                          </Button>
+                        </div>
+                      )}
+
+                      {parsed.sections.map((sec) => {
+                        const delta = sec.nextWords - sec.prevWords
+                        const deltaLabel = delta >= 0 ? `+${delta}字` : `${delta}字`
+                        const isApplied = appliedSet.has(sec.chapterId)
+                        return (
+                          <div
+                            key={sec.chapterId}
+                            className="rounded-[12px] border border-border border-l-2 border-l-[var(--violet)] bg-card shadow-xs overflow-hidden"
+                          >
+                            <div className="px-3 py-2 bg-muted/40 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <span className="text-xs font-semibold truncate">{sec.title}</span>
+                                <span className="text-[10px] text-muted-foreground tnum shrink-0">
+                                  {sec.prevWords} → {sec.nextWords}字 ({deltaLabel})
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-[11px] gap-1"
+                                  disabled={!sec.content}
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(sec.content)
+                                    toast.success(`已复制「${sec.title}」`)
+                                  }}
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  复制
+                                </Button>
+                                <Button
+                                  variant={isApplied ? 'secondary' : 'default'}
+                                  size="sm"
+                                  className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                                  disabled={applyingKey !== null || loading || !sec.content}
+                                  onClick={() => handleApplyChapterSections(i, [sec])}
+                                >
+                                  {applyingKey === `${i}-${sec.chapterId}` ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : isApplied ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-jade" />
+                                      已写入此章
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-3 h-3" />
+                                      写入此章
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="px-3.5 py-2.5 max-h-80 overflow-y-auto">
+                              {sec.rawMarkdown ? (
+                                <MarkdownRenderer content={sec.rawMarkdown} />
+                              ) : (
+                                <div className="text-xs text-muted-foreground">正在生成本章内容...</div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {parsed.postscript && (
+                        <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/5 px-3.5 py-2.5 text-xs">
+                          <MarkdownRenderer content={parsed.postscript} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+                {m.role === 'assistant' && (() => {
+                  const multiSections = !m.isError
+                    ? parseMultiChapterSections(m.content, m.references, chapters).sections
+                    : []
+                  const hasMultiSections = multiSections.length >= 2
+
+                  return (
+                    <div className="mt-1.5 space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {!m.isError && !hasMultiSections && (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                              onClick={() => onInsertText(markdownToPlainText(m.content))}
+                            >
+                              <Send className="w-3 h-3" />
+                              插入到正文
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                              onClick={() => {
+                                navigator.clipboard.writeText(markdownToPlainText(m.content))
+                                setCopiedIndex(i)
+                                toast.success('已复制纯文本')
+                                setTimeout(() => setCopiedIndex(null), 1500)
+                              }}
+                            >
+                              {copiedIndex === i ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
+                              复制
+                            </Button>
+                          </>
+                        )}
                         <Button
-                          variant="default"
+                          variant={m.isError ? 'default' : 'ghost'}
                           size="sm"
+                          disabled={loading}
                           className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                          onClick={() => onInsertText(markdownToPlainText(m.content))}
+                          onClick={() => handleRegenerate(i)}
+                          title="重新生成"
                         >
-                          <Send className="w-3 h-3" />
-                          插入到正文
+                          <RefreshCw className="w-3 h-3" />
+                          {m.isError ? '刷新重试' : '重新生成'}
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                          onClick={() => {
-                            navigator.clipboard.writeText(markdownToPlainText(m.content))
-                            setCopiedIndex(i)
-                            toast.success('已复制纯文本')
-                            setTimeout(() => setCopiedIndex(null), 1500)
-                          }}
-                        >
-                          {copiedIndex === i ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
-                          复制
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant={m.isError ? 'default' : 'ghost'}
-                      size="sm"
-                      disabled={loading}
-                      className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                      onClick={() => handleRegenerate(i)}
-                      title="重新生成"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      {m.isError ? '刷新重试' : '重新生成'}
-                    </Button>
-                  </div>
-                )}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )
@@ -691,9 +1176,8 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
                       key={`${item.type}-${item.id}`}
                       type="button"
                       onClick={() => addReference(item)}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 transition ${
-                        idx === mentionIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
-                      }`}
+                      className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 transition ${idx === mentionIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                        }`}
                     >
                       <Icon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
@@ -715,8 +1199,34 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           </div>
         )}
 
-        {/* 已 @ 引用的文件标签 + 添加引用按钮 */}
-        <div className="mb-2 flex flex-wrap items-center gap-1.5 max-h-20 overflow-y-auto">
+        {/* 已 @ 引用的文件标签 + 已启用的提示词标签 + 添加引用按钮 */}
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto">
+          {allPromptTags
+            .filter((t) => activeTagIds.includes(t.id))
+            .map((tag) => (
+              <span
+                key={`active-tag-${tag.id}`}
+                title={`${tag.prompt}\n（点击标签可修改内容）`}
+                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-[7px] border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              >
+                <button
+                  type="button"
+                  onClick={() => startEditTag(tag)}
+                  className="inline-flex items-center gap-1 hover:underline"
+                >
+                  <Tag className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[120px]">{tag.label}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => togglePromptTag(tag.id)}
+                  className="hover:opacity-70 ml-0.5"
+                  title="取消此提示词标签"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
           {referencedItems.map((ref) => {
             const meta = REF_TYPE_META[ref.type]
             const Icon = meta.icon
@@ -834,6 +1344,135 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
 
             <button
               type="button"
+              onClick={() => setStyleDialogOpen(true)}
+              className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors max-w-[115px] ${activeStyleId
+                  ? 'bg-primary/10 text-primary border border-primary/25 font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
+                }`}
+              title="设置或提炼我的专属写作风格（去 AI 味）"
+            >
+              <Feather className="w-3 h-3 shrink-0" />
+              <span className="truncate">
+                {writingStyles.find((s) => s.id === activeStyleId)?.name || '我的文风'}
+              </span>
+            </button>
+
+            <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors shrink-0 ${
+                    activeTagIds.length > 0
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
+                  }`}
+                  title="添加附加提示词标签（如：简要说明修改点）"
+                >
+                  <Tag className="w-3 h-3 shrink-0" />
+                  <span>提示词{activeTagIds.length > 0 ? ` (${activeTagIds.length})` : ''}</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3 space-y-3" align="start" side="top">
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-primary" />
+                    附加提示词标签
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    勾选后将自动附带到每次 AI 对话与修改指令中
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                  {allPromptTags.map((tag) => {
+                    const active = activeTagIds.includes(tag.id)
+                    const isEditingThis = editingTagId === tag.id
+                    return (
+                      <div
+                        key={tag.id}
+                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${
+                          isEditingThis
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium'
+                            : active
+                              ? 'border-primary bg-primary/10 text-primary font-medium'
+                              : 'border-border bg-card hover:bg-muted text-foreground'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => togglePromptTag(tag.id)}
+                          className="inline-flex items-center gap-1"
+                          title={tag.prompt}
+                        >
+                          {active && <Check className="w-3 h-3 shrink-0" />}
+                          <span>{tag.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEditTag(tag)}
+                          className="ml-0.5 text-muted-foreground hover:text-primary"
+                          title="修改此标签"
+                        >
+                          <Pencil className="w-2.5 h-2.5" />
+                        </button>
+                        {!tag.builtin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePromptTag(tag.id)}
+                            className="text-muted-foreground hover:text-cinnabar"
+                            title="删除自定义标签"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {editingTagId ? '修改提示词标签' : '新增自定义提示词标签'}
+                    </span>
+                    {editingTagId && (
+                      <button
+                        type="button"
+                        onClick={resetTagForm}
+                        className="text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        取消编辑
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    value={newTagLabel}
+                    onChange={(e) => setNewTagLabel(e.target.value)}
+                    placeholder="标签名（如：简要说明修改点）"
+                    className="h-7 text-xs"
+                  />
+                  <Textarea
+                    value={newTagPrompt}
+                    onChange={(e) => setNewTagPrompt(e.target.value)}
+                    placeholder="具体提示词要求（如：修改后列出3-5条修改说明）"
+                    rows={2}
+                    className="text-xs resize-none"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full h-7 text-xs gap-1"
+                    onClick={handleSavePromptTag}
+                  >
+                    {editingTagId ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                    {editingTagId ? '保存修改' : '添加并启用标签'}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <button
+              type="button"
               onClick={handleSend}
               disabled={!input.trim() || loading}
               className="ml-auto w-7 h-7 rounded-[8px] ai-brand-mark text-white inline-flex items-center justify-center disabled:opacity-45 hover:opacity-95 transition-opacity shrink-0"
@@ -862,6 +1501,16 @@ export function AiAssistant({ novelId, chapterId, onInsertText }: Props) {
           ))}
         </div>
       </div>
+
+      <WritingStyleDialog
+        open={styleDialogOpen}
+        onOpenChange={setStyleDialogOpen}
+        novelId={novelId}
+        activeStyleId={activeStyleId}
+        styles={writingStyles}
+        onRefreshStyles={loadWritingStyles}
+        onBindStyle={handleBindStyle}
+      />
     </div>
   )
 }

@@ -23,9 +23,11 @@ import {
   Loader2,
   Plus,
   Trash2,
+  Feather,
 } from 'lucide-react'
 import { buildInitialMindmapDoc } from './markdown-mindmap'
 import type { MindmapFile } from './mindmap-main-panel'
+import { WritingStyleDialog, type WritingStyleItem } from '@/components/ai/writing-style-dialog'
 
 interface Props {
   novel: NovelDetail
@@ -38,6 +40,7 @@ interface Props {
   onCreateMindmap: (file: MindmapFile) => void
   onDeleteMindmap: (id: string) => void
   onTreeChange: () => void
+  onWritingStyleChange?: (styleId: string | null) => void
   onInsertCodexRef?: (id: string) => void
 }
 
@@ -52,6 +55,7 @@ export function LeftSidebarPanel({
   onCreateMindmap,
   onDeleteMindmap,
   onTreeChange,
+  onWritingStyleChange,
   onInsertCodexRef,
 }: Props) {
   const [tab, setTab] = useState<'chapters' | 'outline' | 'mindmap' | 'codex' | 'notes'>('chapters')
@@ -59,6 +63,39 @@ export function LeftSidebarPanel({
   const [mindmapLoading, setMindmapLoading] = useState(false)
   const [mindmapScope, setMindmapScope] = useState<'all' | 'custom'>('all')
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>(['outline'])
+  const [writingStyles, setWritingStyles] = useState<WritingStyleItem[]>([])
+  const [styleDialogOpen, setStyleDialogOpen] = useState(false)
+  const [activeStyleId, setActiveStyleId] = useState<string | null>(novel.writingStyleId || null)
+
+  useEffect(() => {
+    setActiveStyleId(novel.writingStyleId || null)
+  }, [novel.writingStyleId])
+
+  const loadWritingStyles = useCallback(async () => {
+    try {
+      const res = await api<{ styles: WritingStyleItem[] }>('/api/writing-styles')
+      setWritingStyles(res.styles || [])
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    void loadWritingStyles()
+    const onUpdated = () => void loadWritingStyles()
+    window.addEventListener('moling:writing-styles-updated', onUpdated)
+    return () => window.removeEventListener('moling:writing-styles-updated', onUpdated)
+  }, [loadWritingStyles])
+
+  const handleBindStyle = async (styleId: string | null) => {
+    setActiveStyleId(styleId)
+    onWritingStyleChange?.(styleId)
+    try {
+      await api('/api/novels', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: novel.id, writingStyleId: styleId }),
+      })
+      onTreeChange()
+    } catch {}
+  }
 
   useEffect(() => {
     try {
@@ -279,6 +316,27 @@ export function LeftSidebarPanel({
         </TabsContent>
 
         <TabsContent value="outline" className="flex-1 overflow-y-auto p-3 space-y-3 mt-0">
+          <div className="rounded-md border border-border bg-muted/20 p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium flex items-center gap-1.5">
+                <Feather className="w-3.5 h-3.5 text-primary" />
+                作品专属写作风格
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[11px]"
+                onClick={() => setStyleDialogOpen(true)}
+              >
+                配置文风
+              </Button>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              当前：{writingStyles.find((s) => s.id === activeStyleId)?.name || '默认 AI 文风（未绑定个人风格）'}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground">作品简介</div>
             <Textarea
@@ -476,6 +534,16 @@ export function LeftSidebarPanel({
           />
         </TabsContent>
       </Tabs>
+
+      <WritingStyleDialog
+        open={styleDialogOpen}
+        onOpenChange={setStyleDialogOpen}
+        novelId={novel.id}
+        activeStyleId={activeStyleId}
+        styles={writingStyles}
+        onRefreshStyles={loadWritingStyles}
+        onBindStyle={handleBindStyle}
+      />
     </div>
   )
 }

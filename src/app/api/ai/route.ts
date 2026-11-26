@@ -5,6 +5,7 @@ import { callThirdPartyAI } from '@/lib/ai-providers'
 import { getPlatformDefaultAI } from '@/lib/platform-ai'
 import { assembleNovelContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
+import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // 预设指令库
@@ -201,7 +202,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { action, preset, message, context, novelId, chapterId, targetStyle } = body
+    const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId } = body
 
     if (novelId && !await getOwnedNovel(user.id, novelId)) {
       return NextResponse.json({ error: '未找到作品' }, { status: 404 })
@@ -238,6 +239,11 @@ export async function POST(req: NextRequest) {
         continue: '请续写以下文本：',
       }
       userPrompt = `${editPrompt[preset] || '请处理以下文本：'}\n\n${message || ''}`
+    }
+
+    const activeStyle = await resolveWritingStyleForNovel(user.id, novelId, writingStyleId)
+    if (activeStyle) {
+      systemPrompt += `\n\n${buildWritingStyleInstruction(activeStyle)}`
     }
 
     // 检查用户是否有默认第三方 API 配置

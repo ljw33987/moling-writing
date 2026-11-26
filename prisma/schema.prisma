@@ -178,6 +178,8 @@ model Novel {
   publication Publication?
   timelineEvents    TimelineEvent[]
   consistencyIssues ConsistencyIssue[]
+  writingStyleId    String?
+  writingStyle      WritingStyle? @relation(fields: [writingStyleId], references: [id], onDelete: SetNull)
   // 软删除（回收站）
   deleted     Boolean       @default(false)
   deletedAt   DateTime?
@@ -620,4 +622,22 @@ model PromptTemplate {
   updatedAt   DateTime @updatedAt
 
   @@index([category])
+}
+
+// ============ 个人写作风格 ============
+model WritingStyle {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  description  String   @default("")
+  stylePrompt  String   @default("") // 提炼或自定义的文风规则（句式、视角、节奏、用词习惯）
+  sampleText   String   @default("") // 作者样文摘录（用于 Few-shot 模仿）
+  avoidPhrases String   @default("") // 禁用词/去AI味黑名单（逗号或顿号分隔）
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  novels       Novel[]
+
+  @@index([userId])
 }

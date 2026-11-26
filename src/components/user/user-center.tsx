@@ -45,6 +45,14 @@ import { toast } from 'sonner'
 import { AiConfigPanel } from './ai-config-panel'
 import { useI18n } from '@/lib/i18n/store'
 
+function formatQuotaWords(tokens: number): string {
+  const words = Math.max(0, Math.round(tokens * 3))
+  if (words >= 10000) {
+    return `${(words / 10000).toFixed(1).replace(/\.0$/, '')} 万字`
+  }
+  return `${words.toLocaleString()} 字`
+}
+
 interface UserData {
   user: {
     id: string
@@ -167,7 +175,7 @@ export function UserCenter() {
         `/api/orders?id=${payDialog.orderId}`,
         { method: 'PATCH' }
       )
-      toast.success(`支付成功！Token 已到账 ${r.newBalance.toLocaleString()}`)
+      toast.success(`支付成功！创作字数已到账，当前剩余 ${formatQuotaWords(r.newBalance)}`)
       setPayDialog(null)
       load()
       loadOrders()
@@ -250,8 +258,7 @@ export function UserCenter() {
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="gap-1.5 px-3 py-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-gold" />
-                  <span className="font-mono text-sm">{data.user.tokens.toLocaleString()}</span>
-                  <span className="text-muted-foreground text-xs">Token</span>
+                  <span className="font-mono text-sm">剩余 {formatQuotaWords(data.user.tokens)}</span>
                 </Badge>
                 <Badge variant="outline" className="gap-1 px-2 py-1.5 text-xs">
                   <FileText className="w-3 h-3" />
@@ -345,8 +352,8 @@ export function UserCenter() {
                   <span className="font-medium">{payDialog.pkg.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Token 数量</span>
-                  <span className="font-medium">{payDialog.pkg.tokens.toLocaleString()}</span>
+                  <span className="text-muted-foreground">充值字数</span>
+                  <span className="font-medium">{formatQuotaWords(payDialog.pkg.tokens)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">订单号</span>
@@ -373,7 +380,7 @@ export function UserCenter() {
               </div>
 
               <div className="bg-gold/10 dark:bg-gold/15 border border-gold/30 rounded p-3 text-xs text-gold">
-                ⓘ 这是演示环境，点击下方按钮即可"完成支付"并自动到账 Token。无需真实扣款。
+                ⓘ 这是演示环境，点击下方按钮即可&quot;完成支付&quot;并自动到账字数。无需真实扣款。
               </div>
             </div>
           )}
@@ -541,7 +548,7 @@ function RechargeSection({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Zap className="w-4 h-4 text-gold" />
-            Token 充值
+            创作字数充值
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -560,7 +567,7 @@ function RechargeSection({
               >
                 <div>
                   <div className="font-semibold">
-                    {p.tokens.toLocaleString()} Token
+                    {formatQuotaWords(p.tokens)}
                     {p.popular && (
                       <Badge className="ml-2 bg-gold text-primary-foreground" variant="default">
                         推荐
@@ -580,7 +587,7 @@ function RechargeSection({
           )}
           <p className="text-xs text-muted-foreground text-center pt-2">
             {paymentAvailable
-              ? '🔒 支付宝安全支付，支付后 Token 自动到账'
+              ? '🔒 支付宝安全支付，支付后字数自动到账'
               : '演示模式：点击购买后弹出模拟支付窗，无需真实扣款'
             }
           </p>
@@ -600,14 +607,14 @@ function RechargeSection({
               plan: 'free',
               name: '免费版',
               price: '¥0',
-              features: ['每日 5000 Token', '基础 AI 模型', '最多 3 部小说'],
+              features: ['每日 1.5 万字额度', '基础 AI 模型', '最多 3 部小说'],
               current: currentPlan === 'free',
             },
             {
               plan: 'pro',
               name: '月卡会员',
               price: '¥29.9/月',
-              features: ['每日 50000 Token', '高级 AI 模型', '无限小说数量', '专属预设指令库'],
+              features: ['每日 15 万字额度', '高级 AI 模型', '无限小说数量', '专属预设指令库'],
               current: currentPlan === 'pro',
               popular: true,
             },
@@ -615,7 +622,7 @@ function RechargeSection({
               plan: 'year',
               name: '年卡会员',
               price: '¥299/年',
-              features: ['月卡全部权益', '每日 200000 Token', '专属客服', '优先新功能体验'],
+              features: ['月卡全部权益', '每日 60 万字额度', '专属客服', '优先新功能体验'],
               current: currentPlan === 'year',
             },
           ].map((p) => (
@@ -705,7 +712,7 @@ function OrdersSection({ orders }: { orders: any[] }) {
               {orders.map((o: any) => (
                 <tr key={o.id} className="border-t">
                   <td className="p-3 font-mono text-xs">{o.id.slice(-8)}</td>
-                  <td className="p-3 text-xs">{o.tokens.toLocaleString()} Token</td>
+                  <td className="p-3 text-xs">{formatQuotaWords(o.tokens)}</td>
                   <td className="p-3 font-semibold">¥{o.amount.toFixed(2)}</td>
                   <td className="p-3">
                     {o.status === 'paid' ? (
@@ -818,7 +825,7 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          💡 兑换码可获取 Token 余额或会员权益。兑换码格式不区分大小写，可包含或省略连字符。
+          💡 兑换码可获取创作字数或会员权益。兑换码格式不区分大小写，可包含或省略连字符。
         </p>
 
         {showHistory && history.length > 0 && (
@@ -833,14 +840,14 @@ function RedeemCard({ onRedeemed }: { onRedeemed: () => Promise<void> }) {
                   <div className="font-mono text-xs truncate">{h.code}</div>
                   <div className="text-xs text-muted-foreground">
                     {h.rewardType === 'token'
-                      ? `+${h.tokenAmount.toLocaleString()} Token`
+                      ? `+${formatQuotaWords(h.tokenAmount)}`
                       : `${h.planReward === 'year' ? '年卡' : '月卡'}会员 ${h.planDays} 天`}
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground text-right">
                   <div>{formatTime(h.redeemedAt)}</div>
                   <div className="text-[10px]">
-                    {h.tokensBefore.toLocaleString()} → {h.tokensAfter.toLocaleString()}
+                    {formatQuotaWords(h.tokensBefore)} → {formatQuotaWords(h.tokensAfter)}
                   </div>
                 </div>
               </div>

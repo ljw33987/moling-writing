@@ -70,17 +70,26 @@ function escapeHtml(text: string) {
 }
 
 /**
+ * 将纯文本整理为干净的小说排版 HTML（去空行、去段首尾空格，配合编辑器首行缩进与段距）
+ */
+export function formatPlainToNovelHtml(raw: string): string {
+  const lines = (raw || '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/^[\s\u3000]+|[\s\u3000]+$/g, ''))
+    .filter(Boolean)
+  if (lines.length === 0) return '<p></p>'
+  return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')
+}
+
+/**
  * 兼容旧版纯文本/Markdown 章节与新版 Tiptap HTML 章节
  */
 export function normalizeToEditorHtml(raw: string): string {
   const trimmed = (raw || '').trim()
   if (!trimmed) return '<p></p>'
   if (trimmed.startsWith('<')) return raw
-  return raw
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => `<p>${line ? escapeHtml(line) : ''}</p>`)
-    .join('')
+  return formatPlainToNovelHtml(raw)
 }
 
 /**
@@ -337,7 +346,7 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
         },
         replaceAllContent: (text: string) => {
           if (!editor) return
-          const html = normalizeToEditorHtml(text)
+          const html = text.trim().startsWith('<') ? text : formatPlainToNovelHtml(text)
           editor.commands.setContent(html, { emitUpdate: true })
           ensureParagraphIds(editor)
         },

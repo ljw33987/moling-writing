@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { getOwnedFolder } from '@/lib/ownership'
+import { getNovelWritingStyleId, setNovelWritingStyleId } from '@/lib/writing-style'
 
 // GET /api/novels?folderId=xxx 或 /api/novels?id=xxx 或 /api/novels?trash=true
 export async function GET(req: NextRequest) {
@@ -30,7 +31,8 @@ export async function GET(req: NextRequest) {
     if (!novel) {
       return NextResponse.json({ error: '未找到' }, { status: 404 })
     }
-    return NextResponse.json({ novel })
+    const writingStyleId = await getNovelWritingStyleId(user.id, novel.id)
+    return NextResponse.json({ novel: { ...novel, writingStyleId } })
   }
 
   // 回收站列表
@@ -129,8 +131,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'folder not found' }, { status: 404 })
   }
 
-  const novel = await db.novel.update({ where: { id: ownedNovel.id }, data: updateData })
-  return NextResponse.json({ novel })
+  const novel = Object.keys(updateData).length > 0
+    ? await db.novel.update({ where: { id: ownedNovel.id }, data: updateData })
+    : await db.novel.findUnique({ where: { id: ownedNovel.id } })
+
+  if (data.writingStyleId !== undefined) {
+    await setNovelWritingStyleId(session.user.id, ownedNovel.id, data.writingStyleId || null)
+  }
+
+  return NextResponse.json({ novel: novel ? { ...novel, writingStyleId: data.writingStyleId ?? undefined } : novel })
 }
 
 // 软删除：DELETE /api/novels?id=xxx 移入回收站

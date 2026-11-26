@@ -3,6 +3,7 @@ import { callThirdPartyAI } from '@/lib/ai-providers'
 import { getPlatformConfig } from '@/lib/platform-ai'
 import { parseModelMappings } from '@/lib/ai-models'
 import { stripHtml } from '@/lib/context-assembler'
+import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import ZAI from 'z-ai-web-dev-sdk'
 
 const activeRuns = new Set<string>()
@@ -130,10 +131,15 @@ ${recentChapters || '（这是开篇第一章）'}
 2. 正文字数约 ${task.targetWords} 字，节奏紧凑、画面感强。
 3. 自然衔接前文与大纲，保持人物性格一致，不要输出任何额外解释或 Markdown 标记。`
 
+    const activeStyle = await resolveWritingStyleForNovel(task.userId, novel.id)
+    const styleInstruction = activeStyle ? `\n\n${buildWritingStyleInstruction(activeStyle)}` : ''
+
     const messages = [
       {
         role: 'system',
-        content: '你是专业的长篇网文作家，擅长根据大纲、人设与前文自然连载下一章正文。回复请使用中文。',
+        content:
+          '你是专业的长篇网文作家，擅长根据大纲、人设与前文自然连载下一章正文。回复请使用中文。' +
+          styleInstruction,
       },
       { role: 'user', content: userPrompt },
     ]
