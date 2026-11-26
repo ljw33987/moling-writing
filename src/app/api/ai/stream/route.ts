@@ -3,8 +3,9 @@ import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { PRESETS } from '../route'
 import { callThirdPartyAI } from '@/lib/ai-providers'
-import { getPlatformDefaultAI } from '@/lib/platform-ai'
-import { assembleNovelContext } from '@/lib/context-assembler'
+import { getPlatformConfig, getPlatformDefaultAI } from '@/lib/platform-ai'
+import { getPlatformProAiFromEnv, parseModelMappings } from '@/lib/ai-models'
+import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-assembler'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // POST /api/ai/stream - 流式 AI 调用（SSE）
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { action, preset, message, novelId, chapterId, targetStyle } = body
+  const { action, preset, message, novelId, chapterId, targetStyle, modelId, referencedItems } = body
 
   let systemPrompt = '你是一位专业的网文创作助手，帮助作者完成小说创作任务。回复请使用中文。'
   let userPrompt = message || ''
@@ -29,8 +30,11 @@ export async function POST(req: NextRequest) {
 
   // 分层装配长篇上下文（大纲 + @引用设定 + 时间线 + 前情摘要 + 当前正文）
   if (novelId) {
-    const assembled = await assembleNovelContext({ novelId, chapterId })
-    extraContext = assembled.contextText
+    const [assembled, explicitRefs] = await Promise.all([
+      assembleNovelContext({ novelId, chapterId }),
+      resolveReferencedContext(novelId, referencedItems || []),
+    ])
+    extraContext = [assembled.contextText, explicitRefs].filter(Boolean).join('\n\n')
   }
 
   if (preset && PRESETS[preset]) {
@@ -48,10 +52,45 @@ export async function POST(req: NextRequest) {
     userPrompt = `${editPrompt[preset] || '请处理以下文本：'}\n\n${message || ''}`
   }
 
-  // 检查用户是否有默认第三方 API 配置
-  const userAiConfig = await db.userAiConfig.findFirst({
-    where: { userId: user.id, enabled: true, isDefault: true },
-  })
+  // 解析后台模型映射：将对外别名（如 moling_v4 / moling_v4_pro）映射为实际底层接口与模型
+  const platformConfig = await getPlatformConfig()
+  const mappings = parseModelMappings((platformConfig as any).modelMappings)
+  const matchedMapping = modelId
+    ? mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
+    : mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
+
+  if (matchedMapping?.isPro || modelId === 'moling_v4_pro') {
+    systemPrompt += '\n\n【深度分析与精修模式】请对引用材料与上下文进行结构化、深层次的推演、拆解与高质量输出。'
+  }
+
+  let targetAiConfig: { baseUrl: string; apiKey: string; model: string } | null = null
+
+  if (matchedMapping && (matchedMapping.realModel || matchedMapping.baseUrl || matchedMapping.apiKey)) {
+    const baseUrl = matchedMapping.baseUrl || platformConfig.defaultAiBaseUrl
+    const apiKey = matchedMapping.apiKey || platformConfig.defaultAiApiKey
+    const model = matchedMapping.realModel || platformConfig.defaultAiModel
+    if (baseUrl && apiKey && model) {
+      targetAiConfig = { baseUrl, apiKey, model }
+    }
+  }
+
+  if (!targetAiConfig && (matchedMapping?.isPro || modelId === 'moling_v4_pro')) {
+    const proEnv = getPlatformProAiFromEnv()
+    if (proEnv) {
+      targetAiConfig = proEnv
+    }
+  }
+
+  if (!targetAiConfig) {
+    const userDefault = await db.userAiConfig.findFirst({
+      where: { userId: user.id, enabled: true, isDefault: true },
+    })
+    if (userDefault) {
+      targetAiConfig = { baseUrl: userDefault.baseUrl, apiKey: userDefault.apiKey, model: userDefault.model }
+    }
+  }
+
+  const userAiConfig = targetAiConfig
 
   const messages = [
     { role: 'system', content: systemPrompt + (extraContext ? `\n\n以下是创作上下文：${extraContext}` : '') },

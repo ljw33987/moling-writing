@@ -27,6 +27,7 @@ model PlatformConfig {
   defaultAiApiKey  String   @default("")
   defaultAiBaseUrl String   @default("")
   defaultAiModel   String   @default("")
+  modelMappings    String   @default("")
   // 注册赠送
   registerTokens  Int      @default(10000)
   // 时间

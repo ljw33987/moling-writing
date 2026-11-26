@@ -31,9 +31,9 @@ export default function Home() {
   // 鉴权加载中
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
         <TopBar />
-        <main className="flex-1 flex items-center justify-center">
+        <main className="flex-1 min-h-0 flex items-center justify-center">
           <div className="text-muted-foreground text-sm">加载中...</div>
         </main>
       </div>
@@ -43,9 +43,9 @@ export default function Home() {
   // 未登录 - 显示登录/注册页
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
         <TopBar />
-        <main className="flex-1 flex overflow-hidden">
+        <main className="flex-1 min-h-0 flex overflow-auto">
           <AuthView />
         </main>
       </div>
@@ -54,9 +54,9 @@ export default function Home() {
 
   // 已登录
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="h-screen overflow-hidden flex flex-col bg-background text-foreground">
       <TopBar />
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 min-h-0 flex overflow-hidden">
         {view === 'workspace' && <WorkspaceView />}
         {view === 'toolbox' && <AiToolboxView />}
         {view === 'plaza' && <PlazaView />}

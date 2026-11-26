@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   const type = url.searchParams.get('type') || 'character'
 
   const where: any = { userId: user.id }
-  if (novelId) where.novelId = novelId
+  if (novelId) {
+    where.OR = [{ novelId }, { novelId: null }]
+  }
 
   let data: any[]
   if (type === 'character') {

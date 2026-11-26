@@ -296,3 +296,98 @@ export async function assembleNovelContext(params: {
     },
   }
 }
+
+export interface ReferencedItemInput {
+  type: 'chapter' | 'outline' | 'character' | 'worldview' | 'item'
+  id: string
+  title?: string
+}
+
+/**
+ * 解析用户在 AI 助手中通过 @ 显式引用的一个或多个文件/设定，
+ * 装配完整内容用于 AI 深度分析或解读。
+ */
+export async function resolveReferencedContext(
+  novelId: string,
+  items: ReferencedItemInput[],
+  budgetTokens = 24000
+): Promise<string> {
+  if (!novelId || !Array.isArray(items) || items.length === 0) return ''
+
+  const chapterIds = items.filter((i) => i.type === 'chapter').map((i) => i.id)
+  const characterIds = items.filter((i) => i.type === 'character').map((i) => i.id)
+  const worldviewIds = items.filter((i) => i.type === 'worldview').map((i) => i.id)
+  const itemIds = items.filter((i) => i.type === 'item').map((i) => i.id)
+  const includeOutline = items.some((i) => i.type === 'outline')
+
+  const [novel, chapters, characters, worldviews, codexItems] = await Promise.all([
+    includeOutline
+      ? db.novel.findUnique({
+          where: { id: novelId },
+          select: { title: true, genre: true, synopsis: true, outline: true },
+        })
+      : Promise.resolve(null),
+    chapterIds.length > 0
+      ? db.chapter.findMany({
+          where: { id: { in: chapterIds }, novelId },
+          select: { id: true, title: true, summary: true, content: true, words: true },
+        })
+      : Promise.resolve([] as Array<{ id: string; title: string; summary: string | null; content: string; words: number }>),
+    characterIds.length > 0
+      ? db.character.findMany({
+          where: { id: { in: characterIds }, novelId },
+        })
+      : Promise.resolve([]),
+    worldviewIds.length > 0
+      ? db.worldview.findMany({
+          where: { id: { in: worldviewIds }, novelId },
+        })
+      : Promise.resolve([]),
+    itemIds.length > 0
+      ? db.item.findMany({
+          where: { id: { in: itemIds }, novelId },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const sections: string[] = []
+
+  if (novel) {
+    sections.push(
+      `[引用文件：全书大纲与简介]\n书名：${novel.title}（${novel.genre}）\n简介：${novel.synopsis || '（未填写）'}\n大纲：${novel.outline || '（未填写）'}`
+    )
+  }
+
+  const chapterMap = new Map(chapters.map((c) => [c.id, c]))
+  for (const id of chapterIds) {
+    const ch = chapterMap.get(id)
+    if (!ch) continue
+    const plain = stripHtml(ch.content || '')
+    sections.push(
+      `[引用章节：${ch.title}（${ch.words}字）]\n摘要：${ch.summary || '（无）'}\n正文内容：\n${plain || '（暂无正文内容）'}`
+    )
+  }
+
+  for (const c of characters) {
+    sections.push(
+      `[引用角色：${c.name}]\n外貌：${c.appearance || '未知'}\n性格：${c.personality || '未知'}\n背景：${c.background || '未知'}\n能力/功法：${c.abilities || '无'}\n关系：${c.relations || '无'}`
+    )
+  }
+
+  for (const w of worldviews) {
+    sections.push(
+      `[引用世界观/${w.type}：${w.name}]\n描述：${w.description || '无'}`
+    )
+  }
+
+  for (const it of codexItems) {
+    sections.push(
+      `[引用道具/功法(${it.type})：${it.name}]\n属性：${it.attributes || '无'}\n效果：${it.effect || '无'}`
+    )
+  }
+
+  if (sections.length === 0) return ''
+
+  const combined = `【用户 @ 引用的指定文件与设定（请重点基于以下材料进行分析、解读或回答）】\n\n${sections.join('\n\n---\n\n')}`
+  return fitToBudget(combined, budgetTokens).text
+}

@@ -11,6 +11,7 @@ import { AiAssistant } from '@/components/ai/ai-assistant'
 import { AutoSerialPanel } from './auto-serial-panel'
 import { LongNovelTools } from './long-novel-tools'
 import { EditorToolbar } from './editor-toolbar'
+import { MindmapMainPanel, type MindmapFile } from './mindmap-main-panel'
 import { Button } from '@/components/ui/button'
 import { PanelLeft, PanelRight, Eye, Moon, Sun, Type, Sparkles } from 'lucide-react'
 import {
@@ -66,6 +67,48 @@ export function EditorView() {
   const [novel, setNovel] = useState<NovelDetail | null>(null)
   const [currentChapter, setCurrentChapterState] = useState<Chapter | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mindmapFiles, setMindmapFiles] = useState<MindmapFile[]>([])
+  const [activeMindmapId, setActiveMindmapId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!currentNovelId) return
+    try {
+      const raw = localStorage.getItem(`moling_mindmap_files_${currentNovelId}`)
+      setMindmapFiles(raw ? JSON.parse(raw) : [])
+    } catch {
+      setMindmapFiles([])
+    }
+    setActiveMindmapId(null)
+  }, [currentNovelId])
+
+  const saveMindmapFiles = useCallback(
+    (next: MindmapFile[]) => {
+      setMindmapFiles(next)
+      if (!currentNovelId) return
+      try {
+        localStorage.setItem(`moling_mindmap_files_${currentNovelId}`, JSON.stringify(next))
+      } catch {}
+    },
+    [currentNovelId]
+  )
+
+  const handleCreateMindmap = (file: MindmapFile) => {
+    saveMindmapFiles([file, ...mindmapFiles])
+    setActiveMindmapId(file.id)
+  }
+
+  const handleUpdateMindmap = (updated: MindmapFile) => {
+    saveMindmapFiles(mindmapFiles.map((f) => (f.id === updated.id ? updated : f)))
+  }
+
+  const handleDeleteMindmap = (id: string) => {
+    saveMindmapFiles(mindmapFiles.filter((f) => f.id !== id))
+    if (activeMindmapId === id) setActiveMindmapId(null)
+  }
+
+  const activeMindmap = activeMindmapId
+    ? mindmapFiles.find((f) => f.id === activeMindmapId) || null
+    : null
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tiptapRef = useRef<NovelTiptapHandle | null>(null)
 
@@ -218,20 +261,19 @@ export function EditorView() {
     loadNovel()
   }
 
-  // 插入 AI 回复到待采纳草稿块
+  // 插入正文：用干净的纯文本段落替换左侧当前章节的全部正文（不带颜色或草稿框）
   const handleInsertText = (text: string) => {
     if (!currentChapter) {
       toast.error('请先选择一个章节')
       return
     }
     if (tiptapRef.current) {
-      tiptapRef.current.insertAiDraftBlock(text)
-      toast.success('已放入待采纳草稿区，请在正文区点击「采纳」')
+      tiptapRef.current.replaceAllContent(text)
+      toast.success('已替换当前章节正文')
       return
     }
-    const newContent = currentChapter.content + (currentChapter.content ? '\n\n' : '') + text
-    handleContentChange(newContent)
-    toast.success('已插入到正文末尾')
+    handleContentChange(text)
+    toast.success('已替换当前章节正文')
   }
 
   // 替换选中文字
@@ -255,18 +297,24 @@ export function EditorView() {
   )
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* 工具栏 */}
-      <div className="h-10 border-b border-border bg-card/40 flex items-center px-3 gap-2 text-xs">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleLeftPanel}>
+    <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden">
+      {/* 顶部工作区工具栏 */}
+      <div className="h-10 shrink-0 border-b border-border bg-card/50 flex items-center px-3 gap-1.5 text-xs overflow-x-auto">
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={toggleLeftPanel} title="切换左侧栏">
           <PanelLeft className="w-4 h-4" />
         </Button>
-        <span className="font-medium truncate max-w-[200px]">{novel.title}</span>
-        <span className="text-muted-foreground">·</span>
-        <span className="text-muted-foreground">{currentChapter?.title || '未选择章节'}</span>
+        <span className="font-semibold truncate max-w-[160px]">{novel.title}</span>
+        <span className="text-muted-foreground shrink-0">/</span>
+        <span className="text-muted-foreground truncate max-w-[160px]">{currentChapter?.title || '未选择章节'}</span>
 
-        <div className="ml-auto flex items-center gap-2">
-          <AutoSerialPanel novelId={novel.id} />
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <AutoSerialPanel
+            novelId={novel.id}
+            onChapterCreated={(newId) => {
+              void loadNovel()
+              if (newId) setCurrentChapter(newId)
+            }}
+          />
           <LongNovelTools
             novelId={novel.id}
             chapterId={currentChapterId}
@@ -346,14 +394,23 @@ export function EditorView() {
       </div>
 
       {/* 三栏布局 */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0 overflow-hidden">
         {leftPanelOpen && (
           <>
-            <ResizablePanel defaultSize={22} minSize={16} maxSize={34}>
+            <ResizablePanel defaultSize={23} minSize={18} maxSize={35} className="h-full min-h-0 overflow-hidden">
               <LeftSidebarPanel
                 novel={novel}
                 currentChapterId={currentChapterId}
-                onSelectChapter={setCurrentChapter}
+                currentChapterContent={currentChapter?.content || ''}
+                mindmapFiles={mindmapFiles}
+                activeMindmapId={activeMindmapId}
+                onSelectChapter={(id) => {
+                  setActiveMindmapId(null)
+                  setCurrentChapter(id)
+                }}
+                onSelectMindmap={(id) => setActiveMindmapId(id)}
+                onCreateMindmap={handleCreateMindmap}
+                onDeleteMindmap={handleDeleteMindmap}
                 onTreeChange={handleTreeChange}
                 onInsertCodexRef={(id) =>
                   tiptapRef.current?.getEditor()?.chain().focus().insertCodexRef(id).run()
@@ -364,27 +421,36 @@ export function EditorView() {
           </>
         )}
 
-        <ResizablePanel defaultSize={55} minSize={40}>
-          <EditorPanel
-            chapter={currentChapter}
-            novel={novel}
-            onContentChange={handleContentChange}
-            onTitleChange={handleTitleChange}
-            onStatusChange={handleStatusChange}
-            editorMode={editorMode}
-            onInsertText={handleInsertText}
-            onManualSave={handleManualSave}
-            recoveryDraft={recoveryDraft}
-            onAcceptRecovery={handleAcceptRecovery}
-            onDismissRecovery={dismissRecovery}
-            tiptapRef={tiptapRef}
-          />
+        <ResizablePanel defaultSize={50} minSize={35} className="h-full min-h-0 overflow-hidden">
+          {activeMindmap ? (
+            <MindmapMainPanel
+              file={activeMindmap}
+              novelId={novel.id}
+              onChange={handleUpdateMindmap}
+              onBackToEditor={() => setActiveMindmapId(null)}
+            />
+          ) : (
+            <EditorPanel
+              chapter={currentChapter}
+              novel={novel}
+              onContentChange={handleContentChange}
+              onTitleChange={handleTitleChange}
+              onStatusChange={handleStatusChange}
+              editorMode={editorMode}
+              onInsertText={handleInsertText}
+              onManualSave={handleManualSave}
+              recoveryDraft={recoveryDraft}
+              onAcceptRecovery={handleAcceptRecovery}
+              onDismissRecovery={dismissRecovery}
+              tiptapRef={tiptapRef}
+            />
+          )}
         </ResizablePanel>
 
         {rightPanelOpen && (
           <>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={25} minSize={18} maxSize={45}>
+            <ResizablePanel defaultSize={27} minSize={20} maxSize={42} className="h-full min-h-0 overflow-hidden">
               <AiAssistant
                 novelId={currentNovelId!}
                 chapterId={currentChapterId}

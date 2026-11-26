@@ -38,6 +38,7 @@ export interface NovelTiptapHandle {
   toggleBulletList: () => void
   autoFormat: () => void
   replaceSelection: (text: string) => void
+  replaceAllContent: (text: string) => void
   startAiDraftStream: (runId?: string) => void
   appendAiDraftChunk: (text: string) => void
   finishAiDraftStream: () => void
@@ -319,6 +320,12 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
               ...(line ? { content: [{ type: 'text', text: line }] } : {}),
             }))
           editor.chain().focus().insertContent(paragraphs).run()
+        },
+        replaceAllContent: (text: string) => {
+          if (!editor) return
+          const html = normalizeToEditorHtml(text)
+          editor.commands.setContent(html, { emitUpdate: true })
+          ensureParagraphIds(editor)
         },
         startAiDraftStream: (runId?: string) => {
           if (!editor) return

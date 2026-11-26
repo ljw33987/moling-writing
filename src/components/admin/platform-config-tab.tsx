@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save, Settings, Cpu, Plus, Trash2, Coins, Gift, Sparkles } from 'lucide-react'
+import { Loader2, Save, Settings, Cpu, Plus, Trash2, Coins, Gift, Sparkles, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { AI_PROVIDERS } from '@/lib/ai-providers'
+import { DEFAULT_MODEL_MAPPINGS, type AdminModelMapping } from '@/lib/ai-models'
 
 export function PlatformConfigTab() {
   const [config, setConfig] = useState<any>(null)
@@ -34,6 +35,7 @@ export function PlatformConfigTab() {
   const [aiApiKey, setAiApiKey] = useState('')
   const [aiBaseUrl, setAiBaseUrl] = useState('')
   const [aiModel, setAiModel] = useState('')
+  const [modelMappings, setModelMappings] = useState<AdminModelMapping[]>(DEFAULT_MODEL_MAPPINGS)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,6 +53,9 @@ export function PlatformConfigTab() {
       setAiBaseUrl(r.config.defaultAiBaseUrl)
       setAiModel(r.config.defaultAiModel)
       setPackages(r.config.customPackages || [])
+      if (Array.isArray(r.config.modelMappings) && r.config.modelMappings.length > 0) {
+        setModelMappings(r.config.modelMappings)
+      }
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -73,6 +78,7 @@ export function PlatformConfigTab() {
           defaultAiApiKey: aiApiKey || undefined,
           defaultAiBaseUrl: aiBaseUrl,
           defaultAiModel: aiModel,
+          modelMappings,
         }),
       })
       toast.success('配置已保存')
@@ -94,6 +100,44 @@ export function PlatformConfigTab() {
   }
   const removePackage = (idx: number) => {
     setPackages(packages.filter((_, i) => i !== idx))
+  }
+
+  const addModelMapping = () => {
+    setModelMappings([
+      ...modelMappings,
+      {
+        aliasId: `moling_v4_${modelMappings.length + 1}`,
+        displayName: `moling_v4_${modelMappings.length + 1}`,
+        badge: '标准',
+        description: '自定义映射模型',
+        provider: aiProvider || 'deepseek',
+        baseUrl: '',
+        apiKey: '',
+        realModel: '',
+        enabled: true,
+      },
+    ])
+  }
+
+  const updateModelMapping = (idx: number, field: keyof AdminModelMapping, value: any) => {
+    setModelMappings(
+      modelMappings.map((m, i) => {
+        if (i !== idx) return m
+        const next = { ...m, [field]: value }
+        if (field === 'provider') {
+          const preset = AI_PROVIDERS[value as string]
+          if (preset) {
+            if (!next.baseUrl) next.baseUrl = preset.baseUrl
+            if (!next.realModel) next.realModel = preset.defaultModel
+          }
+        }
+        return next
+      })
+    )
+  }
+
+  const removeModelMapping = (idx: number) => {
+    setModelMappings(modelMappings.filter((_, i) => i !== idx))
   }
 
   const onProviderChange = (p: string) => {
@@ -260,6 +304,139 @@ export function PlatformConfigTab() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 对外模型映射（隐藏 deepseek-chat / minimax 等真实名称） */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            对外模型映射（隐藏底层接口名称）
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-auto" onClick={addModelMapping}>
+              <Plus className="w-3 h-3" /> 新增映射
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded p-3 text-xs text-emerald-700 dark:text-emerald-300">
+            用户在写作助手下拉框中只会看到「对外名称」（如 <code className="font-mono">moling_v4</code>、<code className="font-mono">moling_v4_pro</code>），
+            不会暴露底层的 <code className="font-mono">deepseek-chat</code>、<code className="font-mono">MiniMax-M2.7</code> 等真实模型名称。
+            实际 Base URL / API Key 留空时默认继承上方「平台默认 AI 配置」。
+          </div>
+
+          <div className="space-y-3">
+            {modelMappings.map((m, idx) => (
+              <div key={idx} className="border rounded-lg p-3 space-y-3 bg-muted/20">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-mono text-xs">{m.aliasId || '未命名'}</Badge>
+                    <label className="flex items-center gap-1 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={m.enabled !== false}
+                        onChange={(e) => updateModelMapping(idx, 'enabled', e.target.checked)}
+                      />
+                      启用
+                    </label>
+                    <label className="flex items-center gap-1 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!m.isPro}
+                        onChange={(e) => updateModelMapping(idx, 'isPro', e.target.checked)}
+                      />
+                      Pro 深度模式
+                    </label>
+                  </div>
+                  {modelMappings.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-red-600"
+                      onClick={() => removeModelMapping(idx)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">对外接口名（用户可见）</Label>
+                    <Input
+                      value={m.aliasId}
+                      onChange={(e) => {
+                        updateModelMapping(idx, 'aliasId', e.target.value)
+                        updateModelMapping(idx, 'displayName', e.target.value)
+                      }}
+                      placeholder="如：moling_v4"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">标签</Label>
+                    <Input
+                      value={m.badge}
+                      onChange={(e) => updateModelMapping(idx, 'badge', e.target.value)}
+                      placeholder="如：标准 / 增强"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">功能简介</Label>
+                    <Input
+                      value={m.description}
+                      onChange={(e) => updateModelMapping(idx, 'description', e.target.value)}
+                      placeholder="日常对话与续写"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 border-t border-border/50">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">实际提供商（后台隐藏）</Label>
+                    <Select value={m.provider || ''} onValueChange={(v) => updateModelMapping(idx, 'provider', v)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="继承平台默认" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.values(AI_PROVIDERS).map((p) => (
+                          <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">实际模型名（后台隐藏）</Label>
+                    <Input
+                      value={m.realModel}
+                      onChange={(e) => updateModelMapping(idx, 'realModel', e.target.value)}
+                      placeholder="如：deepseek-chat / MiniMax-M2.7"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">独立 Base URL（可选）</Label>
+                    <Input
+                      value={m.baseUrl}
+                      onChange={(e) => updateModelMapping(idx, 'baseUrl', e.target.value)}
+                      placeholder="留空继承平台默认"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">独立 API Key（可选）</Label>
+                    <Input
+                      type="password"
+                      value={m.apiKey}
+                      onChange={(e) => updateModelMapping(idx, 'apiKey', e.target.value)}
+                      placeholder="留空继承平台默认"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

@@ -24,6 +24,13 @@ import {
   Loader2,
   Wand2,
   RotateCcw,
+  Search,
+  LayoutGrid,
+  List as ListIcon,
+  PenLine,
+  ArrowRight,
+  Compass,
+  Upload,
 } from 'lucide-react'
 import {
   Dialog,
@@ -88,7 +95,7 @@ interface UserStats {
 }
 
 export function WorkspaceView() {
-  const { openNovel, setCurrentFolder } = useAppStore()
+  const { openNovel, setCurrentFolder, setView } = useAppStore()
   const [folders, setFolders] = useState<Folder[]>([])
   const [novels, setNovels] = useState<Novel[]>([])
   const [stats, setStats] = useState<UserStats | null>(null)
@@ -98,6 +105,44 @@ export function WorkspaceView() {
   const [newFolderOpen, setNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [newFolderColor, setNewFolderColor] = useState('slate')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'completed' | 'paused'>('all')
+  const [sortBy, setSortBy] = useState<'updated' | 'words'>('updated')
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid')
+  const [importOpen, setImportOpen] = useState(false)
+  const [importTitle, setImportTitle] = useState('')
+  const [importContent, setImportContent] = useState('')
+  const [importing, setImporting] = useState(false)
+
+  const handleImportTxt = async () => {
+    if (!importContent.trim()) {
+      toast.error('请先选择 TXT 文件或粘贴内容')
+      return
+    }
+    setImporting(true)
+    try {
+      const r = await api<{ novel: { id: string } }>('/api/novels/import-txt', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: importTitle.trim() || undefined,
+          content: importContent,
+          folderId: selectedFolder || undefined,
+        }),
+      })
+      toast.success('TXT 导入成功')
+      setImportOpen(false)
+      setImportTitle('')
+      setImportContent('')
+      loadNovels()
+      loadStats()
+      loadFolders()
+      openNovel(r.novel.id)
+    } catch (e: any) {
+      toast.error(e.message || '导入失败')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const loadFolders = useCallback(async () => {
     try {
@@ -256,22 +301,131 @@ export function WorkspaceView() {
     return days
   })()
 
+  const recentNovel = novels.length > 0
+    ? [...novels].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+    : null
+
+  const filteredNovels = novels
+    .filter((n) => {
+      if (statusFilter !== 'all' && n.status !== statusFilter) return false
+      const q = searchQuery.trim().toLowerCase()
+      if (!q) return true
+      return (
+        n.title.toLowerCase().includes(q) ||
+        n.genre.toLowerCase().includes(q) ||
+        (n.synopsis && n.synopsis.toLowerCase().includes(q))
+      )
+    })
+    .sort((a, b) => {
+      if (sortBy === 'words') return b.totalWords - a.totalWords
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    })
+
+  const dailyGoal = 3000
+  const todayWords = stats?.stats.todayWords || 0
+  const dailyPct = Math.min(100, Math.round((todayWords / dailyGoal) * 100))
+
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-background">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* 创作工作台顶部欢迎与快捷入口（参考白梦写作工作台） */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+              <span>创作工作台</span>
+              <Badge variant="secondary" className="text-xs font-normal">
+                {stats?.user.penName || stats?.user.name || '作者'}
+              </Badge>
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              灵感捕捉、大纲推演与 AI 协同创作中心
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setView('toolbox')}>
+              <Compass className="w-3.5 h-3.5" />
+              AI 工具箱
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setView('settings')}>
+              <Library className="w-3.5 h-3.5" />
+              设定库
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+              <Upload className="w-3.5 h-3.5" />
+              导入 TXT
+            </Button>
+            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90 text-white" onClick={() => setWizardOpen(true)}>
+              <Sparkles className="w-3.5 h-3.5" />
+              AI 一键建书
+            </Button>
+          </div>
+        </div>
+
+        {/* 最近在写：一键续写入口 */}
+        {recentNovel && (
+          <Card className="border-indigo-500/25 bg-gradient-to-r from-indigo-600/8 via-blue-600/5 to-transparent">
+            <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5 min-w-0">
+                <div className="w-11 h-14 rounded-md bg-gradient-to-br from-indigo-600/20 to-blue-600/20 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-sm font-bold font-serif text-indigo-600 dark:text-indigo-400">
+                    {recentNovel.title.slice(0, 2)}
+                  </span>
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+                      最近编辑
+                    </Badge>
+                    <span className="font-semibold text-base truncate">{recentNovel.title}</span>
+                    <Badge variant="secondary" className="text-[10px]">{recentNovel.genre}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {recentNovel.synopsis || '暂无简介，点击右侧继续创作'}
+                  </p>
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-3">
+                    <span>{formatWords(recentNovel.totalWords)} 字</span>
+                    <span>更新于 {formatTime(recentNovel.updatedAt)}</span>
+                  </div>
+                </div>
+              </div>
+              <Button
+                className="gap-1.5 shrink-0"
+                onClick={() => {
+                  setCurrentFolder(recentNovel.folderId)
+                  openNovel(recentNovel.id)
+                }}
+              >
+                <PenLine className="w-4 h-4" />
+                继续创作
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 数据看板 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-indigo-600/10 to-blue-600/10 border-teal- dark:border-teal-">
+          <Card className="bg-gradient-to-br from-indigo-600/10 to-blue-600/10 border-indigo-500/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">今日新增</CardTitle>
-              <TrendingUp className="w-4 h-4 text-teal-" />
+              <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatWords(stats?.stats.todayWords || 0)}
+                {formatWords(todayWords)}
                 <span className="text-sm font-normal text-muted-foreground ml-1">字</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">坚持码字，越来越好</p>
+              <div className="mt-2 space-y-1">
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all"
+                    style={{ width: `${dailyPct}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  日更目标 {formatWords(dailyGoal)} 字 · 已完成 {dailyPct}%
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -456,40 +610,107 @@ export function WorkspaceView() {
             </button>
           </div>
 
-          {/* 小说卡片网格 */}
+          {/* 小说卡片网格 / 列表 */}
           <div className="lg:col-span-3 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">
-                {selectedFolder
-                  ? folders.find((f) => f.id === selectedFolder)?.name || '作品'
-                  : '我的作品'}
-                <span className="text-muted-foreground font-normal ml-2">({novels.length})</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span>
+                  {selectedFolder
+                    ? folders.find((f) => f.id === selectedFolder)?.name || '作品'
+                    : '我的作品'}
+                </span>
+                <span className="text-muted-foreground font-normal text-sm">({filteredNovels.length})</span>
               </h3>
-              <Button onClick={() => setWizardOpen(true)} className="gap-1.5">
-                <Plus className="w-4 h-4" />
-                创建新书
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-44 sm:w-52">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="搜索作品或题材..."
+                    className="h-8 pl-8 text-xs"
+                  />
+                </div>
+                <div className="flex items-center border rounded-md p-0.5 bg-muted/40">
+                  {([
+                    { id: 'all', label: '全部' },
+                    { id: 'ongoing', label: '连载' },
+                    { id: 'completed', label: '完结' },
+                    { id: 'paused', label: '暂停' },
+                  ] as const).map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setStatusFilter(st.id)}
+                      className={`px-2 py-1 text-xs rounded transition ${
+                        statusFilter === st.id
+                          ? 'bg-background shadow-sm font-medium'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'updated' | 'words')}>
+                  <SelectTrigger className="h-8 w-28 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="updated" className="text-xs">最近更新</SelectItem>
+                    <SelectItem value="words" className="text-xs">字数最多</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center border rounded-md p-0.5 bg-muted/40">
+                  <button
+                    type="button"
+                    onClick={() => setLayoutMode('grid')}
+                    className={`p-1 rounded ${layoutMode === 'grid' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                    title="卡片视图"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLayoutMode('list')}
+                    className={`p-1 rounded ${layoutMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                    title="列表视图"
+                  >
+                    <ListIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <Button size="sm" onClick={() => setWizardOpen(true)} className="gap-1.5 h-8">
+                  <Plus className="w-3.5 h-3.5" />
+                  创建新书
+                </Button>
+              </div>
             </div>
 
-            {novels.length === 0 ? (
+            {filteredNovels.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600/20 to-blue-600/20 flex items-center justify-center mb-4">
                     <Wand2 className="w-8 h-8 text-teal-" />
                   </div>
-                  <h4 className="font-semibold mb-1">开始你的第一部作品</h4>
+                  <h4 className="font-semibold mb-1">
+                    {novels.length === 0 ? '开始你的第一部作品' : '没有匹配的作品'}
+                  </h4>
                   <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                    只需要一句话灵感，AI 帮你生成简介、大纲、核心角色，3 秒开启创作之旅
+                    {novels.length === 0
+                      ? '只需要一句话灵感，AI 帮你生成简介、大纲、核心角色，3 秒开启创作之旅'
+                      : '尝试清空搜索关键词或切换筛选状态'}
                   </p>
-                  <Button onClick={() => setWizardOpen(true)} className="gap-1.5">
-                    <Sparkles className="w-4 h-4" />
-                    AI 辅助建书
-                  </Button>
+                  {novels.length === 0 && (
+                    <Button onClick={() => setWizardOpen(true)} className="gap-1.5">
+                      <Sparkles className="w-4 h-4" />
+                      AI 辅助建书
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
-            ) : (
+            ) : layoutMode === 'grid' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {novels.map((n) => (
+                {filteredNovels.map((n) => (
                   <NovelCard
                     key={n.id}
                     novel={n}
@@ -499,6 +720,42 @@ export function WorkspaceView() {
                     }}
                     onDelete={() => handleDeleteNovel(n.id)}
                   />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredNovels.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => {
+                      setCurrentFolder(n.folderId)
+                      openNovel(n.id)
+                    }}
+                    className="group flex items-center justify-between gap-4 p-3.5 border rounded-lg bg-card hover:shadow-sm hover:border-primary/40 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-12 rounded bg-gradient-to-br from-indigo-600/20 to-blue-600/15 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold font-serif">{n.title.slice(0, 2)}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold truncate">{n.title}</span>
+                          <Badge variant="secondary" className="text-[10px]">{n.genre}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate max-w-xl mt-0.5">
+                          {n.synopsis || '暂无简介'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground">
+                      <span>{formatWords(n.totalWords)} 字</span>
+                      <span className="hidden sm:inline">{formatTime(n.updatedAt)}</span>
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+                        进入写作
+                        <ChevronRight className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -621,6 +878,64 @@ export function WorkspaceView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTrashOpen(false)}>
               关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 导入 TXT 建书 */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              导入 TXT 小说（自动识别分章）
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">书名（可选，留空自动从文件名/内容提取）</Label>
+              <Input
+                value={importTitle}
+                onChange={(e) => setImportTitle(e.target.value)}
+                placeholder="输入作品名称..."
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">选择本地 .txt 文件</Label>
+              <Input
+                type="file"
+                accept=".txt,text/plain"
+                className="h-9 text-xs"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  if (!importTitle.trim()) {
+                    setImportTitle(file.name.replace(/\.txt$/i, ''))
+                  }
+                  const reader = new FileReader()
+                  reader.onload = () => setImportContent(String(reader.result || ''))
+                  reader.readAsText(file)
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">或直接粘贴小说文本</Label>
+              <Textarea
+                value={importContent}
+                onChange={(e) => setImportContent(e.target.value)}
+                rows={6}
+                placeholder="粘贴章节内容（支持自动识别 第X章 等标题）..."
+                className="text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)}>取消</Button>
+            <Button onClick={handleImportTxt} disabled={importing} className="gap-1.5">
+              {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              开始导入
             </Button>
           </DialogFooter>
         </DialogContent>

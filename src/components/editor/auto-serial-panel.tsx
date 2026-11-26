@@ -17,6 +17,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   Zap,
   Pause,
   Play,
@@ -47,9 +52,10 @@ interface AutoSerialTask {
 
 interface Props {
   novelId: string
+  onChapterCreated?: (chapterId?: string) => void
 }
 
-export function AutoSerialPanel({ novelId }: Props) {
+export function AutoSerialPanel({ novelId, onChapterCreated }: Props) {
   const [task, setTask] = useState<AutoSerialTask | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -124,11 +130,15 @@ export function AutoSerialPanel({ novelId }: Props) {
     if (!task) return
     setRunningNow(true)
     try {
-      await api(`/api/auto-serial?action=run-now&novelId=${novelId}`, { method: 'PATCH' })
-      toast.success('已加入生成队列，30 秒内开始执行（耗时 1-3 分钟）')
-      setTimeout(load, 2000)
+      const r = await api<{ ok: boolean; chapter?: { id: string; title: string }; message?: string }>(
+        `/api/auto-serial?action=run-now&novelId=${novelId}`,
+        { method: 'PATCH' }
+      )
+      toast.success(r.message || '已生成新章节')
+      load()
+      onChapterCreated?.(r.chapter?.id)
     } catch (e: any) {
-      toast.error(e.message)
+      toast.error(e.message || '生成失败')
     } finally {
       setRunningNow(false)
     }
@@ -155,57 +165,87 @@ export function AutoSerialPanel({ novelId }: Props) {
   const StatusIcon = status.icon
 
   return (
-    <div className="flex items-center gap-2">
-      <Badge
-        variant="outline"
-        className={`gap-1.5 ${status.color}`}
-        title={task.lastError || status.label}
-      >
-        {task.status === 'running' ? (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        ) : (
-          <StatusIcon className="w-3 h-3" />
-        )}
-        AI 连载：{status.label}
-        {task.totalGenerated > 0 && <span className="text-muted-foreground">· 已生成 {task.totalGenerated} 章</span>}
-      </Badge>
+    <div className="flex items-center gap-1.5">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={`gap-1.5 cursor-help ${status.color}`}
+          >
+            {task.status === 'running' ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <StatusIcon className="w-3 h-3" />
+            )}
+            AI 连载：{status.label}
+            {task.totalGenerated > 0 && <span className="text-muted-foreground">· 已生成 {task.totalGenerated} 章</span>}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+          {task.lastError
+            ? `上次生成出错：${task.lastError}`
+            : '自动连载状态：开启后将按设定间隔，结合简介、大纲、人设和最近3章自动续写并保存新章节。'}
+        </TooltipContent>
+      </Tooltip>
 
       {/* 控制按钮 */}
-      <Button
-        size="sm"
-        variant={task.enabled ? 'destructive' : 'default'}
-        className="h-7 gap-1.5 text-xs"
-        disabled={toggling}
-        onClick={handleToggle}
-      >
-        {toggling ? (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        ) : task.enabled ? (
-          <Pause className="w-3 h-3" />
-        ) : (
-          <Play className="w-3 h-3" />
-        )}
-        {task.enabled ? '暂停' : '开启'}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="sm"
+            variant={task.enabled ? 'destructive' : 'default'}
+            className="h-7 gap-1.5 text-xs"
+            disabled={toggling}
+            onClick={handleToggle}
+          >
+            {toggling ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : task.enabled ? (
+              <Pause className="w-3 h-3" />
+            ) : (
+              <Play className="w-3 h-3" />
+            )}
+            {task.enabled ? '暂停' : '开启'}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs text-xs">
+          {task.enabled
+            ? '暂停定时自动连载（不再按间隔自动生成新章）'
+            : `开启定时自动连载：每 ${intervalMin} 分钟自动生成一章约 ${targetWords} 字的新章节`}
+        </TooltipContent>
+      </Tooltip>
 
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 gap-1.5 text-xs"
-        disabled={runningNow || task.status === 'running'}
-        onClick={handleRunNow}
-        title="立即生成下一章"
-      >
-        {runningNow ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-        立即生成
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 text-xs"
+            disabled={runningNow || task.status === 'running'}
+            onClick={handleRunNow}
+          >
+            {runningNow ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+            {runningNow ? '生成中...' : '立即生成'}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs text-xs">
+          立即基于本书大纲、角色设定和最近3章内容，自动续写并新增下一章
+        </TooltipContent>
+      </Tooltip>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="设置">
-            <Settings2 className="w-3.5 h-3.5" />
-          </Button>
-        </DialogTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                <Settings2 className="w-3.5 h-3.5" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            配置自动连载的生成间隔、每章目标字数与剧情走向提示
+          </TooltipContent>
+        </Tooltip>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

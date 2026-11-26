@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { isAutoSerialRunning, runAutoSerialChapter } from '@/lib/auto-serial-runner'
 
 // GET /api/auto-serial?novelId=xxx - 获取小说的自动连载任务
 export async function GET(req: NextRequest) {
@@ -30,6 +31,17 @@ export async function GET(req: NextRequest) {
         status: 'idle',
       },
     })
+  }
+
+  // 若已开启自动连载且到达计划执行时间，自动在后台触发下一章生成
+  if (
+    task.enabled &&
+    task.status === 'idle' &&
+    task.nextRunAt &&
+    new Date(task.nextRunAt) <= new Date() &&
+    !isAutoSerialRunning(task.id)
+  ) {
+    void runAutoSerialChapter(task.id)
   }
 
   return NextResponse.json({ task })
@@ -100,12 +112,17 @@ export async function PATCH(req: NextRequest) {
   if (task.userId !== session.user.id) return NextResponse.json({ error: '无权操作' }, { status: 403 })
 
   if (action === 'run-now') {
-    // 设置下次执行时间为现在，mini-service 会扫描到
-    await db.autoSerial.update({
-      where: { id: task.id },
-      data: { nextRunAt: new Date(), status: 'idle' },
+    const result = await runAutoSerialChapter(task.id)
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error || '生成失败' }, { status: 500 })
+    }
+    const updatedTask = await db.autoSerial.findUnique({ where: { id: task.id } })
+    return NextResponse.json({
+      ok: true,
+      chapter: result.chapter,
+      task: updatedTask,
+      message: `已生成新章节「${result.chapter?.title}」`,
     })
-    return NextResponse.json({ ok: true, message: '已加入生成队列' })
   }
 
   if (action === 'pause') {
