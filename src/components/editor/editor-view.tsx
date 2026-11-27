@@ -499,10 +499,10 @@ export function EditorView() {
           )}
         </div>
       ) : (
-        <ResizablePanelGroup direction="horizontal" autoSaveId={`editor-layout-${novel.id}`} className="flex-1 min-h-0 overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" autoSaveId={`editor-layout-v2-${novel.id}`} className="flex-1 min-h-0 overflow-hidden">
           {leftPanelOpen && (
             <>
-              <ResizablePanel defaultSize={24} minSize={18} maxSize={35} className="h-full min-h-0 overflow-hidden">
+              <ResizablePanel defaultSize={22} minSize={16} maxSize={32} className="h-full min-h-0 min-w-0 overflow-hidden">
                 <LeftSidebarPanel
                   novel={novel}
                   currentChapterId={currentChapterId}
@@ -533,7 +533,7 @@ export function EditorView() {
             </>
           )}
 
-          <ResizablePanel defaultSize={48} minSize={35} className="h-full min-h-0 overflow-hidden">
+          <ResizablePanel defaultSize={50} minSize={36} className="h-full min-h-0 min-w-0 overflow-hidden">
             {activeMindmap ? (
               <MindmapMainPanel
                 file={activeMindmap}
@@ -563,7 +563,7 @@ export function EditorView() {
           {rightPanelOpen && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={28} minSize={20} maxSize={42} className="studio-ai-column h-full min-h-0 overflow-hidden">
+              <ResizablePanel defaultSize={28} minSize={22} maxSize={40} className="studio-ai-column h-full min-h-0 min-w-0 overflow-hidden">
                 <AiAssistant
                   novelId={currentNovelId!}
                   chapterId={currentChapterId}

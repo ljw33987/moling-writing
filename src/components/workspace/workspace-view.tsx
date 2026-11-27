@@ -529,7 +529,7 @@ export function WorkspaceView() {
           {/* 小说卡片网格 / 列表 */}
           <div className="min-w-0 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 className="font-semibold flex items-center gap-2">
+              <h3 className="font-semibold flex items-center gap-2 whitespace-nowrap shrink-0">
                 <span>
                   {selectedFolder
                     ? folders.find((f) => f.id === selectedFolder)?.name || '作品'
@@ -594,10 +594,6 @@ export function WorkspaceView() {
                     <ListIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <Button size="sm" onClick={() => setWizardOpen(true)} className="gap-1.5 h-8">
-                  <Plus className="w-3.5 h-3.5" />
-                  创建新书
-                </Button>
               </div>
             </div>
 

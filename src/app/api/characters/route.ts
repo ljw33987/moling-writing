@@ -10,14 +10,21 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const novelId = url.searchParams.get('novelId')
+  const strict = url.searchParams.get('strict') === '1'
   const type = url.searchParams.get('type') || 'character'
 
   const where: any = { userId: user.id }
-  if (novelId) {
+  if (novelId === '__global__') {
+    where.novelId = null
+  } else if (novelId) {
     if (!await getOwnedNovel(user.id, novelId)) {
       return NextResponse.json({ error: '未找到作品' }, { status: 404 })
     }
-    where.OR = [{ novelId }, { novelId: null }]
+    if (strict) {
+      where.novelId = novelId
+    } else {
+      where.OR = [{ novelId }, { novelId: null }]
+    }
   }
 
   let data: any[]
@@ -28,7 +35,20 @@ export async function GET(req: NextRequest) {
   } else {
     data = await db.item.findMany({ where, orderBy: { updatedAt: 'desc' } })
   }
-  return NextResponse.json({ items: data })
+
+  const novelIds = [...new Set(data.map((d) => d.novelId).filter(Boolean))] as string[]
+  const novels = novelIds.length > 0
+    ? await db.novel.findMany({
+        where: { id: { in: novelIds }, userId: user.id },
+        select: { id: true, title: true },
+      })
+    : []
+  const novelMap = new Map(novels.map((n) => [n.id, n]))
+  const items = data.map((d) => ({
+    ...d,
+    novel: d.novelId ? (novelMap.get(d.novelId) ?? null) : null,
+  }))
+  return NextResponse.json({ items })
 }
 
 export async function POST(req: NextRequest) {

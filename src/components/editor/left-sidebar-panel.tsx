@@ -397,31 +397,31 @@ export function LeftSidebarPanel({
         <TabsList className="h-10 w-full grid grid-cols-5 rounded-none bg-card border-b border-border p-0 shrink-0">
           <TabsTrigger
             value="chapters"
-            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+            className="h-full min-w-0 whitespace-nowrap rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
           >
             目录
           </TabsTrigger>
           <TabsTrigger
             value="outline"
-            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+            className="h-full min-w-0 whitespace-nowrap rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
           >
             简介
           </TabsTrigger>
           <TabsTrigger
             value="mindmap"
-            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+            className="h-full min-w-0 whitespace-nowrap rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
           >
             导图
           </TabsTrigger>
           <TabsTrigger
             value="codex"
-            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+            className="h-full min-w-0 whitespace-nowrap rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
           >
             设定
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
+            className="h-full min-w-0 whitespace-nowrap rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs font-medium px-1"
           >
             速记
           </TabsTrigger>

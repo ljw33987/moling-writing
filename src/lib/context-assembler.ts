@@ -241,6 +241,40 @@ export async function assembleNovelContext(params: {
         preview: fitted.text,
       })
     }
+
+    // 4.5 上一章最后 3 段原文（仅取上一章末尾，保证语感与场景无缝衔接）
+    if (idx > 0 && remaining > 0) {
+      const prevChapMeta = allChapters[idx - 1]
+      const prevChap = prevChapMeta
+        ? await db.chapter.findUnique({
+            where: { id: prevChapMeta.id },
+            select: { title: true, content: true },
+          })
+        : null
+      const prevPlain = prevChap ? stripHtml(prevChap.content || '') : ''
+      const paragraphs = prevPlain
+        .split(/\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+      const tailParas = paragraphs.slice(-3).join('\n\n')
+      if (tailParas) {
+        const raw = `【上一章（${prevChap!.title}）末尾原文（用于衔接语感与场景）】\n${tailParas}`
+        const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.14))
+        const fitted = fitToBudget(raw, layerBudget, true)
+        const tokens = estimateTokens(fitted.text)
+        remaining = Math.max(0, remaining - tokens)
+        if (fitted.trimmed) trimmedLayers.push('previous_tail')
+        layers.push({
+          key: 'previous_tail',
+          label: '上一章末尾原文',
+          tokens,
+          budgetTokens: layerBudget,
+          trimmed: fitted.trimmed,
+          itemCount: Math.min(3, paragraphs.length),
+          preview: fitted.text,
+        })
+      }
+    }
   }
 
   // 5. 其余常驻设定（排除已显式引用的）

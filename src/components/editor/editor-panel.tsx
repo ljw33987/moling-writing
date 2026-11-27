@@ -81,6 +81,9 @@ export function EditorPanel({
   const [selRect, setSelRect] = useState<{ left: number; top: number; bottom: number; right: number } | null>(null)
   const [genChapterOpen, setGenChapterOpen] = useState(false)
   const [coreEvent, setCoreEvent] = useState('')
+  const [genWords, setGenWords] = useState<'1500' | '2500' | '3500'>('2500')
+  const [genPov, setGenPov] = useState<'第三人称限知' | '第三人称全知' | '第一人称'>('第三人称限知')
+  const [genMode, setGenMode] = useState<'continue' | 'new_scene'>('continue')
   const [indent, setIndent] = useState(true)
   const [fontSize, setFontSize] = useState(17)
   const [canUndo, setCanUndo] = useState(false)
@@ -197,6 +200,10 @@ export function EditorPanel({
     let generatedTitle = ''
 
     try {
+      const modeInstruction =
+        genMode === 'continue'
+          ? '承接方式：顺着当前章节已有末尾自然往下续写推进'
+          : '承接方式：直接切入新场景/新起一章推进剧情'
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
         signal: request.signal,
@@ -204,7 +211,11 @@ export function EditorPanel({
         body: JSON.stringify({
           action: 'chat',
           preset: 'chapter_gen',
-          message: `核心事件（本章必须完成，不得忽略、不得改写为别的情节）：${coreEvent}`,
+          message:
+            `核心事件（本章必须完成，不得忽略、不得改写为别的情节）：${coreEvent}\n` +
+            `目标字数：约 ${genWords} 字\n` +
+            `叙事视角：${genPov}\n` +
+            `${modeInstruction}`,
           novelId: novel.id,
           chapterId: chapter.id,
         }),
@@ -407,6 +418,46 @@ export function EditorPanel({
                 rows={3}
                 autoFocus
               />
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">字数目标</Label>
+                  <select
+                    aria-label="字数目标"
+                    value={genWords}
+                    onChange={(e) => setGenWords(e.target.value as '1500' | '2500' | '3500')}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="1500">约 1500 字</option>
+                    <option value="2500">约 2500 字</option>
+                    <option value="3500">约 3500 字</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">叙事视角</Label>
+                  <select
+                    aria-label="叙事视角"
+                    value={genPov}
+                    onChange={(e) => setGenPov(e.target.value as '第三人称限知' | '第三人称全知' | '第一人称')}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="第三人称限知">第三人称限知</option>
+                    <option value="第三人称全知">第三人称全知</option>
+                    <option value="第一人称">第一人称</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground">承接方式</Label>
+                  <select
+                    aria-label="承接方式"
+                    value={genMode}
+                    onChange={(e) => setGenMode(e.target.value as 'continue' | 'new_scene')}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="continue">续写本章</option>
+                    <option value="new_scene">新起场景</option>
+                  </select>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"

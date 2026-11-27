@@ -67,6 +67,12 @@ interface SettingCard {
   attributes?: string
   effect?: string
   novelId?: string | null
+  novel?: { id: string; title: string } | null
+}
+
+interface NovelOption {
+  id: string
+  title: string
 }
 
 const TYPE_LABELS: Record<CardType, { label: string; icon: any; color: string }> = {
@@ -83,6 +89,8 @@ export function SettingsLibrary() {
   const [newPromptText, setNewPromptText] = useState('')
   const [showNewPrompt, setShowNewPrompt] = useState(false)
   const [query, setQuery] = useState('')
+  const [novelFilter, setNovelFilter] = useState<string>('all')
+  const [novels, setNovels] = useState<NovelOption[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState<SettingCard | null>(null)
@@ -109,6 +117,12 @@ export function SettingsLibrary() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    api<{ novels: NovelOption[] }>('/api/novels')
+      .then((r) => setNovels(r.novels || []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const sync = () => setSavedPrompts(getSavedPrompts())
@@ -514,6 +528,9 @@ export function SettingsLibrary() {
                 type={type}
                 query={query}
                 onQueryChange={setQuery}
+                novels={novels}
+                novelFilter={novelFilter}
+                onNovelFilterChange={setNovelFilter}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onEdit={(card) => {
@@ -537,6 +554,7 @@ export function SettingsLibrary() {
         }}
         type={type === 'prompts' ? 'character' : type}
         card={editing}
+        novels={novels}
         onSave={handleSave}
       />
 
@@ -585,29 +603,69 @@ export function SettingsLibrary() {
 }
 
 function SettingsBrowser({
-  cards, type, query, onQueryChange, selectedId, onSelect, onEdit, onDelete, onAIGenerate,
+  cards,
+  type,
+  query,
+  onQueryChange,
+  novels,
+  novelFilter,
+  onNovelFilterChange,
+  selectedId,
+  onSelect,
+  onEdit,
+  onDelete,
+  onAIGenerate,
 }: {
   cards: SettingCard[]
   type: CardType
   query: string
   onQueryChange: (query: string) => void
+  novels: NovelOption[]
+  novelFilter: string
+  onNovelFilterChange: (novelId: string) => void
   selectedId: string | null
   onSelect: (id: string) => void
   onEdit: (card: SettingCard) => void
   onDelete: (id: string) => void
   onAIGenerate: (card: SettingCard) => void
 }) {
-  const matches = cards.filter((card) => card.name.toLowerCase().includes(query.trim().toLowerCase()))
+  const matches = cards.filter((card) => {
+    const matchName = card.name.toLowerCase().includes(query.trim().toLowerCase())
+    if (!matchName) return false
+    if (novelFilter === 'all') return true
+    if (novelFilter === '__global__') return !card.novelId
+    return card.novelId === novelFilter
+  })
   const selected = matches.find((card) => card.id === selectedId) ?? matches[0]
 
   return (
     <div className="studio-settings-browser">
       <div className="studio-settings-index">
-        <Input aria-label="搜索设定" placeholder="搜索设定…" value={query} onChange={(event) => onQueryChange(event.target.value)} />
+        <div className="space-y-2 pb-1">
+          <Input aria-label="搜索设定" placeholder="搜索设定…" value={query} onChange={(event) => onQueryChange(event.target.value)} />
+          <Select value={novelFilter} onValueChange={onNovelFilterChange}>
+            <SelectTrigger className="h-8 text-xs" aria-label="按所属作品筛选">
+              <SelectValue placeholder="全部作品" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">全部作品 ({cards.length})</SelectItem>
+              <SelectItem value="__global__" className="text-xs">通用设定（不限作品）</SelectItem>
+              {novels.map((n) => (
+                <SelectItem key={n.id} value={n.id} className="text-xs">
+                  《{n.title}》
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {matches.map((card) => (
           <button key={card.id} type="button" aria-pressed={selected?.id === card.id}
-            onClick={() => onSelect(card.id)}>
-            {card.name}
+            onClick={() => onSelect(card.id)}
+            className="flex items-center justify-between gap-2 text-left">
+            <span className="truncate">{card.name}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0 max-w-[90px] truncate">
+              {card.novel?.title ? `《${card.novel.title}》` : '通用'}
+            </span>
           </button>
         ))}
       </div>
@@ -647,7 +705,12 @@ function SettingCardItem({
           <Icon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <CardTitle className="text-base truncate">{card.name}</CardTitle>
+          <div className="flex items-center gap-2 min-w-0">
+            <CardTitle className="text-base truncate">{card.name}</CardTitle>
+            <Badge variant="secondary" className="text-[10px] shrink-0">
+              {card.novel?.title ? `《${card.novel.title}》` : '通用设定'}
+            </Badge>
+          </div>
           {type === 'character' && card.abilities && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {card.abilities}
@@ -742,12 +805,14 @@ function SettingCardDialog({
   onClose,
   type,
   card,
+  novels,
   onSave,
 }: {
   open: boolean
   onClose: () => void
   type: CardType
   card: SettingCard | null
+  novels: NovelOption[]
   onSave: (data: Partial<SettingCard>) => void
 }) {
   const [form, setForm] = useState<Partial<SettingCard>>({})
@@ -829,6 +894,26 @@ function SettingCardDialog({
                 </Select>
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>所属作品</Label>
+            <Select
+              value={form.novelId || '__global__'}
+              onValueChange={(v) => set('novelId', v === '__global__' ? null : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="通用设定（不限作品）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__global__">通用设定（不限作品）</SelectItem>
+                {novels.map((n) => (
+                  <SelectItem key={n.id} value={n.id}>
+                    《{n.title}》
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {type === 'character' && (
