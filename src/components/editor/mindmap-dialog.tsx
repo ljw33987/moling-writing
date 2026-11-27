@@ -363,7 +363,7 @@ export function StoryMindmapDialog({
             value={aiIdea}
             onChange={(e) => setAiIdea(e.target.value)}
             placeholder="输入想推演的剧情方向（可选），AI 自动生成思维导图分支..."
-            className="h-8 text-xs flex-1 min-w-[220px]"
+            className="h-8 text-xs flex-1 min-w-0 sm:min-w-[220px] w-full sm:w-auto"
             onKeyDown={(e) => e.key === 'Enter' && handleAiExpand()}
           />
           <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleAiExpand} disabled={aiLoading}>

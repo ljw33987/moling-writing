@@ -137,7 +137,7 @@ export function AuthView() {
 
   return (
     <div className="flex-1 overflow-auto bg-gradient-to-br from-amber-50/70 via-background to-primary/5 dark:from-primary/10 dark:via-background dark:to-background">
-      <div className="max-w-5xl mx-auto px-4 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center min-h-[calc(100vh-3.5rem)]">
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center min-h-[calc(100dvh-3.75rem)]">
         {/* 左侧介绍 */}
         <div className="hidden lg:block space-y-6">
           <div className="flex items-center gap-3">

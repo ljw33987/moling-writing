@@ -322,7 +322,7 @@ export function EditorPanel({
     <div className="h-full flex flex-col bg-background relative">
       {/* 本地离线草稿恢复提示 */}
       {recoveryDraft && recoveryDraft.chapterId === chapter.id && (
-        <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-6 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 border-b border-amber-500/30 bg-amber-500/10 px-3 sm:px-6 py-2 text-xs">
           <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
             <RotateCcw className="h-3.5 w-3.5 shrink-0" />
             <span>
@@ -348,7 +348,7 @@ export function EditorPanel({
             <Input
               value={chapter.title}
               onChange={(e) => onTitleChange(e.target.value)}
-              className="border-0 px-0 h-auto text-[22px] font-bold tracking-tight focus-visible:ring-0 bg-transparent shadow-none"
+              className="border-0 px-0 h-auto text-lg sm:text-[22px] font-bold tracking-tight focus-visible:ring-0 bg-transparent shadow-none"
               placeholder="章节标题"
             />
             <div className="flex items-center gap-2 mt-1 text-[11.5px] text-muted-foreground">
@@ -418,7 +418,7 @@ export function EditorPanel({
                 rows={3}
                 autoFocus
               />
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">字数目标</Label>
                   <select

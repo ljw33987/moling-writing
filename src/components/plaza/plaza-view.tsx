@@ -234,7 +234,7 @@ export function PlazaView() {
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {featured && (
           <section className="studio-featured">
-            <div className="w-28 sm:w-36 aspect-[3/4] rounded-[10px] overflow-hidden shadow-lg shrink-0">
+            <div className="w-24 sm:w-36 aspect-[3/4] rounded-[10px] overflow-hidden shadow-lg shrink-0">
               <DefaultBookCover
                 title={featured.title}
                 author={featured.user?.penName || featured.user?.name}
@@ -304,7 +304,7 @@ export function PlazaView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             {items.map((p) => (
               <Card key={p.id} className="studio-publication group overflow-hidden hover:shadow-md hover:border-[var(--brand-line)] transition cursor-pointer" onClick={() => setReadingId(p.id)}>
                 <div className="aspect-[3/4] relative overflow-hidden">
@@ -561,7 +561,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
               </div>
             ) : (
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                <div className="text-base leading-loose whitespace-pre-wrap bg-card rounded-[14px] border border-border px-6 sm:px-10 py-8">
+                <div className="text-base leading-loose whitespace-pre-wrap bg-card rounded-[14px] border border-border px-4 sm:px-10 py-5 sm:py-8">
                   {chapterContent || '（本章暂无内容）'}
                 </div>
               </div>

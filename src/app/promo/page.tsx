@@ -23,7 +23,7 @@ export default function PromoPage() {
     <div className="min-h-screen bg-[#07080D] text-[#F3F2EE] selection:bg-indigo-500/30">
       {/* 顶部导航 */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07080D]/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto h-16 px-6 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
               style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: '#ffffff' }}

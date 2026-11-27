@@ -755,7 +755,7 @@ export function AiToolboxView() {
                 <BookOpen className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-medium text-foreground whitespace-nowrap">作品上下文</span>
                 <Select value={contextNovelId} onValueChange={setContextNovelId}>
-                  <SelectTrigger className="h-7 w-[190px] text-xs">
+                  <SelectTrigger className="h-7 w-full sm:w-[190px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -773,7 +773,7 @@ export function AiToolboxView() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-foreground whitespace-nowrap">当前章节</span>
                   <Select value={contextChapterId} onValueChange={setContextChapterId}>
-                    <SelectTrigger className="h-7 w-[190px] text-xs">
+                    <SelectTrigger className="h-7 w-full sm:w-[190px] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -791,7 +791,7 @@ export function AiToolboxView() {
               <div className="flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-medium text-foreground whitespace-nowrap">作者文风</span>                <Select value={writingStyleId} onValueChange={setWritingStyleId}>
-                  <SelectTrigger className="h-7 w-[190px] text-xs">
+                  <SelectTrigger className="h-7 w-full sm:w-[190px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

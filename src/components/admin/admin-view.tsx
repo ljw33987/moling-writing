@@ -855,7 +855,7 @@ function OrdersTab() {
       </Card>
 
       {data?.stats && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">已支付订单</div>

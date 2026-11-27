@@ -187,7 +187,7 @@ export function TopBar() {
   const visibleNavs = navs.filter((n) => !n.adminOnly || user.role === 'admin')
 
   return (
-    <header className="topbar-shell flex items-center px-3 sm:px-6 gap-3 sm:gap-5 z-30 sticky top-0 shrink-0">
+    <header className="topbar-shell flex items-center px-2.5 sm:px-6 gap-1.5 sm:gap-5 z-30 sticky top-0 shrink-0">
       <button onClick={backToWorkspace} className="flex items-center gap-2.5 hover:opacity-85 transition shrink-0">
         <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
           BG
@@ -269,7 +269,7 @@ export function TopBar() {
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span className="tnum font-semibold text-foreground whitespace-nowrap">
-                  剩余 {formatWords(tokens * 3)}字
+                  <span className="hidden sm:inline">剩余 </span>{formatWords(tokens * 3)}字
                 </span>
               </button>
             </TooltipTrigger>

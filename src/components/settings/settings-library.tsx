@@ -121,7 +121,7 @@ export function SettingsLibrary() {
   useEffect(() => {
     api<{ novels: NovelOption[] }>('/api/novels')
       .then((r) => setNovels(r.novels || []))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   useEffect(() => {
@@ -506,42 +506,42 @@ export function SettingsLibrary() {
               )}
             </div>
           ) : (
-          <TabsContent value={type} className="min-w-0">
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : cards.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  {(() => {
-                    const Icon = TYPE_LABELS[type].icon
-                    return <Icon className={`w-12 h-12 mb-3 ${TYPE_LABELS[type].color} opacity-40`} />
-                  })()}
-                  <p className="font-medium">还没有{TYPE_LABELS[type].label}</p>
-                  <p className="text-sm text-muted-foreground mt-1">点击右上角新建</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <SettingsBrowser
-                cards={cards}
-                type={type}
-                query={query}
-                onQueryChange={setQuery}
-                novels={novels}
-                novelFilter={novelFilter}
-                onNovelFilterChange={setNovelFilter}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onEdit={(card) => {
-                  setEditing(card)
-                  setOpen(true)
-                }}
-                onDelete={handleDelete}
-                onAIGenerate={handleAIGenerate}
-              />
-            )}
-          </TabsContent>
+            <TabsContent value={type} className="min-w-0">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : cards.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                    {(() => {
+                      const Icon = TYPE_LABELS[type].icon
+                      return <Icon className={`w-12 h-12 mb-3 ${TYPE_LABELS[type].color} opacity-40`} />
+                    })()}
+                    <p className="font-medium">还没有{TYPE_LABELS[type].label}</p>
+                    <p className="text-sm text-muted-foreground mt-1">点击右上角新建</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <SettingsBrowser
+                  cards={cards}
+                  type={type}
+                  query={query}
+                  onQueryChange={setQuery}
+                  novels={novels}
+                  novelFilter={novelFilter}
+                  onNovelFilterChange={setNovelFilter}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onEdit={(card) => {
+                    setEditing(card)
+                    setOpen(true)
+                  }}
+                  onDelete={handleDelete}
+                  onAIGenerate={handleAIGenerate}
+                />
+              )}
+            </TabsContent>
           )}
         </Tabs>
       </div>
@@ -698,9 +698,8 @@ function SettingCardItem({
     <Card className="group hover:shadow-md transition">
       <CardHeader className="pb-2 flex flex-row items-start gap-3">
         <div
-          className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 ${
-            TYPE_LABELS[type].color
-          }`}
+          className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 ${TYPE_LABELS[type].color
+            }`}
         >
           <Icon className="w-5 h-5" />
         </div>
@@ -846,7 +845,7 @@ function SettingCardDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>名称 *</Label>
               <Input
@@ -1086,8 +1085,8 @@ function AIGenDialog({
                     type === 'character'
                       ? '如：反派，冷酷，剑修，与主角有血海深仇'
                       : type === 'worldview'
-                      ? '如：修仙宗门，位于悬崖之上，有禁地'
-                      : '如：上古神器，可操控时间，有反噬'
+                        ? '如：修仙宗门，位于悬崖之上，有禁地'
+                        : '如：上古神器，可操控时间，有反噬'
                   }
                   rows={3}
                 />
