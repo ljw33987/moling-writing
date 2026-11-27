@@ -9,6 +9,7 @@ import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-as
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
 import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
+import { acquireUserAiSlot, checkRateLimit, reserveUserTokens, settleUserTokens } from '@/lib/concurrency'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // POST /api/ai/stream - 流式 AI 调用（SSE）
@@ -17,17 +18,51 @@ export async function POST(req: NextRequest) {
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
   const user = session.user
 
-  if (user.tokens <= 0) {
+  const rl = checkRateLimit(`ai:${user.id}`, 30, 60_000)
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `AI 请求过于频繁，请 ${rl.retryAfterSec} 秒后再试` },
+      { status: 429 }
+    )
+  }
+
+  const slot = acquireUserAiSlot(user.id, 3)
+  if (!slot.ok) {
+    return NextResponse.json(
+      { error: '您有多个 AI 任务正在生成中，请稍候再试' },
+      { status: 429 }
+    )
+  }
+
+  const reserve = await reserveUserTokens(user.id, 200)
+  if (!reserve.ok) {
+    slot.release()
     return NextResponse.json(
       { error: 'Token 余额不足，请充值' },
       { status: 402 }
     )
   }
+  const reserved = reserve.reserved
+  let settled = false
+  const releaseAll = async (actualUsed = 0) => {
+    if (!settled) {
+      settled = true
+      await settleUserTokens(user.id, reserved, actualUsed).catch(() => {})
+    }
+    slot.release()
+  }
 
-  const body = await req.json()
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    await releaseAll(0)
+    return NextResponse.json({ error: '无效的请求体' }, { status: 400 })
+  }
   const { action, preset, message, novelId, chapterId: rawChapterId, targetStyle, modelId, referencedItems, writingStyleId, promptTags } = body
 
   if (novelId && !await getOwnedNovel(user.id, novelId)) {
+    await releaseAll(0)
     return NextResponse.json({ error: '未找到作品' }, { status: 404 })
   }
   let chapterId: string | null = rawChapterId || null
@@ -38,6 +73,7 @@ export async function POST(req: NextRequest) {
         // 若前端缓存了已删除或旧作品的 chapterId，自动降级为仅按当前作品上下文生成
         chapterId = null
       } else {
+        await releaseAll(0)
         return NextResponse.json({ error: '未找到章节' }, { status: 404 })
       }
     }
@@ -265,13 +301,14 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        if (isCancelled()) return
-        // 计算消耗 + 保存记录
+        if (isCancelled()) {
+          await releaseAll(0)
+          return
+        }
+        // 计算消耗 + 原子结算 + 保存记录
         const tokensUsed = Math.ceil((userPrompt.length + fullReply.length) / 3)
-        await db.user.update({
-          where: { id: user.id },
-          data: { tokens: Math.max(0, user.tokens - tokensUsed) },
-        })
+        settled = true
+        const remainingTokens = await settleUserTokens(user.id, reserved, tokensUsed)
         await db.chatMessage.create({
           data: {
             role: 'user',
@@ -295,11 +332,16 @@ export async function POST(req: NextRequest) {
           },
         })
 
-        if (isCancelled()) return
+        if (isCancelled()) {
+          slot.release()
+          return
+        }
         // 发送结束事件
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, tokensUsed, remainingTokens: Math.max(0, user.tokens - tokensUsed) })}\n\n`))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, tokensUsed, remainingTokens })}\n\n`))
         controller.close()
+        slot.release()
       } catch (e: any) {
+        await releaseAll(0)
         if (isCancelled()) return
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: e.message })}\n\n`))
         controller.close()
@@ -307,6 +349,7 @@ export async function POST(req: NextRequest) {
     },
     cancel() {
       cancelled = true
+      void releaseAll(0)
     },
   })
 

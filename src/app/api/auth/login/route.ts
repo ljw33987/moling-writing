@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyPassword, signToken, COOKIE_NAME, COOKIE_MAX_AGE, userPublic, ensureAdminUser, hashPassword } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/concurrency'
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
+    const ipLimit = checkRateLimit(`login:ip:${ip}`, 30, 60_000)
+    if (!ipLimit.ok) {
+      return NextResponse.json(
+        { error: `请求过于频繁，请 ${ipLimit.retryAfterSec} 秒后再试` },
+        { status: 429 }
+      )
+    }
+
     const { email, password } = await req.json()
     if (!email?.trim() || !password) {
       return NextResponse.json({ error: '请输入邮箱和密码' }, { status: 400 })
+    }
+
+    const emailLimit = checkRateLimit(`login:email:${email.toLowerCase()}`, 15, 60_000)
+    if (!emailLimit.ok) {
+      return NextResponse.json(
+        { error: `该账号尝试次数过多，请 ${emailLimit.retryAfterSec} 秒后再试` },
+        { status: 429 }
+      )
     }
 
     // 确保管理员账号存在（首次登录管理员可用）

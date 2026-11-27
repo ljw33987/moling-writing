@@ -8,6 +8,7 @@ import { assembleNovelContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
 import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
+import { acquireUserAiSlot, checkRateLimit, reserveUserTokens, settleUserTokens } from '@/lib/concurrency'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // 预设指令库
@@ -193,18 +194,42 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
 
 // POST /api/ai - 通用 AI 调用
 export async function POST(req: NextRequest) {
+  let userId = ''
+  let reserved = 0
+  let settled = false
+  let slotRelease: (() => void) | null = null
   try {
     const session = await requireSessionOr401()
     if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
     const user = session.user
+    userId = user.id
 
-    // 余额检查
-    if (user.tokens <= 0) {
+    const rl = checkRateLimit(`ai:${user.id}`, 30, 60_000)
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `AI 请求过于频繁，请 ${rl.retryAfterSec} 秒后再试`, reply: '请求过于频繁，请稍候再试。' },
+        { status: 429 }
+      )
+    }
+
+    const slot = acquireUserAiSlot(user.id, 3)
+    if (!slot.ok) {
+      return NextResponse.json(
+        { error: '您有多个 AI 任务正在生成中，请稍候再试', reply: '您有多个 AI 任务正在生成中，请稍候再试。' },
+        { status: 429 }
+      )
+    }
+    slotRelease = slot.release
+
+    // 原子预扣 Token（防高并发超扣）
+    const reserve = await reserveUserTokens(user.id, 200)
+    if (!reserve.ok) {
       return NextResponse.json(
         { error: 'Token 余额不足，请充值', reply: '您的 Token 余额不足，请前往用户中心充值。' },
         { status: 402 }
       )
     }
+    reserved = reserve.reserved
 
     const body = await req.json()
     const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId, modelId } = body
@@ -320,12 +345,10 @@ export async function POST(req: NextRequest) {
       reply = stripThinkTags(completion.choices[0]?.message?.content || '') || '（无回复）'
     }
 
-    // 估算 token 消耗
+    // 估算 token 消耗并原子结算
     const tokensUsed = Math.ceil((userPrompt.length + reply.length) / 3)
-    await db.user.update({
-      where: { id: user.id },
-      data: { tokens: Math.max(0, user.tokens - tokensUsed) },
-    })
+    const remainingTokens = await settleUserTokens(user.id, reserved, tokensUsed)
+    settled = true
 
     // 保存对话记录
     await db.chatMessage.create({
@@ -355,7 +378,7 @@ export async function POST(req: NextRequest) {
       reply,
       messageId: assistantMsg.id,
       tokensUsed,
-      remainingTokens: Math.max(0, user.tokens - tokensUsed),
+      remainingTokens,
     })
   } catch (e: any) {
     console.error('AI error:', e)
@@ -363,6 +386,11 @@ export async function POST(req: NextRequest) {
       { error: e?.message || 'AI 调用失败', reply: '抱歉，AI 服务暂时不可用，请稍后再试。' },
       { status: 500 }
     )
+  } finally {
+    if (userId && reserved > 0 && !settled) {
+      await settleUserTokens(userId, reserved, 0).catch(() => {})
+    }
+    slotRelease?.()
   }
 }
 
