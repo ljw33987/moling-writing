@@ -196,16 +196,11 @@ export function UserCenter() {
   }
 
   const handleUpgrade = async (plan: string) => {
-    try {
-      await api('/api/user', {
-        method: 'PATCH',
-        body: JSON.stringify({ plan }),
-      })
-      toast.success('已升级')
-      load()
-    } catch (e: any) {
-      toast.error(e.message)
-    }
+    const pkg =
+      plan === 'year'
+        ? { id: 'plan_year', name: '年卡会员', price: 299, tokens: 600000 }
+        : { id: 'plan_pro', name: '月卡会员', price: 29.9, tokens: 150000 }
+    await handleRecharge(pkg)
   }
 
   if (loading || !data) {
@@ -623,8 +618,8 @@ function RechargeSection({
           )}
           <p className="text-xs text-muted-foreground text-center pt-2">
             {paymentAvailable
-              ? '🔒 支付宝安全支付，支付后字数自动到账'
-              : '演示模式：点击购买后弹出模拟支付窗，无需真实扣款'
+              ? '🔒 安全支付，支付后字数与会员自动到账'
+              : '扫码付款并提交后，管理员确认收款即自动到账（也可使用卡密秒兑换）'
             }
           </p>
         </CardContent>

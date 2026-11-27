@@ -52,14 +52,13 @@ export async function PATCH(req: NextRequest) {
   const user = session.user
 
   const body = await req.json()
-  const { name, penName, avatar, plan } = body
+  const { name, penName, avatar } = body
   const data: any = {}
   if (name !== undefined) data.name = name
   if (penName !== undefined) data.penName = penName
   if (avatar !== undefined) data.avatar = avatar
-  if (plan !== undefined) data.plan = plan
 
-  // 注意：tokens 由充值 API 修改，不在此处直接设置
+  // 注意：tokens 和 plan 均由支付/兑换/管理员接口修改，不在此处直接设置
   const updated = await db.user.update({ where: { id: user.id }, data })
   return NextResponse.json({ user: updated })
 }

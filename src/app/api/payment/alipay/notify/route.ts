@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createAlipayClient } from '@/lib/payment'
 import { sendAdminOrderNotification } from '@/lib/order-email'
+import { resolveUpgradedPlan } from '@/app/api/orders/route'
 
 // POST /api/payment/alipay/notify - 支付宝异步回调通知
 export async function POST(req: NextRequest) {
@@ -73,9 +74,14 @@ export async function POST(req: NextRequest) {
         data: { status: 'paid', paidAt },
       })
       if (result.count !== 1) return false
+      const payer = await tx.user.findUnique({ where: { id: order.userId }, select: { plan: true } })
+      const nextPlan = resolveUpgradedPlan(payer?.plan || 'free', order.amount)
       await tx.user.update({
         where: { id: order.userId },
-        data: { tokens: { increment: order.tokens } },
+        data: {
+          tokens: { increment: order.tokens },
+          ...(nextPlan ? { plan: nextPlan } : {}),
+        },
       })
       return true
     })

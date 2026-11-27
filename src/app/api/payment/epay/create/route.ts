@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { buildEpayPayUrl, getEpayConfig } from '@/lib/epay'
-import { getPackages } from '@/app/api/orders/route'
+import { findPackageById } from '@/app/api/orders/route'
 
 // POST /api/payment/epay/create - 聚合支付下单（支持微信 wxpay / 支付宝 alipay）
 export async function POST(req: NextRequest) {
@@ -22,8 +22,7 @@ export async function POST(req: NextRequest) {
   const { packageId, method = 'alipay' } = body
   const payMethod: 'alipay' | 'wechat' = method === 'wechat' ? 'wechat' : 'alipay'
 
-  const packages = await getPackages()
-  const pkg = packages.find((p) => p.id === packageId)
+  const pkg = await findPackageById(packageId)
   if (!pkg) return NextResponse.json({ error: '套餐不存在' }, { status: 400 })
 
   const order = await db.order.create({

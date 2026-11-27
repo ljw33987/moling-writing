@@ -10,6 +10,11 @@ export const DEFAULT_PACKAGES = [
   { id: 'pro', tokens: 1000000, price: 99.9, name: '深度创作', popular: false },
 ]
 
+export const MEMBERSHIP_PACKAGES = [
+  { id: 'plan_pro', tokens: 150000, price: 29.9, name: '月卡会员', popular: true },
+  { id: 'plan_year', tokens: 600000, price: 299, name: '年卡会员', popular: false },
+]
+
 // 获取当前套餐列表（优先使用平台配置的自定义套餐）
 export async function getPackages() {
   const config = await getPlatformConfig()
@@ -22,6 +27,17 @@ export async function getPackages() {
     } catch {}
   }
   return DEFAULT_PACKAGES
+}
+
+export async function findPackageById(packageId: string) {
+  const packages = await getPackages()
+  return packages.find((p) => p.id === packageId) || MEMBERSHIP_PACKAGES.find((p) => p.id === packageId) || null
+}
+
+export function resolveUpgradedPlan(currentPlan: string, amount: number): string | undefined {
+  if (amount >= 199) return 'year'
+  if (currentPlan === 'free' && amount > 0) return 'pro'
+  return undefined
 }
 
 // GET /api/orders - 当前用户的订单列表
@@ -50,8 +66,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { packageId, method = 'alipay' } = body
 
-  const packages = await getPackages()
-  const pkg = packages.find((p) => p.id === packageId)
+  const pkg = await findPackageById(packageId)
   if (!pkg) return NextResponse.json({ error: '套餐不存在' }, { status: 400 })
 
   const order = await db.order.create({
@@ -96,9 +111,14 @@ export async function PATCH(req: NextRequest) {
       data: { status: 'paid', paidAt },
     })
     if (result.count !== 1) return false
+    const curUser = await tx.user.findUnique({ where: { id: user.id }, select: { plan: true } })
+    const nextPlan = resolveUpgradedPlan(curUser?.plan || 'free', order.amount)
     await tx.user.update({
       where: { id: user.id },
-      data: { tokens: { increment: order.tokens } },
+      data: {
+        tokens: { increment: order.tokens },
+        ...(nextPlan ? { plan: nextPlan } : {}),
+      },
     })
     return true
   })

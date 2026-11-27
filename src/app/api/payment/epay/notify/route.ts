@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getEpayConfig, verifyEpaySign } from '@/lib/epay'
 import { sendAdminOrderNotification } from '@/lib/order-email'
+import { resolveUpgradedPlan } from '@/app/api/orders/route'
 
 async function handleEpayNotify(params: Record<string, string>) {
   const epayConfig = getEpayConfig()
@@ -45,9 +46,14 @@ async function handleEpayNotify(params: Record<string, string>) {
       data: { status: 'paid', paidAt },
     })
     if (res.count !== 1) return false
+    const payer = await tx.user.findUnique({ where: { id: order.userId }, select: { plan: true } })
+    const nextPlan = resolveUpgradedPlan(payer?.plan || 'free', order.amount)
     await tx.user.update({
       where: { id: order.userId },
-      data: { tokens: { increment: order.tokens } },
+      data: {
+        tokens: { increment: order.tokens },
+        ...(nextPlan ? { plan: nextPlan } : {}),
+      },
     })
     return true
   })
