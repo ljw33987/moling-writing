@@ -25,7 +25,10 @@ export default function PromoPage() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07080D]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto h-16 px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-indigo-500/30">
+            <div
+              style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: '#ffffff' }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-500/30"
+            >
               BG
             </div>
             <div>
@@ -43,7 +46,8 @@ export default function PromoPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 transition flex items-center gap-1.5 shadow-lg shadow-indigo-500/25"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', color: '#ffffff' }}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition flex items-center gap-1.5 shadow-lg shadow-indigo-500/25"
             >
               立即开写
               <ArrowRight className="w-4 h-4" />
@@ -76,7 +80,8 @@ export default function PromoPage() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/"
-              className="px-7 py-3.5 rounded-xl font-semibold text-sm bg-white text-zinc-950 hover:bg-zinc-200 transition flex items-center gap-2 shadow-xl"
+              style={{ backgroundColor: '#ffffff', color: '#09090b' }}
+              className="px-7 py-3.5 rounded-xl font-semibold text-sm hover:opacity-90 transition flex items-center gap-2 shadow-xl"
             >
               <Feather className="w-4 h-4" />
               免费领 1 万 Token 开始试写
