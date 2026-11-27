@@ -87,12 +87,17 @@ export function UserCenter() {
   const [realPayLoading, setRealPayLoading] = useState(false)
   const [section, setSection] = useState<Section>('profile')
   const [paymentAvailable, setPaymentAvailable] = useState(false)
+  const [paymentProvider, setPaymentProvider] = useState<'epay' | 'alipay' | 'none'>('none')
 
   // 检查是否配置了真实支付
   useEffect(() => {
-    api<{ available: boolean }>('/api/payment/status').then((r) => {
+    api<{ available: boolean; provider?: 'epay' | 'alipay' | 'none' }>('/api/payment/status').then((r) => {
       setPaymentAvailable(r.available)
-    }).catch(() => setPaymentAvailable(false))
+      setPaymentProvider(r.provider || (r.available ? 'alipay' : 'none'))
+    }).catch(() => {
+      setPaymentAvailable(false)
+      setPaymentProvider('none')
+    })
   }, [])
 
   const load = async () => {
@@ -138,14 +143,16 @@ export function UserCenter() {
 
   const handleRecharge = async (pkg: any) => {
     if (paymentAvailable) {
-      // 真实支付流程
+      // 真实支付流程（聚合支付支持微信/支付宝，官方直连走支付宝）
       setRealPayLoading(true)
       try {
-        const r = await api<{ payUrl: string; orderId: string }>('/api/payment/alipay/create', {
+        const endpoint =
+          paymentProvider === 'epay' ? '/api/payment/epay/create' : '/api/payment/alipay/create'
+        const r = await api<{ payUrl: string; orderId: string }>(endpoint, {
           method: 'POST',
-          body: JSON.stringify({ packageId: pkg.id }),
+          body: JSON.stringify({ packageId: pkg.id, method: payMethod }),
         })
-        // 跳转到支付宝支付页面
+        // 跳转到支付收银台页面
         window.location.href = r.payUrl
       } catch (e: any) {
         toast.error(e.message)

@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
 
   // 同步返回只做展示，实际到账由异步 notify 处理
   // 重定向到前端支付结果页（带参数）
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+  const homeUrl = baseUrl ? `${baseUrl}/` : '/'
   
   // 返回一个简单的 HTML 页面，自动关闭或跳转
   const html = `<!DOCTYPE html>
@@ -38,13 +39,13 @@ export async function GET(req: NextRequest) {
     </div>
     <h1>支付成功</h1>
     <p>Token 将自动到账，请稍后刷新用户中心查看余额<br/>如未到账，请等待几秒后刷新</p>
-    <a href="${baseUrl || '/'}/" class="btn">返回爆更猫AI写作</a>
+    <a href="${homeUrl}" class="btn">返回爆更猫AI写作</a>
     <div class="order">订单号: ${outTradeNo.slice(-12)}${tradeNo ? '<br/>交易号: ' + tradeNo.slice(-12) : ''}</div>
   </div>
   <script>
     // 3 秒后自动跳转
     setTimeout(function() {
-      window.location.href = '${baseUrl || '/'}/';
+      window.location.href = '${homeUrl}';
     }, 5000);
   </script>
 </body>
