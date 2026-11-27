@@ -127,7 +127,7 @@ export async function callThirdPartyAI(
   },
   messages: { role: string; content: string }[],
   options?: { stream?: boolean; temperature?: number }
-): Promise<{ ok: boolean; reply?: string; error?: string; stream?: ReadableStream<Uint8Array> }> {
+): Promise<{ ok: boolean; reply?: string; error?: string; stream?: ReadableStream<Uint8Array>; totalTokens?: number }> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`
 
   try {
@@ -157,7 +157,8 @@ export async function callThirdPartyAI(
     const data = await res.json()
     const rawReply = data.choices?.[0]?.message?.content || ''
     const reply = stripThinkTags(rawReply)
-    return { ok: true, reply }
+    const totalTokens = Number(data?.usage?.total_tokens || 0) || undefined
+    return { ok: true, reply, totalTokens }
   } catch (e: any) {
     return { ok: false, error: e.message }
   }

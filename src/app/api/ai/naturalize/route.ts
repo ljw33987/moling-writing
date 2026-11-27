@@ -121,7 +121,7 @@ ${HUMAN_VOICE_SYSTEM_RULES}
         { role: 'user', content: plain },
       ],
       { stream: false }
-    )
+    ) as { ok: boolean; reply?: string; error?: string; totalTokens?: number }
 
     if (!res.ok) {
       await settleUserTokens(user.id, reserved, 0)
@@ -129,7 +129,10 @@ ${HUMAN_VOICE_SYSTEM_RULES}
       return NextResponse.json({ error: res.error || 'AI 调用失败' }, { status: 500 })
     }
 
-    const tokensUsed = Math.ceil((plain.length + (res.reply?.length || 0)) / 3)
+    const tokensUsed =
+      res.totalTokens && res.totalTokens > 0
+        ? res.totalTokens
+        : Math.ceil((plain.length + (res.reply?.length || 0)) / 3)
     const remainingTokens = await settleUserTokens(user.id, reserved, tokensUsed)
     settled = true
 

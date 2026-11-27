@@ -302,10 +302,12 @@ export async function POST(req: NextRequest) {
         }
 
         if (isCancelled()) {
-          await releaseAll(0)
+          const partialUsed =
+            fullReply.length > 0 ? Math.ceil((userPrompt.length + fullReply.length) / 3) : 0
+          await releaseAll(partialUsed)
           return
         }
-        // 计算消耗 + 原子结算 + 保存记录
+        // 计算消耗 + 原子结算 + 保存记录（仅在 assistant 消息记录 tokensUsed，避免后台统计翻倍）
         const tokensUsed = Math.ceil((userPrompt.length + fullReply.length) / 3)
         settled = true
         const remainingTokens = await settleUserTokens(user.id, reserved, tokensUsed)
@@ -316,7 +318,7 @@ export async function POST(req: NextRequest) {
             preset: preset || null,
             novelId: novelId || null,
             chapterId: chapterId || null,
-            tokensUsed,
+            tokensUsed: 0,
             userId: user.id,
           },
         })

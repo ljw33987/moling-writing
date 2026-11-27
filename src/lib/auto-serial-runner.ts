@@ -221,9 +221,13 @@ ${recentChapters || '（这是开篇第一章）'}
     })
 
     const tokensUsed = Math.ceil((userPrompt.length + reply.length) / 3)
-    await db.user.update({
-      where: { id: user.id },
-      data: { tokens: Math.max(0, user.tokens - tokensUsed) },
+    await db.user.updateMany({
+      where: { id: user.id, tokens: { gte: tokensUsed } },
+      data: { tokens: { decrement: tokensUsed } },
+    }).then(async (r) => {
+      if (r.count === 0) {
+        await db.user.update({ where: { id: user.id }, data: { tokens: 0 } })
+      }
     })
 
     const now = new Date()

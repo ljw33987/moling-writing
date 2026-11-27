@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
     const remainingTokens = await settleUserTokens(user.id, reserved, tokensUsed)
     settled = true
 
-    // 保存对话记录
+    // 保存对话记录（仅在 assistant 消息记录 tokensUsed，避免后台统计翻倍）
     await db.chatMessage.create({
       data: {
         role: 'user',
@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
         preset: preset || null,
         novelId: novelId || null,
         chapterId: chapterId || null,
-        tokensUsed,
+        tokensUsed: 0,
         userId: user.id,
       },
     })
