@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getEpayConfig, verifyEpaySign } from '@/lib/epay'
-import { sendAdminOrderNotification } from '@/lib/email'
+import { sendAdminOrderNotification } from '@/lib/order-email'
 
 async function handleEpayNotify(params: Record<string, string>) {
   const epayConfig = getEpayConfig()

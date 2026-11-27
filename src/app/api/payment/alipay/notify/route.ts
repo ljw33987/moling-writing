@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createAlipayClient } from '@/lib/payment'
-import { sendAdminOrderNotification } from '@/lib/email'
+import { sendAdminOrderNotification } from '@/lib/order-email'
 
 // POST /api/payment/alipay/notify - 支付宝异步回调通知
 export async function POST(req: NextRequest) {
