@@ -88,12 +88,14 @@ export function UserCenter() {
   const [section, setSection] = useState<Section>('profile')
   const [paymentAvailable, setPaymentAvailable] = useState(false)
   const [paymentProvider, setPaymentProvider] = useState<'epay' | 'alipay' | 'none'>('none')
+  const [qrCodes, setQrCodes] = useState<{ wechat: string; alipay: string }>({ wechat: '', alipay: '' })
 
-  // 检查是否配置了真实支付
+  // 检查是否配置了真实支付或个人收款码
   useEffect(() => {
-    api<{ available: boolean; provider?: 'epay' | 'alipay' | 'none' }>('/api/payment/status').then((r) => {
+    api<{ available: boolean; provider?: 'epay' | 'alipay' | 'none'; qrCodes?: { wechat: string; alipay: string } }>('/api/payment/status').then((r) => {
       setPaymentAvailable(r.available)
       setPaymentProvider(r.provider || (r.available ? 'alipay' : 'none'))
+      if (r.qrCodes) setQrCodes(r.qrCodes)
     }).catch(() => {
       setPaymentAvailable(false)
       setPaymentProvider('none')
@@ -340,62 +342,84 @@ export function UserCenter() {
         </div>
       </div>
 
-      {/* 模拟支付对话框 */}
+      {/* 扫码支付 / 待确认对话框 */}
       <Dialog open={!!payDialog} onOpenChange={(v) => !v && setPayDialog(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="w-4 h-4" />
-              模拟支付
+              扫码支付
             </DialogTitle>
           </DialogHeader>
-          {payDialog && (
-            <div className="space-y-4 py-2">
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">套餐</span>
-                  <span className="font-medium">{payDialog.pkg.name}</span>
+          {payDialog && (() => {
+            const activeQr =
+              payMethod === 'wechat'
+                ? qrCodes.wechat || qrCodes.alipay
+                : qrCodes.alipay || qrCodes.wechat
+            const hasQr = !!(qrCodes.wechat || qrCodes.alipay)
+            return (
+              <div className="space-y-4 py-2">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">套餐</span>
+                    <span className="font-medium">{payDialog.pkg.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">充值字数</span>
+                    <span className="font-medium">{formatQuotaWords(payDialog.pkg.tokens)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">订单号（转账可备注后6位）</span>
+                    <span className="font-mono text-xs select-all">{payDialog.orderId.slice(-12)}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2 flex justify-between">
+                    <span className="font-medium">应付金额</span>
+                    <span className="font-bold text-lg font-display text-primary">¥{payDialog.pkg.price}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">充值字数</span>
-                  <span className="font-medium">{formatQuotaWords(payDialog.pkg.tokens)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">订单号</span>
-                  <span className="font-mono text-xs">{payDialog.orderId.slice(-12)}</span>
-                </div>
-                <div className="border-t pt-2 mt-2 flex justify-between">
-                  <span className="font-medium">应付金额</span>
-                  <span className="font-bold text-lg font-display text-primary">¥{payDialog.pkg.price}</span>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>支付方式</Label>
-                <Select value={payMethod} onValueChange={setPayMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alipay">支付宝</SelectItem>
-                    <SelectItem value="wechat">微信支付</SelectItem>
-                    <SelectItem value="card">银行卡</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label>支付方式</Label>
+                  <Select value={payMethod} onValueChange={setPayMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alipay">支付宝</SelectItem>
+                      <SelectItem value="wechat">微信支付</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="bg-gold/10 dark:bg-gold/15 border border-gold/30 rounded p-3 text-xs text-gold">
-                ⓘ 这是演示环境，点击下方按钮即可&quot;完成支付&quot;并自动到账字数。无需真实扣款。
+                {hasQr ? (
+                  <div className="flex flex-col items-center gap-2 p-4 border rounded-lg bg-white dark:bg-zinc-900">
+                    <img src={activeQr} alt="收款码" className="w-48 h-48 object-contain rounded" />
+                    <p className="text-xs text-muted-foreground text-center">
+                      请使用{payMethod === 'wechat' ? '微信' : '支付宝'}扫码支付 <b className="text-foreground">¥{payDialog.pkg.price}</b>，付款后点击下方按钮通知管理员确认到账
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded p-3 text-xs text-amber-600">
+                    管理员暂未上传收款码，请联系管理员付款后确认订单，或前往左侧「卡密兑换」输入兑换码秒到账。
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayDialog(null)}>
               取消
             </Button>
-            <Button onClick={handlePay} disabled={paying} className="gap-1.5">
-              {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              确认支付 ¥{payDialog?.pkg.price}
+            <Button
+              onClick={() => {
+                setPayDialog(null)
+                loadOrders()
+                toast.success('订单已提交！管理员确认收款后字数将自动到账')
+              }}
+              className="gap-1.5"
+            >
+              <Check className="w-4 h-4" />
+              我已扫码付款，等待确认
             </Button>
           </DialogFooter>
         </DialogContent>

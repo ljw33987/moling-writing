@@ -20,6 +20,8 @@ model PlatformConfig {
   mode            String   @default("paid") // paid(付费) / free(免费)
   // 充值配置
   rechargeEnabled Boolean  @default(true)
+  wechatQrCode    String   @default("") // 个人微信收款码（URL 或 base64）
+  alipayQrCode    String   @default("") // 个人支付宝收款码（URL 或 base64）
   // 自定义套餐 JSON: [{"id":"starter","tokens":50000,"price":9.9,"name":"入门","popular":false}]
   customPackages  String   @default("")
   // 默认 AI 配置

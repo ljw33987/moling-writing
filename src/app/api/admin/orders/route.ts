@@ -42,3 +42,60 @@ export async function GET(req: NextRequest) {
     },
   })
 }
+
+// PATCH /api/admin/orders - 管理员一键确认到账或取消订单
+export async function PATCH(req: NextRequest) {
+  const session = await requireAdminOr401()
+  if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
+
+  const body = await req.json()
+  const { id, action = 'confirm' } = body
+  if (!id) return NextResponse.json({ error: '需要订单 id' }, { status: 400 })
+
+  const order = await db.order.findUnique({ where: { id } })
+  if (!order) return NextResponse.json({ error: '订单不存在' }, { status: 404 })
+
+  if (action === 'cancel') {
+    const res = await db.order.updateMany({
+      where: { id, status: 'pending' },
+      data: { status: 'failed' },
+    })
+    if (res.count !== 1) {
+      return NextResponse.json({ error: '该订单状态已变更，无法取消' }, { status: 409 })
+    }
+    return NextResponse.json({ ok: true, status: 'failed' })
+  }
+
+  if (order.status === 'paid') {
+    return NextResponse.json({ error: '订单已到账，无需重复确认' }, { status: 400 })
+  }
+
+  const paidAt = new Date()
+  const claimed = await db.$transaction(async (tx) => {
+    const res = await tx.order.updateMany({
+      where: { id, status: 'pending' },
+      data: { status: 'paid', paidAt },
+    })
+    if (res.count !== 1) return false
+    await tx.user.update({
+      where: { id: order.userId },
+      data: { tokens: { increment: order.tokens } },
+    })
+    return true
+  })
+
+  if (!claimed) {
+    return NextResponse.json({ error: '订单已被处理，请刷新列表' }, { status: 409 })
+  }
+
+  const updatedUser = await db.user.findUnique({
+    where: { id: order.userId },
+    select: { tokens: true },
+  })
+  return NextResponse.json({
+    ok: true,
+    status: 'paid',
+    paidAt,
+    newBalance: updatedUser?.tokens,
+  })
+}

@@ -21,10 +21,16 @@ export async function GET() {
   }
 
   const mappings = parseModelMappings((config as any).modelMappings)
+  const qrRows = await db.$queryRaw<Array<{ wechatQrCode: string; alipayQrCode: string }>>`
+    SELECT wechatQrCode, alipayQrCode FROM PlatformConfig WHERE id = 'default' LIMIT 1
+  `.catch(() => [])
+  const qr = qrRows[0] || { wechatQrCode: '', alipayQrCode: '' }
 
   // 隐藏 API Key 明文
   const safe = {
     ...config,
+    wechatQrCode: qr.wechatQrCode || '',
+    alipayQrCode: qr.alipayQrCode || '',
     defaultAiApiKey: config.defaultAiApiKey ? `****${config.defaultAiApiKey.slice(-4)}` : '',
     hasApiKey: !!config.defaultAiApiKey,
     customPackages: config.customPackages ? JSON.parse(config.customPackages) : [],
@@ -42,7 +48,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const {
     platformName, platformIcon, platformDesc,
-    mode, rechargeEnabled, customPackages,
+    mode, rechargeEnabled, wechatQrCode, alipayQrCode, customPackages,
     defaultAiProvider, defaultAiApiKey, defaultAiBaseUrl, defaultAiModel,
     modelMappings,
     registerTokens,
@@ -102,6 +108,12 @@ export async function POST(req: NextRequest) {
   }
 
   const updated = await db.platformConfig.update({ where: { id: 'default' }, data })
+  if (wechatQrCode !== undefined) {
+    await db.$executeRaw`UPDATE PlatformConfig SET wechatQrCode = ${String(wechatQrCode)} WHERE id = 'default'`
+  }
+  if (alipayQrCode !== undefined) {
+    await db.$executeRaw`UPDATE PlatformConfig SET alipayQrCode = ${String(alipayQrCode)} WHERE id = 'default'`
+  }
   const updatedMappings = parseModelMappings((updated as any).modelMappings)
 
   return NextResponse.json({

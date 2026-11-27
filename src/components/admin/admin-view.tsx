@@ -82,7 +82,7 @@ export function AdminView() {
           </TabsTrigger>
           <TabsTrigger value="orders" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
             <CreditCard className="w-3.5 h-3.5" />
-            {t("ad.orders")}
+            订单管理
           </TabsTrigger>
           <TabsTrigger value="messages" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
             <MessageSquare className="w-3.5 h-3.5" />
@@ -691,6 +691,10 @@ function OrdersTab() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [actionOrderId, setActionOrderId] = useState<string | null>(null)
+  const [wechatQrCode, setWechatQrCode] = useState('')
+  const [alipayQrCode, setAlipayQrCode] = useState('')
+  const [savingQr, setSavingQr] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -708,6 +712,65 @@ function OrdersTab() {
     load()
   }, [load])
 
+  useEffect(() => {
+    api<{ config: { wechatQrCode?: string; alipayQrCode?: string } }>('/api/admin/platform-config')
+      .then((r) => {
+        setWechatQrCode(r.config?.wechatQrCode || '')
+        setAlipayQrCode(r.config?.alipayQrCode || '')
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleQrUpload = (target: 'wechat' | 'alipay', file?: File) => {
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('图片请小于 2MB')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      if (target === 'wechat') setWechatQrCode(result)
+      else setAlipayQrCode(result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSaveQr = async () => {
+    setSavingQr(true)
+    try {
+      await api('/api/admin/platform-config', {
+        method: 'POST',
+        body: JSON.stringify({ wechatQrCode, alipayQrCode }),
+      })
+      toast.success('个人收款码已保存')
+    } catch (e: any) {
+      toast.error(e.message || '保存失败')
+    } finally {
+      setSavingQr(false)
+    }
+  }
+
+  const handleOrderAction = async (id: string, action: 'confirm' | 'cancel') => {
+    setActionOrderId(id)
+    try {
+      const r = await api<{ ok: boolean; newBalance?: number }>('/api/admin/orders', {
+        method: 'PATCH',
+        body: JSON.stringify({ id, action }),
+      })
+      if (action === 'confirm') {
+        toast.success(`已确认到账！用户最新余额：${(r.newBalance ?? 0).toLocaleString()}`)
+      } else {
+        toast.success('订单已取消')
+      }
+      load()
+    } catch (e: any) {
+      toast.error(e.message || '操作失败')
+    } finally {
+      setActionOrderId(null)
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="flex justify-center py-12">
@@ -718,6 +781,79 @@ function OrdersTab() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-sm">个人收款码设置（0 手续费人工确认模式）</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              上传你的个人微信/支付宝收款码后，用户在充值页扫码付款，你在此处点「确认到账」即可自动发字数
+            </p>
+          </div>
+          <Button size="sm" onClick={handleSaveQr} disabled={savingQr} className="gap-1.5 shrink-0">
+            {savingQr && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            保存收款码
+          </Button>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">微信收款码</Label>
+              <label className="text-xs text-primary cursor-pointer hover:underline">
+                上传图片
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleQrUpload('wechat', e.target.files?.[0])}
+                />
+              </label>
+            </div>
+            <Input
+              value={wechatQrCode.startsWith('data:') ? '（已上传本地图片）' : wechatQrCode}
+              onChange={(e) => setWechatQrCode(e.target.value)}
+              placeholder="粘贴收款码图片链接，或点击右上角上传图片"
+              className="h-8 text-xs"
+            />
+            {wechatQrCode && (
+              <div className="flex items-center gap-3 pt-1">
+                <img src={wechatQrCode} alt="微信收款码" className="w-20 h-20 object-contain rounded border bg-white" />
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setWechatQrCode('')}>
+                  清除
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">支付宝收款码</Label>
+              <label className="text-xs text-primary cursor-pointer hover:underline">
+                上传图片
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleQrUpload('alipay', e.target.files?.[0])}
+                />
+              </label>
+            </div>
+            <Input
+              value={alipayQrCode.startsWith('data:') ? '（已上传本地图片）' : alipayQrCode}
+              onChange={(e) => setAlipayQrCode(e.target.value)}
+              placeholder="粘贴收款码图片链接，或点击右上角上传图片"
+              className="h-8 text-xs"
+            />
+            {alipayQrCode && (
+              <div className="flex items-center gap-3 pt-1">
+                <img src={alipayQrCode} alt="支付宝收款码" className="w-20 h-20 object-contain rounded border bg-white" />
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setAlipayQrCode('')}>
+                  清除
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {data?.stats && (
         <div className="grid grid-cols-3 gap-4">
           <Card>
@@ -754,6 +890,7 @@ function OrdersTab() {
                   <th className="text-left p-3">方式</th>
                   <th className="text-left p-3">状态</th>
                   <th className="text-left p-3">时间</th>
+                  <th className="text-right p-3">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -776,20 +913,45 @@ function OrdersTab() {
                         </Badge>
                       ) : o.status === 'failed' ? (
                         <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
-                          失败
+                          已取消
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                          待支付
+                          待确认
                         </Badge>
                       )}
                     </td>
                     <td className="p-3 text-xs text-muted-foreground">{formatTime(o.createdAt)}</td>
+                    <td className="p-3 text-right">
+                      {o.status === 'pending' ? (
+                        <div className="inline-flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            disabled={actionOrderId === o.id}
+                            onClick={() => handleOrderAction(o.id, 'confirm')}
+                          >
+                            {actionOrderId === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : '确认到账'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-muted-foreground"
+                            disabled={actionOrderId === o.id}
+                            onClick={() => handleOrderAction(o.id, 'cancel')}
+                          >
+                            取消
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {data?.orders?.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
                       暂无订单
                     </td>
                   </tr>

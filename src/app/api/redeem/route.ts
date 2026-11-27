@@ -3,12 +3,18 @@ import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { describeReward, normalizeCode } from '@/lib/redeem'
 import { sendRedeemNotification } from '@/lib/email'
+import { checkRateLimit } from '@/lib/concurrency'
 
 // POST /api/redeem - 用户兑换码
 export async function POST(req: NextRequest) {
   const session = await requireSessionOr401()
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
   const user = session.user
+
+  const rl = checkRateLimit(`redeem:${user.id}`, 15, 60_000)
+  if (!rl.ok) {
+    return NextResponse.json({ error: `兑换尝试过于频繁，请 ${rl.retryAfterSec} 秒后再试` }, { status: 429 })
+  }
 
   const { code: rawCode } = await req.json()
   if (!rawCode?.trim()) {
@@ -158,50 +164,50 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // ============ 独占兑换码（一码一人） ============
+  // ============ 独占兑换码（一码一人，事务 CAS 防并发双兑） ============
   if (redeemCode.status === 'used') {
     return NextResponse.json({ error: '该兑换码已被使用' }, { status: 400 })
   }
 
-  // 记录兑换前状态
   const tokensBefore = user.tokens
   const planBefore = user.plan
+  const bonusTokens =
+    redeemCode.rewardType === 'plan'
+      ? redeemCode.planDays >= 365
+        ? 500000
+        : redeemCode.planDays >= 30
+          ? 50000
+          : 0
+      : 0
+  const addTokens = redeemCode.rewardType === 'token' ? redeemCode.tokenAmount : bonusTokens
+  const planAfter = redeemCode.rewardType === 'plan' ? (redeemCode.planReward || planBefore) : planBefore
 
-  // 执行兑换
-  let tokensAfter = tokensBefore
-  let planAfter = planBefore
-
-  if (redeemCode.rewardType === 'token') {
-    tokensAfter = tokensBefore + redeemCode.tokenAmount
-    await db.user.update({
-      where: { id: user.id },
-      data: { tokens: tokensAfter },
+  const claimed = await db.$transaction(async (tx) => {
+    const res = await tx.redeemCode.updateMany({
+      where: { id: redeemCode.id, status: 'unused' },
+      data: {
+        status: 'used',
+        usedBy: user.id,
+        usedAt: new Date(),
+      },
     })
-  } else if (redeemCode.rewardType === 'plan') {
-    planAfter = redeemCode.planReward || planBefore
-    await db.user.update({
-      where: { id: user.id },
-      data: { plan: planAfter },
-    })
-    const bonusTokens = redeemCode.planDays >= 365 ? 500000 : redeemCode.planDays >= 30 ? 50000 : 0
-    if (bonusTokens > 0) {
-      tokensAfter = tokensBefore + bonusTokens
-      await db.user.update({
-        where: { id: user.id },
-        data: { tokens: tokensAfter },
-      })
-    }
-  }
+    if (res.count !== 1) return null
 
-  // 标记兑换码为已使用
-  await db.redeemCode.update({
-    where: { id: redeemCode.id },
-    data: {
-      status: 'used',
-      usedBy: user.id,
-      usedAt: new Date(),
-    },
+    const updatedUser = await tx.user.update({
+      where: { id: user.id },
+      data: {
+        ...(addTokens > 0 ? { tokens: { increment: addTokens } } : {}),
+        ...(redeemCode.rewardType === 'plan' ? { plan: planAfter } : {}),
+      },
+      select: { tokens: true },
+    })
+    return updatedUser
   })
+
+  if (!claimed) {
+    return NextResponse.json({ error: '该兑换码已被使用' }, { status: 400 })
+  }
+  const tokensAfter = claimed.tokens
 
   // 记录兑换历史
   await db.redeemHistory.create({
