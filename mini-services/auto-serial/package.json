@@ -1,12 +1,11 @@
 {
   "name": "auto-serial-service",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "bun --hot index.ts"
+    "dev": "cd ../.. && bun --hot mini-services/auto-serial/index.ts",
+    "start": "cd ../.. && bun mini-services/auto-serial/index.ts"
   },
-  "dependencies": {
-    "@prisma/client": "6.19.3",
-    "z-ai-web-dev-sdk": "^0.0.18"
-  }
+  "comment": "本服务复用仓库根目录的 node_modules 与 prisma/local.db。不要在本目录单独安装依赖，否则会生成没有 schema 的 Prisma Client。"
 }

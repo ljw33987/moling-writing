@@ -90,10 +90,13 @@ export const AiDraft = Node.create({
 
   addCommands() {
     return {
+      // AI 草稿永远追加到正文末尾：
+      // 若按光标位置插入，光标落在段落中间就会把作者的原句劈成两半，
+      // 也会让「一键生成」看起来像覆盖了已有内容。
       insertAiDraft:
         () =>
-        ({ commands }) =>
-          commands.insertContent({
+        ({ state, commands }) =>
+          commands.insertContentAt(state.doc.content.size, {
             type: this.name,
             attrs: { status: 'streaming' },
             content: [{ type: 'paragraph' }],
@@ -104,7 +107,7 @@ export const AiDraft = Node.create({
         ({ state, commands }) => {
           if (findDraftById(state, draft.id)) return false
           const paragraphs = draft.content.replace(/\r\n?/g, '\n').split('\n')
-          return commands.insertContent({
+          return commands.insertContentAt(state.doc.content.size, {
             type: this.name,
             attrs: {
               status: 'pending',

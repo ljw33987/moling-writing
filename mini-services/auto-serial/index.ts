@@ -1,9 +1,35 @@
-import { PrismaClient } from '/home/z/my-project/node_modules/@prisma/client'
-import ZAI from '/home/z/my-project/node_modules/z-ai-web-dev-sdk'
+import { PrismaClient } from '@prisma/client'
+import ZAI from 'z-ai-web-dev-sdk'
+import { existsSync, readFileSync } from 'fs'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 
-// 配置 Prisma
+const __dir = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dir, '../..')
+
+// 本服务必须与主应用共用同一个 SQLite 库与同一份平台 AI 配置。
+// 优先读取仓库根目录的 .env（进程从任意目录启动都能拿到 DATABASE_URL）。
+if (!process.env.DATABASE_URL) {
+  const envPath = resolve(repoRoot, '.env')
+  if (existsSync(envPath)) {
+    for (const line of readFileSync(envPath, 'utf-8').split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)$/)
+      if (!m) continue
+      let value = m[2].trim()
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+      if (process.env[m[1]] === undefined) process.env[m[1]] = value
+    }
+  }
+}
+
+// 配置 Prisma（未配置时回落到仓库内的 prisma/local.db，与主应用一致）
 const db = new PrismaClient({
-  datasources: { db: { url: 'file:/home/z/my-project/db/custom.db' } },
+  datasources: { db: { url: process.env.DATABASE_URL || 'file:./local.db' } },
 })
 
 const SCAN_INTERVAL = 30 * 1000 // 30 秒扫描一次
@@ -78,21 +104,47 @@ ${recentChapters || '（这是第一章）'}
 
     console.log(`[AutoSerial] 调用 AI 生成第 ${chapterNum} 章...`)
 
-    // 调用 AI
-    const zai = await ZAI.create()
-    const completion = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content:
-            '你是专业的网文写手，擅长节奏紧凑、画面感强的章节。根据用户提供的上下文自然续写下一章。',
-        },
-        { role: 'user', content: prompt },
-      ],
-      thinking: { type: 'disabled' },
-    })
+    // 调用 AI：优先使用后台配置的第三方接口（与主应用同一套模型），
+    // 没有配置时才回落到内置 z-ai。
+    const messages = [
+      {
+        role: 'system',
+        content:
+          '你是专业的网文写手，擅长节奏紧凑、画面感强的章节。根据用户提供的上下文自然续写下一章。\n' +
+          '【人类自然口吻与去 AI 味铁律】\n' +
+          '1. 像真人在写故事、像活人在说话：对话要有口语停顿、打断、反问、情绪潜台词，严禁角色像播音员一样长篇大论讲道理。\n' +
+          '2. 用具体动作、眼神与生活细节推进情绪，严禁「这让他心中五味杂陈」「空气仿佛凝固」「命运的齿轮开始转动」这类空洞总结句。\n' +
+          '3. 句式长短错落，多用短句与动词，严禁连续三句结构对称的排比。\n' +
+          '4. 严禁使用高频 AI 套话：不禁、仿佛、然而、嘴角微微上扬、一抹、眼神微眯、深吸一口气、心中五味杂陈、宛如、不由自主、值得一提、在这一刻、悄然、骤然、陡然、蓦然。',
+      },
+      { role: 'user', content: prompt },
+    ]
 
-    const reply = completion.choices[0]?.message?.content || ''
+    let reply = ''
+    const platform = await db.platformConfig.findFirst().catch(() => null)
+    const baseUrl = (platform?.defaultAiBaseUrl || '').trim()
+    const apiKey = (platform?.defaultAiApiKey || '').trim()
+    const model = (platform?.defaultAiModel || '').trim()
+
+    if (baseUrl && apiKey && model && !apiKey.startsWith('****')) {
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages, stream: false }),
+      })
+      if (!res.ok) {
+        throw new Error(`AI 接口 ${res.status}: ${(await res.text()).slice(0, 200)}`)
+      }
+      const data: any = await res.json()
+      reply = data?.choices?.[0]?.message?.content || ''
+    } else {
+      const zai = await ZAI.create()
+      const completion: any = await zai.chat.completions.create({
+        messages,
+        thinking: { type: 'disabled' },
+      } as any)
+      reply = completion?.choices?.[0]?.message?.content || ''
+    }
 
     // 解析标题和正文
     let title = `第${chapterNum}章`

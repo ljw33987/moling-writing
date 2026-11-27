@@ -11,6 +11,24 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -49,6 +67,8 @@ import {
   Tag,
   Pencil,
   History,
+  GitBranch,
+  ArrowDownToLine,
 } from 'lucide-react'
 import { api, countWords } from '@/lib/helpers'
 import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
@@ -166,6 +186,37 @@ function normalizeChapterHeading(raw: string): string {
     .toLowerCase()
 }
 
+function parseCnOrArabicNum(raw: string): number | null {
+  const m = raw.match(/第([一二三四五六七八九十百千万零〇0-9]+)[章节回]/)
+  if (!m) return null
+  const token = m[1]
+  if (/^\d+$/.test(token)) return parseInt(token, 10)
+  const map: Record<string, number> = {
+    零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4,
+    五: 5, 六: 6, 七: 7, 八: 8, 九: 9,
+  }
+  const unitMap: Record<string, number> = { 十: 10, 百: 100, 千: 1000, 万: 10000 }
+  let total = 0
+  let section = 0
+  let num = 0
+  for (const ch of token) {
+    if (map[ch] !== undefined) {
+      num = map[ch]
+    } else if (unitMap[ch]) {
+      const unit = unitMap[ch]
+      if (unit === 10000) {
+        section = (section + num) * 10000
+        total += section
+        section = 0
+      } else {
+        section += (num === 0 && unit === 10 ? 1 : num) * unit
+      }
+      num = 0
+    }
+  }
+  return total + section + num
+}
+
 function parseMultiChapterSections(
   content: string,
   messageRefs: ReferencedItem[] | undefined,
@@ -205,9 +256,9 @@ function parseMultiChapterSections(
       if (normLine === normTitle || normLine.includes(normTitle) || normTitle.includes(normLine)) {
         return ch
       }
-      const chNumMatch = ch.title.match(/第[一二三四五六七八九十百千万0-9]+[章节回]/)
-      const lineNumMatch = trimmed.match(/第[一二三四五六七八九十百千万0-9]+[章节回]/)
-      if (chNumMatch && lineNumMatch && chNumMatch[0] === lineNumMatch[0]) {
+      const chNum = parseCnOrArabicNum(ch.title)
+      const lineNum = parseCnOrArabicNum(trimmed)
+      if (chNum !== null && lineNum !== null && chNum === lineNum) {
         return ch
       }
     }
@@ -344,6 +395,7 @@ interface Props {
   onWritingStyleChange?: (styleId: string | null) => void
   onChaptersUpdated?: () => void
   onInsertText: (text: string) => void
+  onReplaceChapterText?: (text: string) => void
 }
 
 const REF_TYPE_META: Record<
@@ -385,12 +437,21 @@ export function AiAssistant({
   onWritingStyleChange,
   onChaptersUpdated,
   onInsertText,
+  onReplaceChapterText,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [presets, setPresets] = useState<Preset[]>([])
   const [presetOpen, setPresetOpen] = useState(false)
+  const [pendingPreset, setPendingPreset] = useState<Preset | null>(null)
+  const [presetPromptInput, setPresetPromptInput] = useState('')
+  const [confirmReplaceText, setConfirmReplaceText] = useState<string | null>(null)
+  // 分支讨论窗口（类似 ChatGPT Branch：引用消息到独立窗口讨论，完成后合并回主会话）
+  const [branchSeed, setBranchSeed] = useState<string | null>(null)
+  const [branchMessages, setBranchMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
+  const [branchInput, setBranchInput] = useState('')
+  const [branchLoading, setBranchLoading] = useState(false)
 
   // 模型选择（仅展示自定义脱敏名称，如 baogeng_v4 / baogeng_v4_pro）
   const [models, setModels] = useState<PublicAiModel[]>(PLATFORM_MODEL_ALIASES)
@@ -713,12 +774,22 @@ export function AiAssistant({
   }, [availableRefs, mentionQuery])
 
   const addReference = (item: AiReferenceOption) => {
-    setReferencedItems((prev) => {
-      if (prev.some((p) => p.type === item.type && p.id === item.id)) return prev
-      return [...prev, { type: item.type, id: item.id, title: item.title }]
-    })
+    const exists = referencedItems.some((p) => p.type === item.type && p.id === item.id)
+    if (mentionTriggerType === 'button') {
+      // 点击“引用设定”按钮打开的面板支持连续多选/反选，不自动关闭
+      setReferencedItems((prev) =>
+        exists
+          ? prev.filter((p) => !(p.type === item.type && p.id === item.id))
+          : [...prev, { type: item.type, id: item.id, title: item.title }]
+      )
+      return
+    }
 
-    // 如果是通过输入 @xxx 触发的，清理末尾的 @query
+    if (!exists) {
+      setReferencedItems((prev) => [...prev, { type: item.type, id: item.id, title: item.title }])
+    }
+
+    // 如果是通过输入 @xxx 触发的，清理末尾的 @query 并关闭浮层
     if (mentionTriggerType === 'at' && textareaRef.current) {
       const el = textareaRef.current
       const cursor = el.selectionStart ?? input.length
@@ -976,9 +1047,122 @@ export function AiAssistant({
     } else if (p.id === 'char_dialogue') {
       sendMessage('请模拟当前小说中两个核心角色的对话，5-8 轮。', p.id)
     } else {
-      const content = prompt(`使用「${p.name}」预设，请输入内容：`, '')
-      if (content) sendMessage(content, p.id)
+      setPresetPromptInput('')
+      setPendingPreset(p)
     }
+  }
+
+  const handleOpenBranch = (seedContent: string) => {
+    setBranchSeed(seedContent)
+    setBranchMessages([])
+    setBranchInput('')
+  }
+
+  const handleSendBranch = async () => {
+    const text = branchInput.trim()
+    if (!text || branchLoading || !branchSeed) return
+    const nextHistory = [...branchMessages, { role: 'user' as const, content: text }]
+    setBranchMessages([...nextHistory, { role: 'assistant' as const, content: '' }])
+    setBranchInput('')
+    setBranchLoading(true)
+
+    try {
+      const historyText = nextHistory
+        .slice(0, -1)
+        .map((m) => `${m.role === 'user' ? '作者' : 'AI'}: ${m.content}`)
+        .join('\n')
+      const compiledPrompt = `【引用片段/原讨论起点】\n"""\n${branchSeed.slice(0, 2500)}\n"""\n${
+        historyText ? `\n【分支讨论记录】\n${historyText}\n` : ''
+      }\n【作者最新问题/要求】\n${text}`
+
+      const res = await fetch('/api/ai/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'chat',
+          novelId,
+          chapterId,
+          message: compiledPrompt,
+          modelId: selectedModel,
+          writingStyleId: activeStyleId || 'none',
+        }),
+      })
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({ error: '请求失败' }))
+        throw new Error(err.error || '分支讨论请求失败')
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let acc = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const payload = line.slice(6).trim()
+          if (!payload || payload === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(payload)
+            if (parsed.delta) {
+              acc += parsed.delta
+              setBranchMessages((prev) => {
+                const copy = [...prev]
+                copy[copy.length - 1] = { role: 'assistant', content: acc }
+                return copy
+              })
+            } else if (parsed.error) {
+              throw new Error(parsed.error)
+            }
+          } catch (e: any) {
+            if (e?.message && !e.message.includes('JSON')) throw e
+          }
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || '分支讨论失败')
+      setBranchMessages((prev) => {
+        const copy = [...prev]
+        if (copy.length > 0 && copy[copy.length - 1].role === 'assistant' && !copy[copy.length - 1].content) {
+          copy[copy.length - 1] = { role: 'assistant', content: `生成失败：${e.message || '网络异常'}` }
+        }
+        return copy
+      })
+    } finally {
+      setBranchLoading(false)
+    }
+  }
+
+  const handleMergeBranchToMain = () => {
+    const replies = branchMessages.filter((m) => m.role === 'assistant' && m.content.trim())
+    if (replies.length === 0) {
+      toast.error('请先在分支窗口进行至少一轮讨论')
+      return
+    }
+    const lastReply = replies[replies.length - 1].content.trim()
+    const userTopics = branchMessages
+      .filter((m) => m.role === 'user')
+      .map((m) => m.content.trim())
+      .slice(-2)
+      .join('；')
+    const mergedText = `**【分支讨论结论合并】**${userTopics ? `（聚焦：${userTopics.slice(0, 60)}）` : ''}\n\n${lastReply}`
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: mergedText,
+        modelLabel: selectedModel,
+      },
+    ])
+    setBranchSeed(null)
+    setBranchMessages([])
+    toast.success('已将分支讨论结论合并回主会话')
   }
 
   const handleClear = () => {
@@ -1282,7 +1466,7 @@ export function AiAssistant({
                   const refChapCount = (m.references || []).filter((r) => r.type === 'chapter').length
                   const parsed = !m.isError
                     ? parseMultiChapterSections(m.content, m.references, chapters)
-                    : { preamble: '', sections: [] }
+                    : { preamble: '', sections: [], postscript: '' }
                   const isMultiCardMode =
                     parsed.sections.length >= 2 || (refChapCount >= 2 && parsed.sections.length >= 1)
                   const appliedSet = new Set(appliedChapters[i] || [])
@@ -1444,28 +1628,48 @@ export function AiAssistant({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {!m.isError && !hasMultiSections && (
                           <>
-                            {allowWriteback && <Button
-                              variant="default"
-                              size="sm"
-                              className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                              onClick={() => {
-                                const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
-                                const plain = markdownToPlainText(cleanBody)
-                                onInsertText(plain)
-                                const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
-                                appendActionHistory({
-                                  kind: 'replace',
-                                  allowWriteback: true,
-                                  title: `替换写入「${targetTitle}」`,
-                                  preview: plain.slice(0, 100),
-                                  fullText: plain,
-                                  words: countWords(plain),
-                                })
-                              }}
-                            >
-                              <Send className="w-3 h-3" />
-                              插入到正文
-                            </Button>}
+                            {allowWriteback && (
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                                  title="安全追加到当前章节末尾（不覆盖原稿）"
+                                  onClick={() => {
+                                    const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
+                                    const plain = markdownToPlainText(cleanBody)
+                                    onInsertText(plain)
+                                    const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
+                                    appendActionHistory({
+                                      kind: 'replace',
+                                      allowWriteback: true,
+                                      title: `追加写入「${targetTitle}」`,
+                                      preview: plain.slice(0, 100),
+                                      fullText: plain,
+                                      words: countWords(plain),
+                                    })
+                                  }}
+                                >
+                                  <Send className="w-3 h-3" />
+                                  追加到正文
+                                </Button>
+                                {onReplaceChapterText && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-2 text-[11px] gap-1 rounded-[7px] text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                                    title="清空原章节内容并整章替换（会弹窗确认）"
+                                    onClick={() => {
+                                      const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
+                                      const plain = markdownToPlainText(cleanBody)
+                                      setConfirmReplaceText(plain)
+                                    }}
+                                  >
+                                    替换整章
+                                  </Button>
+                                )}
+                              </>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1496,6 +1700,19 @@ export function AiAssistant({
                           <RefreshCw className="w-3 h-3" />
                           {m.isError ? '刷新重试' : '重新生成'}
                         </Button>
+                        {!m.isError && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loading}
+                            className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px] text-indigo-600 dark:text-indigo-400"
+                            onClick={() => handleOpenBranch(m.content)}
+                            title="引用此回复另开独立窗口讨论，讨论完可合并回主会话"
+                          >
+                            <GitBranch className="w-3 h-3" />
+                            分支讨论
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )
@@ -1531,9 +1748,9 @@ export function AiAssistant({
               <button
                 type="button"
                 onClick={() => setMentionOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 font-medium"
               >
-                <X className="w-3.5 h-3.5" />
+                完成
               </button>
             </div>
             <div className="max-h-56 overflow-y-auto p-1 space-y-0.5">
@@ -1972,6 +2189,185 @@ export function AiAssistant({
         onRefreshStyles={loadWritingStyles}
         onBindStyle={handleBindStyle}
       />
+
+      {/* 预设指令多行输入弹窗（替代原生 window.prompt） */}
+      <Dialog open={!!pendingPreset} onOpenChange={(open) => !open && setPendingPreset(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              使用预设：{pendingPreset?.name}
+            </DialogTitle>
+            {pendingPreset?.description && (
+              <DialogDescription className="text-xs">
+                {pendingPreset.description}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <Textarea
+            value={presetPromptInput}
+            onChange={(e) => setPresetPromptInput(e.target.value)}
+            placeholder="请输入你的具体要求、剧情片段或参考信息（支持多行）..."
+            rows={4}
+            className="text-xs"
+            autoFocus
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && presetPromptInput.trim() && pendingPreset) {
+                e.preventDefault()
+                const p = pendingPreset
+                const text = presetPromptInput.trim()
+                setPendingPreset(null)
+                void sendMessage(text, p.id)
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setPendingPreset(null)}>
+              取消
+            </Button>
+            <Button
+              size="sm"
+              disabled={!presetPromptInput.trim()}
+              onClick={() => {
+                if (!pendingPreset || !presetPromptInput.trim()) return
+                const p = pendingPreset
+                const text = presetPromptInput.trim()
+                setPendingPreset(null)
+                void sendMessage(text, p.id)
+              }}
+            >
+              发送指令
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 替换整章二次确认弹窗 */}
+      <AlertDialog open={confirmReplaceText !== null} onOpenChange={(open) => !open && setConfirmReplaceText(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认替换整章正文？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作会清空当前章节已有正文，并用 AI 回复内容全部替换写入（若只需要接续剧情，建议点击「追加到正文」）。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmReplaceText === null || !onReplaceChapterText) return
+                const plain = confirmReplaceText
+                setConfirmReplaceText(null)
+                onReplaceChapterText(plain)
+                const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
+                appendActionHistory({
+                  kind: 'replace',
+                  allowWriteback: true,
+                  title: `替换写入「${targetTitle}」`,
+                  preview: plain.slice(0, 100),
+                  fullText: plain,
+                  words: countWords(plain),
+                })
+              }}
+            >
+              确认替换整章
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 分支讨论窗口（类似 ChatGPT Branch：独立推演不污染主对话，完成后一键合并回主会话） */}
+      <Dialog open={branchSeed !== null} onOpenChange={(open) => !open && setBranchSeed(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 py-3.5 border-b border-border shrink-0">
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-primary" />
+              独立分支讨论（不污染主会话）
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              围绕引用的片段或设定反复推演剧情、对白或分支走向，满意后一键合并回主会话继续创作。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-5 py-2.5 bg-muted/30 border-b border-border shrink-0">
+            <div className="text-[11px] font-medium text-muted-foreground mb-1">引用起点：</div>
+            <div className="text-xs text-foreground/85 line-clamp-3 whitespace-pre-wrap">
+              {branchSeed}
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-[220px] overflow-y-auto p-4 space-y-3">
+            {branchMessages.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-8">
+                输入你想针对这段内容深入探讨的问题（如：“把这里改得更有悬念”、“如果反派此时反水会怎样？”）
+              </div>
+            ) : (
+              branchMessages.map((bm, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-lg px-3.5 py-2.5 text-xs ${
+                    bm.role === 'user'
+                      ? 'bg-primary text-primary-foreground ml-10'
+                      : 'bg-muted/60 border border-border mr-6'
+                  }`}
+                >
+                  {bm.role === 'user' ? (
+                    <div className="whitespace-pre-wrap">{bm.content}</div>
+                  ) : (
+                    <MarkdownRenderer content={bm.content || '思考中...'} />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-3.5 border-t border-border bg-card space-y-2 shrink-0">
+            <div className="flex gap-2">
+              <Textarea
+                value={branchInput}
+                onChange={(e) => setBranchInput(e.target.value)}
+                placeholder="输入分支讨论问题（Ctrl+Enter 发送）..."
+                rows={2}
+                className="text-xs resize-none flex-1"
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleSendBranch()
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                className="self-end h-8 px-3 text-xs gap-1"
+                disabled={branchLoading || !branchInput.trim()}
+                onClick={() => void handleSendBranch()}
+              >
+                {branchLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                发送
+              </Button>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-muted-foreground">
+                讨论共 {Math.floor(branchMessages.length / 2)} 轮
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setBranchSeed(null)}>
+                  关闭
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  disabled={branchLoading || !branchMessages.some((m) => m.role === 'assistant' && m.content.trim())}
+                  onClick={handleMergeBranchToMain}
+                >
+                  <ArrowDownToLine className="w-3.5 h-3.5" />
+                  合并结论回主会话
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

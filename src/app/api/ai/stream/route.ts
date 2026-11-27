@@ -7,7 +7,7 @@ import { getPlatformConfig, getPlatformAiCandidates, callThirdPartyAIWithFallbac
 import { getPlatformProAiFromEnv, parseModelMappings } from '@/lib/ai-models'
 import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
-import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
 import ZAI from 'z-ai-web-dev-sdk'
 
@@ -94,6 +94,9 @@ export async function POST(req: NextRequest) {
 
   const readOnlyChat = action === 'chat' && preset !== 'chapter_gen' &&
     !allowsAiProseWriteback(message || '', preset)
+  if (!readOnlyChat) {
+    systemPrompt += `\n\n${HUMAN_VOICE_SYSTEM_RULES}`
+  }
   if (readOnlyChat) {
     systemPrompt += '\n\n【只读分析】回答用户的问题。审稿或查错时，只报告问题、证据和建议，不改写或重发整章正文。'
   } else if (refChapters.length >= 2) {

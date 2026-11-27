@@ -238,9 +238,16 @@ export function EditorView() {
   }
 
   // 章节标题更新
+  // 注意：必须始终基于最新的 chapterState 改写。
+  // 早期版本直接用闭包里的 currentChapter，AI 生成过程中（异步）回调时会拿到
+  // 生成前的旧内容，把正文回滚并触发编辑器重置，导致刚生成的 AI 草稿被清空。
+  const chapterStateRef = useRef<Chapter | null>(null)
+  chapterStateRef.current = chapterState
+
   const handleTitleChange = async (title: string) => {
-    if (!currentChapter) return
-    const updated = { ...currentChapter, title }
+    const latest = chapterStateRef.current
+    if (!latest) return
+    const updated = { ...latest, title }
     setCurrentChapterState(updated)
     setNovel((prev) => {
       if (!prev) return prev
@@ -248,7 +255,7 @@ export function EditorView() {
         ...prev,
         volumes: prev.volumes.map((v) => ({
           ...v,
-          chapters: v.chapters.map((c) => (c.id === currentChapter.id ? updated : c)),
+          chapters: v.chapters.map((c) => (c.id === latest.id ? updated : c)),
         })),
       }
     })
@@ -258,7 +265,7 @@ export function EditorView() {
       try {
         await api('/api/chapters', {
           method: 'PATCH',
-          body: JSON.stringify({ id: currentChapter.id, title }),
+          body: JSON.stringify({ id: latest.id, title }),
         })
       } catch (e: any) {
         toast.error('保存失败：' + e.message)
@@ -302,19 +309,37 @@ export function EditorView() {
     void loadNovel()
   }
 
-  // 插入正文：先清空当前章节正文，再用干净的纯文本段落全部替换写入
+  // 安全追加到正文末尾（不覆盖原稿）
   const handleInsertText = (text: string) => {
     if (!currentChapter) {
       toast.error('请先选择一个章节')
       return
     }
     if (tiptapRef.current) {
+      tiptapRef.current.appendContent(text)
+      toast.success('已追加到正文末尾')
+      return
+    }
+    const merged = currentChapter.content?.trim()
+      ? `${currentChapter.content.trim()}\n${text}`
+      : text
+    handleContentChange(merged)
+    toast.success('已追加到正文末尾')
+  }
+
+  // 替换整章正文（仅在用户明确确认替换时调用）
+  const handleReplaceChapterText = (text: string) => {
+    if (!currentChapter) {
+      toast.error('请先选择一个章节')
+      return
+    }
+    if (tiptapRef.current) {
       tiptapRef.current.replaceAllContent(text)
-      toast.success('已清空原正文并全部替换写入')
+      toast.success('已替换整章正文')
       return
     }
     handleContentChange(text)
-    toast.success('已清空原正文并全部替换写入')
+    toast.success('已替换整章正文')
   }
 
   // 替换选中文字
@@ -345,14 +370,8 @@ export function EditorView() {
           variant="ghost"
           size="sm"
           className="h-7 px-2 gap-1 text-xs shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              window.history.back()
-            } else {
-              backToWorkspace()
-            }
-          }}
-          title="返回上一级"
+          onClick={() => backToWorkspace()}
+          title="返回书架"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">返回书架</span>
@@ -380,7 +399,7 @@ export function EditorView() {
             chapterContent={currentChapter?.content || ''}
             volumes={novel.volumes}
             onJumpChapter={setCurrentChapter}
-            onInsertAiDraft={handleInsertText}
+            onInsertAiDraft={handleReplaceChapterText}
             onChapterUpdated={() => void loadNovel()}
           />
           <EditorToolbar
@@ -555,6 +574,7 @@ export function EditorView() {
                   }
                   onChaptersUpdated={() => void loadNovel()}
                   onInsertText={handleInsertText}
+                  onReplaceChapterText={handleReplaceChapterText}
                 />
               </ResizablePanel>
             </>
@@ -644,6 +664,10 @@ export function EditorView() {
               onInsertText={(text) => {
                 setMobileDrawer(null)
                 handleInsertText(text)
+              }}
+              onReplaceChapterText={(text) => {
+                setMobileDrawer(null)
+                handleReplaceChapterText(text)
               }}
             />
           </div>

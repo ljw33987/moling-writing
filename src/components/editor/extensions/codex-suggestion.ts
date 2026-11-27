@@ -22,6 +22,7 @@ export function createCodexSuggestion(
           editor: this.editor,
           char: '@',
           allowSpaces: false,
+          allowedPrefixes: null,
           items: ({ query }) => search(query),
           command: ({ editor, range, props }) => {
             editor

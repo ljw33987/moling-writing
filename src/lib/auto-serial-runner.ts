@@ -3,7 +3,7 @@ import { callThirdPartyAI } from '@/lib/ai-providers'
 import { getPlatformConfig, getPlatformAiCandidates, callThirdPartyAIWithFallback, type AiEndpointConfig } from '@/lib/platform-ai'
 import { parseModelMappings } from '@/lib/ai-models'
 import { stripHtml } from '@/lib/context-assembler'
-import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
 import ZAI from 'z-ai-web-dev-sdk'
 
 const activeRuns = new Set<string>()
@@ -136,12 +136,14 @@ ${recentChapters || '（这是开篇第一章）'}
 
     const messages = [
       {
-        role: 'system',
+        role: 'system' as const,
         content:
           '你是专业的长篇网文作家，擅长根据大纲、人设与前文自然连载下一章正文。回复请使用中文。' +
-          styleInstruction,
+          styleInstruction +
+          '\n\n' +
+          HUMAN_VOICE_SYSTEM_RULES,
       },
-      { role: 'user', content: userPrompt },
+      { role: 'user' as const, content: userPrompt },
     ]
 
     // 解析平台默认映射与备选接口池（按优先级自动降级）

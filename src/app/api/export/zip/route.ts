@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { stripHtml } from '@/lib/context-assembler'
 import { ZipArchive } from 'archiver'
 
 // GET /api/export/zip?novelId=xxx&format=txt|markdown
@@ -81,11 +82,12 @@ export async function GET(req: NextRequest) {
     for (const [chIdx, ch] of vol.chapters.entries()) {
       const chNum = String(chIdx + 1).padStart(3, '0')
       const chFileName = `${chNum}_${sanitize(ch.title)}.${ext}`
+      const cleanBody = stripHtml(ch.content)
       let chContent: string
       if (isMarkdown) {
-        chContent = `# ${ch.title}\n\n${ch.content}\n`
+        chContent = `# ${ch.title}\n\n${cleanBody}\n`
       } else {
-        chContent = `${ch.title}\n\n${ch.content}\n`
+        chContent = `${ch.title}\n\n${cleanBody}\n`
       }
       archive.append(chContent, { name: `${volFolderName}/${chFileName}` })
     }

@@ -88,6 +88,35 @@ export function NovelWizard({ open, onClose, folderId, onCreated }: Props) {
     setAiResult(result)
   }
 
+  const parseCharactersToEntries = (raw?: string): Array<{ name: string; personality: string }> => {
+    if (!raw?.trim()) return []
+    const entries: Array<{ name: string; personality: string }> = []
+    const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+    for (const line of lines) {
+      // 匹配如 "1. **沈听雪**：..." 或 "- 沈听雪：..." 或 "### 沈听雪"
+      const m = line.match(/^(?:[-*•]|\d+[.、)]|#{1,4})?\s*\*{0,2}([^：:*\n]{1,16})\*{0,2}\s*[：:—\-]\s*(.+)$/)
+      if (m) {
+        const name = m[1].replace(/[*`]/g, '').trim()
+        const personality = m[2].trim()
+        if (name && !/^(核心角色|角色|人物)$/i.test(name)) {
+          entries.push({ name, personality })
+        }
+      }
+    }
+    return entries.slice(0, 6)
+  }
+
+  const handleTabChange = (nextTab: 'manual' | 'ai') => {
+    // 从 AI 辅助切到手动微调时，自动同步 AI 生成的书名/简介/大纲，避免手动复制
+    if (nextTab === 'manual') {
+      if (!title.trim() && aiResult.title) setTitle(aiResult.title)
+      if (!synopsis.trim() && aiResult.synopsis) setSynopsis(aiResult.synopsis)
+      if (!outline.trim() && aiResult.outline) setOutline(aiResult.outline)
+      if (aiGenre) setGenre(aiGenre)
+    }
+    setTab(nextTab)
+  }
+
   const handleCreate = async () => {
     const finalTitle = tab === 'ai' ? (aiResult.title || idea.slice(0, 12)) : title
     if (!finalTitle?.trim()) {
@@ -109,7 +138,24 @@ export function NovelWizard({ open, onClose, folderId, onCreated }: Props) {
         method: 'POST',
         body: JSON.stringify(body),
       })
-      toast.success('小说已创建')
+      // 若存在 AI 生成的核心角色，自动同步写入该作品的角色设定库
+      const parsedChars = parseCharactersToEntries(aiResult.characters)
+      if (parsedChars.length > 0) {
+        await Promise.all(
+          parsedChars.map((c) =>
+            api('/api/characters', {
+              method: 'POST',
+              body: JSON.stringify({
+                type: 'character',
+                novelId: r.novel.id,
+                name: c.name,
+                personality: c.personality,
+              }),
+            }).catch(() => null)
+          )
+        )
+      }
+      toast.success(parsedChars.length > 0 ? `小说已创建，并同步写入 ${parsedChars.length} 个核心角色` : '小说已创建')
       // 重置
       setTitle('')
       setIdea('')
@@ -134,7 +180,7 @@ export function NovelWizard({ open, onClose, folderId, onCreated }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <Tabs value={tab} onValueChange={(v) => handleTabChange(v as 'manual' | 'ai')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="ai" className="gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />

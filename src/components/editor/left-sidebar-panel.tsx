@@ -24,7 +24,22 @@ import {
   Plus,
   Trash2,
   Feather,
+  Pencil,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { buildInitialMindmapDoc } from './markdown-mindmap'
 import type { MindmapFile } from './mindmap-main-panel'
 import { WritingStyleDialog, type WritingStyleItem } from '@/components/ai/writing-style-dialog'
@@ -194,19 +209,83 @@ export function LeftSidebarPanel({
     } catch {}
   }
 
-  // 大纲编辑状态
+  // 简介与大纲编辑状态
   const [synopsis, setSynopsis] = useState(novel.synopsis || '')
+  const [outline, setOutline] = useState(novel.outline || '')
   const [savingOutline, setSavingOutline] = useState(false)
+  const [generatingOutline, setGeneratingOutline] = useState(false)
 
   useEffect(() => {
     setSynopsis(novel.synopsis || '')
-  }, [novel.id, novel.synopsis])
+    setOutline(novel.outline || '')
+  }, [novel.id, novel.synopsis, novel.outline])
 
-  // 设定速查状态
+  // 设定速查与快捷新建/编辑状态
   const [codexQuery, setCodexQuery] = useState('')
   const [codexItems, setCodexItems] = useState<
     Array<{ id: string; name: string; type: 'character' | 'worldview' | 'item'; summary: string }>
   >([])
+  const [codexModalOpen, setCodexModalOpen] = useState(false)
+  const [editingCodexId, setEditingCodexId] = useState<string | null>(null)
+  const [codexType, setCodexType] = useState<'character' | 'worldview' | 'item'>('character')
+  const [codexName, setCodexName] = useState('')
+  const [codexSummary, setCodexSummary] = useState('')
+  const [savingCodex, setSavingCodex] = useState(false)
+
+  const openCreateCodex = () => {
+    setEditingCodexId(null)
+    setCodexType('character')
+    setCodexName('')
+    setCodexSummary('')
+    setCodexModalOpen(true)
+  }
+
+  const openEditCodex = (item: { id: string; name: string; type: 'character' | 'worldview' | 'item'; summary: string }) => {
+    setEditingCodexId(item.id)
+    setCodexType(item.type)
+    setCodexName(item.name)
+    setCodexSummary(item.summary === '暂无描述' ? '' : item.summary)
+    setCodexModalOpen(true)
+  }
+
+  const handleSaveCodex = async () => {
+    if (!codexName.trim()) {
+      toast.error('请输入设定名称')
+      return
+    }
+    setSavingCodex(true)
+    try {
+      const payload: Record<string, any> = {
+        type: codexType,
+        novelId: novel.id,
+        name: codexName.trim(),
+      }
+      if (codexType === 'character') payload.personality = codexSummary.trim()
+      else if (codexType === 'worldview') payload.description = codexSummary.trim()
+      else payload.effect = codexSummary.trim()
+
+      if (editingCodexId) {
+        await api('/api/characters', {
+          method: 'PATCH',
+          body: JSON.stringify({ id: editingCodexId, ...payload }),
+        })
+        toast.success('设定已更新')
+      } else {
+        await api('/api/characters', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+        toast.success('已新建设定，可在正文中直接 @ 引用')
+      }
+      setCodexModalOpen(false)
+      await loadCodex()
+      window.dispatchEvent(new CustomEvent('moling:codex-updated'))
+    } catch (e: any) {
+      toast.error(e.message || '保存设定失败')
+    } finally {
+      setSavingCodex(false)
+    }
+  }
 
   const loadCodex = useCallback(async () => {
     try {
@@ -246,14 +325,56 @@ export function LeftSidebarPanel({
     return () => clearTimeout(timer)
   }, [tab, loadCodex])
 
+  const handleGenerateDetailedOutline = async () => {
+    setGeneratingOutline(true)
+    try {
+      const r = await api<{ reply: string }>('/api/ai', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'chat',
+          novelId: novel.id,
+          message: `请为小说《${novel.title}》（类型：${novel.genre}）生成专业长篇创作大纲与细纲规划，包含以下 4 个部分（使用 Markdown 标题）：
+# 核心主线与阶段目标
+# 关键支线、伏笔与主线交汇点
+# 核心人物关系与立场冲突
+# 分章细纲规划（列出接下来 5~8 章的每章核心事件、冲突与结尾钩子）
+
+参考简介：${synopsis || '无'}
+参考已有大纲：${outline || '无'}`,
+        }),
+      })
+      if (r.reply?.trim()) {
+        setOutline(r.reply.trim())
+        toast.success('已生成主支线与分章细纲，确认后可点击保存或转为导图')
+      }
+    } catch (e: any) {
+      toast.error(e.message || '生成细纲失败')
+    } finally {
+      setGeneratingOutline(false)
+    }
+  }
+
+  const handleOutlineToMindmap = () => {
+    const baseContent = outline.trim() || `# ${novel.title}\n## 核心主线\n- ${synopsis || '待补充'}`
+    const newFile: MindmapFile = {
+      id: `mm-outline-${Date.now()}`,
+      title: `${novel.title} · 主支线细纲导图`,
+      content: baseContent.startsWith('#') ? baseContent : `# ${novel.title} 主支线与细纲\n${baseContent}`,
+      updatedAt: new Date().toISOString(),
+    }
+    onCreateMindmap(newFile)
+    setTab('mindmap')
+    toast.success('已将大纲/细纲转为可视化思维导图')
+  }
+
   const handleSaveOutline = async () => {
     setSavingOutline(true)
     try {
       await api('/api/novels', {
         method: 'PATCH',
-        body: JSON.stringify({ id: novel.id, synopsis }),
+        body: JSON.stringify({ id: novel.id, synopsis, outline }),
       })
-      toast.success('作品简介已保存')
+      toast.success('简介与总大纲已保存')
       onTreeChange()
     } catch (e: any) {
       toast.error(e.message || '保存失败')
@@ -342,9 +463,46 @@ export function LeftSidebarPanel({
             <Textarea
               value={synopsis}
               onChange={(e) => setSynopsis(e.target.value)}
-              rows={10}
+              rows={5}
               className="text-xs resize-y"
               placeholder="输入作品简介..."
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-medium text-muted-foreground">总大纲 / 主支线与细纲</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[11px] gap-1"
+                  disabled={generatingOutline}
+                  onClick={handleGenerateDetailedOutline}
+                  title="AI 生成主线、支线关系与分章细纲"
+                >
+                  {generatingOutline ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-primary" />}
+                  {generatingOutline ? '推演中...' : 'AI 生成细纲'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[11px] gap-1"
+                  onClick={handleOutlineToMindmap}
+                  title="将大纲/细纲转为可视化思维导图"
+                >
+                  <Network className="w-3 h-3 text-indigo-500" />
+                  转导图
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              value={outline}
+              onChange={(e) => setOutline(e.target.value)}
+              rows={9}
+              className="text-xs resize-y"
+              placeholder="输入全书核心主线、支线伏笔、人物关系与分章细纲..."
             />
           </div>
           <Button
@@ -354,7 +512,7 @@ export function LeftSidebarPanel({
             disabled={savingOutline}
           >
             <Save className="w-3.5 h-3.5" />
-            {savingOutline ? '保存中...' : '保存简介'}
+            {savingOutline ? '保存中...' : '保存简介与大纲'}
           </Button>
         </TabsContent>
 
@@ -474,37 +632,62 @@ export function LeftSidebarPanel({
         </TabsContent>
 
         <TabsContent value="codex" className="flex-1 flex flex-col overflow-hidden p-3 gap-2 mt-0">
-          <div className="relative shrink-0">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-            <Input
-              value={codexQuery}
-              onChange={(e) => setCodexQuery(e.target.value)}
-              placeholder="搜索角色/世界观/道具..."
-              className="pl-8 h-8 text-xs"
-            />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+              <Input
+                value={codexQuery}
+                onChange={(e) => setCodexQuery(e.target.value)}
+                placeholder="搜索角色/世界观/道具..."
+                className="pl-8 h-8 text-xs"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 px-2.5 text-xs gap-1 shrink-0"
+              onClick={openCreateCodex}
+              title="在当前编辑器内直接新建设定，无需跳页"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              新建
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {filteredCodex.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">
-                暂无设定条目，可在顶部「设定库」添加
-              </p>
+              <div className="text-xs text-muted-foreground text-center py-6 space-y-2">
+                <p>暂无设定条目</p>
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={openCreateCodex}>
+                  <Plus className="w-3 h-3" /> 立即新建设定
+                </Button>
+              </div>
             ) : (
               filteredCodex.map((item) => (
                 <div
                   key={item.id}
                   className="rounded-md border border-border bg-background p-2.5 text-xs space-y-1"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-1.5">
                     <span className="font-medium truncate">{item.name}</span>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                         {item.type === 'character' ? '角色' : item.type === 'worldview' ? '世界观' : '道具'}
                       </Badge>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditCodex(item)}
+                        title="就地编辑设定"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
                       {onInsertCodexRef && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 px-1.5 text-[10px] text-indigo-600 dark:text-indigo-400 dark:text-indigo-600 dark:text-indigo-400"
+                          className="h-5 px-1.5 text-[10px] text-indigo-600 dark:text-indigo-400"
                           onClick={() => onInsertCodexRef(item.id)}
                           title="插入 @ 引用到当前光标"
                         >
@@ -544,6 +727,64 @@ export function LeftSidebarPanel({
         onRefreshStyles={loadWritingStyles}
         onBindStyle={handleBindStyle}
       />
+
+      {/* 编辑器内快捷新建/编辑设定弹窗（无需跳转设定库） */}
+      <Dialog open={codexModalOpen} onOpenChange={setCodexModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {editingCodexId ? '编辑设定条目' : '快捷新建设定（立即用于 @ 引用）'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {!editingCodexId && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium">设定分类</label>
+                <Select value={codexType} onValueChange={(v) => setCodexType(v as 'character' | 'worldview' | 'item')}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="character">角色卡</SelectItem>
+                    <SelectItem value="worldview">世界观</SelectItem>
+                    <SelectItem value="item">道具 / 功法</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs font-medium">名称 *</label>
+              <Input
+                value={codexName}
+                onChange={(e) => setCodexName(e.target.value)}
+                placeholder={codexType === 'character' ? '如：沈听雪' : codexType === 'worldview' ? '如：九幽鬼市' : '如：听魂剑'}
+                className="h-8 text-xs"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">
+                {codexType === 'character' ? '性格与核心设定' : codexType === 'worldview' ? '世界观详情' : '效果与来历'}
+              </label>
+              <Textarea
+                value={codexSummary}
+                onChange={(e) => setCodexSummary(e.target.value)}
+                rows={4}
+                className="text-xs"
+                placeholder="简明描述该设定的关键特征，AI 会自动读取..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setCodexModalOpen(false)}>
+              取消
+            </Button>
+            <Button size="sm" disabled={savingCodex || !codexName.trim()} onClick={handleSaveCodex}>
+              {savingCodex ? '保存中...' : '保存设定'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

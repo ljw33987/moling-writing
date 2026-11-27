@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -26,7 +26,7 @@ import {
   Undo2,
   Redo2,
 } from 'lucide-react'
-import { api, CHAPTER_STATUS } from '@/lib/helpers'
+import { CHAPTER_STATUS } from '@/lib/helpers'
 import type { Chapter, NovelDetail } from './editor-view'
 import { toast } from 'sonner'
 import {
@@ -77,6 +77,8 @@ export function EditorPanel({
   const [selectedText, setSelectedText] = useState('')
   const [inlineMenuOpen, setInlineMenuOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiPreview, setAiPreview] = useState('')
+  const [selRect, setSelRect] = useState<{ left: number; top: number; bottom: number; right: number } | null>(null)
   const [genChapterOpen, setGenChapterOpen] = useState(false)
   const [coreEvent, setCoreEvent] = useState('')
   const [indent, setIndent] = useState(true)
@@ -84,15 +86,39 @@ export function EditorPanel({
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
 
-  // 内联 AI 操作（润色 / 扩写 / 缩写 / 续写 / 转文风）
+  // 选区位置：悬浮条贴着光标显示，避免长文里还要滚到窗口底部去找按钮
+  const syncSelRect = useCallback(() => {
+    const rect = tiptapRef.current?.getSelectionRect() || null
+    setSelRect(rect)
+  }, [tiptapRef])
+
+  // 始终持有最新的章节与回调：
+  // AI 生成是异步的，期间父组件可能已经更新过章节数据，
+  // 用闭包里的旧值回写会把正文回滚掉。
+  const latestRef = useRef({ chapter, onTitleChange })
+  latestRef.current = { chapter, onTitleChange }
+
+  useEffect(() => {
+    if (!inlineMenuOpen || aiLoading) return
+    const onScroll = () => syncSelRect()
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [inlineMenuOpen, aiLoading, syncSelRect])
+
+  // 内联 AI 操作（润色 / 扩写 / 缩写 / 续写 / 转文风）：走流式接口，边生成边回显
   const handleInlineAI = async (preset: string, targetStyle?: string) => {
     const editor = tiptapRef.current
     if (!selectedText || !editor || aiLoading) return
     setAiLoading(true)
-    setInlineMenuOpen(false)
+    setAiPreview('')
     try {
-      const r = await api<{ reply: string }>('/api/ai', {
+      const res = await fetch('/api/ai/stream', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'edit',
           preset,
@@ -102,13 +128,51 @@ export function EditorPanel({
           chapterId: chapter?.id,
         }),
       })
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `请求失败 (${res.status})`)
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let reply = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data:')) continue
+          const payload = trimmed.slice(5).trim()
+          if (payload === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(payload)
+            if (parsed.error) throw new Error(parsed.error)
+            const chunk = parsed.delta || parsed.text || parsed.content || ''
+            if (chunk) {
+              reply += chunk
+              setAiPreview(reply)
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue
+            throw e
+          }
+        }
+      }
       if (tiptapRef.current !== editor) return
-      editor.replaceSelection(r.reply)
+      if (!reply.trim()) {
+        toast.error('AI 未返回内容')
+        return
+      }
+      editor.replaceSelection(reply)
       toast.success('已应用 AI 修改（Ctrl+Z 可整段撤销）')
     } catch (e: any) {
-      toast.error(e.message)
+      toast.error(e.message || 'AI 修改失败')
     } finally {
       setAiLoading(false)
+      setAiPreview('')
     }
   }
 
@@ -127,6 +191,11 @@ export function EditorPanel({
     const runId = `ch-${Date.now()}`
     editor.startAiDraftStream(runId)
 
+    // 首行单独缓冲：若 AI 按约定输出了「第X章 标题」，就拿它当章节名，并从正文里去掉
+    let headerBuf = ''
+    let headerDecided = false
+    let generatedTitle = ''
+
     try {
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
@@ -135,7 +204,7 @@ export function EditorPanel({
         body: JSON.stringify({
           action: 'chat',
           preset: 'chapter_gen',
-          message: `请根据以下核心事件生成完整章节：${coreEvent}`,
+          message: `核心事件（本章必须完成，不得忽略、不得改写为别的情节）：${coreEvent}`,
           novelId: novel.id,
           chapterId: chapter.id,
         }),
@@ -162,21 +231,57 @@ export function EditorPanel({
           if (!trimmed.startsWith('data:')) continue
           const payload = trimmed.slice(5).trim()
           if (payload === '[DONE]') continue
+          let chunk = ''
           try {
             const parsed = JSON.parse(payload)
             if (parsed.error) throw new Error(parsed.error)
-            const chunk = parsed.text || parsed.content || parsed.delta || ''
-            if (chunk && !request.signal.aborted && tiptapRef.current === editor) editor.appendAiDraftChunk(chunk)
+            chunk = parsed.text || parsed.content || parsed.delta || ''
           } catch (e) {
             if (e instanceof SyntaxError) continue
             throw e
+          }
+          if (!chunk) continue
+          if (request.signal.aborted || tiptapRef.current !== editor) continue
+
+          if (!headerDecided) {
+            headerBuf += chunk
+            const nl = headerBuf.indexOf('\n')
+            if (nl === -1) {
+              if (headerBuf.length > 60) {
+                // 首行过长，显然不是标题，整段当作正文
+                headerDecided = true
+                editor.appendAiDraftChunk(headerBuf)
+                headerBuf = ''
+              }
+              continue
+            }
+            const firstLine = headerBuf.slice(0, nl).replace(/^#+\s*/, '').trim()
+            const rest = headerBuf.slice(nl + 1)
+            headerDecided = true
+            headerBuf = ''
+            if (firstLine && firstLine.length <= 40 && /第.{0,4}章/.test(firstLine)) {
+              generatedTitle = firstLine
+            } else {
+              editor.appendAiDraftChunk(firstLine + '\n' + rest)
+              continue
+            }
+            if (rest) editor.appendAiDraftChunk(rest)
+          } else {
+            editor.appendAiDraftChunk(chunk)
           }
         }
       }
 
       if (request.signal.aborted || tiptapRef.current !== editor) return
+      // 首行没被换行切断时的兜底
+      if (!headerDecided && headerBuf) editor.appendAiDraftChunk(headerBuf)
       editor.finishAiDraftStream()
-      toast.success('AI 草稿已生成，请在正文区点击「采纳」或「丢弃」')
+      if (generatedTitle && (!latestRef.current.chapter?.words || !latestRef.current.chapter?.title.trim())) {
+        latestRef.current.onTitleChange(generatedTitle)
+        toast.success(`AI 草稿已生成，章节名已设为「${generatedTitle}」，请在正文区点击「采纳」或「丢弃」`)
+      } else {
+        toast.success('AI 草稿已生成，请在正文区点击「采纳」或「丢弃」')
+      }
       setCoreEvent('')
     } catch (e: any) {
       if (request.signal.aborted || tiptapRef.current !== editor) return
@@ -465,6 +570,12 @@ export function EditorPanel({
           onSelectionChange={(text) => {
             setSelectedText(text)
             setInlineMenuOpen(!!text)
+            if (text) {
+              // 等一帧，确保 ProseMirror 已更新选区坐标
+              requestAnimationFrame(() => syncSelRect())
+            } else {
+              setSelRect(null)
+            }
           }}
           onHistoryChange={(u, r) => {
             setCanUndo(u)
@@ -473,55 +584,66 @@ export function EditorPanel({
           onSaveShortcut={onManualSave}
         />
 
-        {/* 内联 AI 悬浮条（深色胶囊直达操作，不遮挡正文） */}
+        {/* 内联 AI 悬浮条：贴着选区显示，长文写作时不用滚到窗口底部找按钮 */}
         {selectedText && inlineMenuOpen && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 px-1.5 py-1 rounded-[10px] bg-[#1B1B24] dark:bg-[#262A36] text-white border border-white/10 shadow-xl">
-            <button
-              type="button"
-              disabled={aiLoading}
-              onClick={() => handleInlineAI('polish')}
-              className="h-7 px-2.5 rounded-[7px] text-xs font-medium hover:bg-white/10 inline-flex items-center gap-1 text-[#C3C6FF]"
-            >
-              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              润色
-            </button>
-            <button
-              type="button"
-              disabled={aiLoading}
-              onClick={() => handleInlineAI('expand')}
-              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
-            >
-              扩写
-            </button>
-            <button
-              type="button"
-              disabled={aiLoading}
-              onClick={() => handleInlineAI('shorten')}
-              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
-            >
-              缩写
-            </button>
-            <button
-              type="button"
-              disabled={aiLoading}
-              onClick={() => handleInlineAI('continue')}
-              className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
-            >
-              续写
-            </button>
-            <span className="w-px h-4 bg-white/15 mx-0.5" />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  disabled={aiLoading}
-                  className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10"
-                >
-                  转文风
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                <DropdownMenuItem onClick={() => handleInlineAI('style_change', '古风')}>
+          <div
+            className="fixed z-30 flex flex-col gap-1 rounded-[10px] bg-[#1B1B24] dark:bg-[#262A36] text-white border border-white/10 shadow-xl max-w-[min(92vw,420px)]"
+            style={
+              selRect
+                ? {
+                    left: Math.max(8, Math.min(selRect.left, (typeof window !== 'undefined' ? window.innerWidth : 1024) - 220)),
+                    top: Math.max(8, selRect.bottom + 8),
+                  }
+                : { left: '50%', top: '50%' }
+            }
+          >
+            <div className="flex items-center gap-0.5 px-1.5 py-1 whitespace-nowrap">
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() => handleInlineAI('polish')}
+                className="h-7 px-2.5 rounded-[7px] text-xs font-medium hover:bg-white/10 inline-flex items-center gap-1 text-[#C3C6FF] whitespace-nowrap"
+              >
+                {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                润色
+              </button>
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() => handleInlineAI('expand')}
+                className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10 whitespace-nowrap"
+              >
+                扩写
+              </button>
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() => handleInlineAI('shorten')}
+                className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10 whitespace-nowrap"
+              >
+                缩写
+              </button>
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() => handleInlineAI('continue')}
+                className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10 whitespace-nowrap"
+              >
+                续写
+              </button>
+              <span className="w-px h-4 bg-white/15 mx-0.5" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={aiLoading}
+                    className="h-7 px-2.5 rounded-[7px] text-xs hover:bg-white/10 whitespace-nowrap"
+                  >
+                    转文风
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem onClick={() => handleInlineAI('style_change', '古风')}>
                   转古风文风
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleInlineAI('style_change', '科幻')}>
@@ -529,6 +651,15 @@ export function EditorPanel({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
+
+            {/* 流式生成实时回显：让作者看到 AI 正在写什么，而不是干等 */}
+            {aiLoading && (
+              <div className="px-2.5 pb-2 pt-0.5 text-[11px] leading-relaxed text-white/70 max-h-24 overflow-hidden">
+                <span className="text-white/90">生成中…</span>{' '}
+                {aiPreview.slice(-160)}
+              </div>
+            )}
           </div>
         )}
       </div>

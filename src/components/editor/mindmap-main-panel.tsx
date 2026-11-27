@@ -69,6 +69,23 @@ export function MindmapMainPanel({ file, novelId, onChange, onBackToEditor }: Pr
   const [zoom, setZoom] = useState(1)
   const [expandingNodeId, setExpandingNodeId] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [syncingOutline, setSyncingOutline] = useState(false)
+
+  const handleSyncToOutline = async () => {
+    if (!file.content?.trim()) return
+    setSyncingOutline(true)
+    try {
+      await api('/api/novels', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: novelId, outline: file.content }),
+      })
+      toast.success('导图结构已同步到全书总大纲（AI 创作将立即引用）')
+    } catch (e: any) {
+      toast.error(e.message || '同步失败')
+    } finally {
+      setSyncingOutline(false)
+    }
+  }
 
   const tree = useMemo(
     () => parseMarkdownToMindmap(file.content, file.title),
@@ -247,6 +264,17 @@ export function MindmapMainPanel({ file, novelId, onChange, onBackToEditor }: Pr
           >
             {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-indigo-500" />}
             AI 完善
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={handleSyncToOutline}
+            disabled={syncingOutline}
+            title="将当前导图结构同步回全书总大纲，供 AI 写作上下文引用"
+          >
+            {syncingOutline ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            同步到总大纲
           </Button>
         </div>
       </div>

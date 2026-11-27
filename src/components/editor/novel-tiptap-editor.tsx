@@ -42,7 +42,10 @@ export interface NovelTiptapHandle {
   toggleBulletList: () => void
   autoFormat: () => void
   replaceSelection: (text: string) => void
+  appendContent: (text: string) => void
   replaceAllContent: (text: string) => void
+  getSelectionRect: () => { left: number; top: number; bottom: number; right: number } | null
+  scrollCursorToCenter: () => void
   startAiDraftStream: (runId?: string) => void
   appendAiDraftChunk: (text: string) => void
   finishAiDraftStream: () => void
@@ -201,8 +204,13 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
         } catch {}
       }
       if (novelId) void loadCodex()
+      const onCodexUpdated = () => {
+        if (novelId) void loadCodex()
+      }
+      window.addEventListener('moling:codex-updated', onCodexUpdated)
       return () => {
         cancelled = true
+        window.removeEventListener('moling:codex-updated', onCodexUpdated)
       }
     }, [novelId])
 
@@ -283,6 +291,35 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
       }
     }, [editor, chapterId, content])
 
+    // 打字机模式：光标移动 / 敲字时把当前行保持在视口垂直中间
+    useEffect(() => {
+      if (!editor || editorMode !== 'typewriter') return
+      let raf = 0
+      const center = () => {
+        cancelAnimationFrame(raf)
+        raf = requestAnimationFrame(() => {
+          try {
+            const coords = editor.view.coordsAtPos(editor.state.selection.head)
+            const scroller = editor.view.dom.closest(
+              '.novel-paper-wrap'
+            ) as HTMLElement | null
+            if (!scroller) return
+            const target = scroller.scrollTop + coords.top - scroller.clientHeight / 2
+            const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+            scroller.scrollTop = Math.min(max, Math.max(0, target))
+          } catch {}
+        })
+      }
+      center()
+      editor.on('selectionUpdate', center)
+      editor.on('update', center)
+      return () => {
+        cancelAnimationFrame(raf)
+        editor.off('selectionUpdate', center)
+        editor.off('update', center)
+      }
+    }, [editor, editorMode])
+
     useImperativeHandle(
       ref,
       () => ({
@@ -344,11 +381,65 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
             }))
           editor.chain().focus().insertContent(paragraphs).run()
         },
+        appendContent: (text: string) => {
+          if (!editor) return
+          const lines = text
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => line.replace(/^[\s\u3000]+|[\s\u3000]+$/g, ''))
+            .filter(Boolean)
+          if (lines.length === 0) return
+          const paragraphs = lines.map((line) => ({
+            type: 'paragraph',
+            content: [{ type: 'text', text: line }],
+          }))
+          // 若当前正文为空，直接设置；否则在文档末尾或当前光标位置安全插入，绝不清空原有内容
+          const isEmpty = canonicalBody(editor).words === 0
+          if (isEmpty) {
+            editor.commands.setContent(formatPlainToNovelHtml(text), { emitUpdate: true })
+            ensureParagraphIds(editor)
+            return
+          }
+          const endPos = editor.state.doc.content.size
+          editor.chain().focus().insertContentAt(endPos, paragraphs).run()
+          ensureParagraphIds(editor)
+        },
         replaceAllContent: (text: string) => {
           if (!editor) return
           const html = text.trim().startsWith('<') ? text : formatPlainToNovelHtml(text)
           editor.commands.setContent(html, { emitUpdate: true })
           ensureParagraphIds(editor)
+        },
+        // 选区在视口中的位置：用于把 AI 悬浮操作条放在光标旁边，而不是固定在窗口底部
+        getSelectionRect: () => {
+          if (!editor) return null
+          const { from, to } = editor.state.selection
+          if (to <= from) return null
+          try {
+            const start = editor.view.coordsAtPos(from)
+            const end = editor.view.coordsAtPos(to)
+            return {
+              left: Math.min(start.left, end.left),
+              right: Math.max(start.right, end.right),
+              top: Math.min(start.top, end.top),
+              bottom: Math.max(start.bottom, end.bottom),
+            }
+          } catch {
+            return null
+          }
+        },
+        // 打字机模式：把光标所在行滚动到视口垂直中间
+        scrollCursorToCenter: () => {
+          if (!editor) return
+          try {
+            const coords = editor.view.coordsAtPos(editor.state.selection.head)
+            const scroller = editor.view.dom.closest(
+              '.novel-paper-wrap'
+            ) as HTMLElement | null
+            if (!scroller) return
+            const target = scroller.scrollTop + coords.top - scroller.clientHeight / 2
+            scroller.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+          } catch {}
         },
         startAiDraftStream: (runId?: string) => {
           if (!editor) return
@@ -401,8 +492,8 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
             <div
               className="fixed z-50 w-64 rounded-md border border-border bg-popover p-1 shadow-lg"
               style={{
-                left: Math.min(suggest.rect.left, window.innerWidth - 270),
-                top: Math.min(suggest.rect.top, window.innerHeight - 260),
+                left: Math.max(12, Math.min(suggest.rect.left, window.innerWidth - 270)),
+                top: Math.max(12, Math.min(suggest.rect.top, window.innerHeight - 260)),
               }}
             >
               <div className="px-2 py-1 text-[11px] text-muted-foreground">

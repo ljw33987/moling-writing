@@ -271,7 +271,18 @@ export async function assembleNovelContext(params: {
   if (currentChapter && remaining > 0) {
     const plainBody = stripHtml(currentChapter.content || '')
     const charCount = plainBody.replace(/\s/g, '').length
-    const header = `【当前所在章节：${currentChapter.title}（已写 ${charCount} 字）】\n核心事件：${currentChapter.summary || '（未设定）'}\n提示：若创作下一章，请紧接下方末尾推进新剧情，并起一个全新的章节名，切勿重复「${currentChapter.title}」的标题或已写情节。\n已写正文末尾：\n`
+    const isEmptyChapter = charCount === 0
+    const header = isEmptyChapter
+      ? `【当前所在章节：${currentChapter.title}（尚未开始写作）】\n` +
+        `本章核心事件：${currentChapter.summary || '（未设定）'}\n` +
+        `提示：这是一个新章节，请依据用户本次给出的核心事件直接开写本章；` +
+        `不要续写上一章、不要重复上一章的标题或已写情节。\n`
+      : `【当前所在章节：${currentChapter.title}（已写 ${charCount} 字）】\n` +
+        `核心事件：${currentChapter.summary || '（未设定）'}\n` +
+        `提示：请以用户本次给出的核心事件与指令为准来写本章；` +
+        `只有当核心事件确实是承接本章节时才继续往下写，` +
+        `严禁重复下方已写的情节，也严禁重复「${currentChapter.title}」这个标题。\n` +
+        `已写正文末尾：\n`
     const bodyBudget = Math.max(200, remaining - estimateTokens(header))
     const fittedBody = fitToBudget(plainBody || '（暂无正文）', bodyBudget, true)
     const raw = header + fittedBody.text

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { callThirdPartyAI, stripThinkTags } from '@/lib/ai-providers'
-import { getPlatformAiCandidates, callThirdPartyAIWithFallback } from '@/lib/platform-ai'
+import { getPlatformAiCandidates, callThirdPartyAIWithFallback, getPlatformConfig, type AiEndpointConfig } from '@/lib/platform-ai'
+import { parseModelMappings } from '@/lib/ai-models'
 import { assembleNovelContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
-import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // 预设指令库
@@ -20,7 +22,10 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
     name: '一键生成整章',
     category: '正文',
     description: '根据核心事件生成完整章节',
-    system: '你是经验丰富的网文写手，擅长节奏紧凑、画面感强的章节。根据用户提供的核心事件和上下文，写出一个完整的章节正文，2000-3000字。直接输出正文，不要加标题或解释。',
+    system: `你是经验丰富的网文写手，擅长节奏紧凑、画面感强的章节。
+必须严格依据用户给出的「核心事件」写出一个完整章节正文，2000-3000字；核心事件是本章必须完成的剧情，不得忽略、不得替换成别的情节。
+输出格式（严格遵守）：第一行写章节标题（格式：第X章 标题），第二行空行，第三行起直接输出正文。
+不要输出任何解释、点评、总结或 Markdown 标记。`,
   },
   golden_three: {
     name: '黄金三章生成',
@@ -202,7 +207,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId } = body
+    const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId, modelId } = body
 
     if (novelId && !await getOwnedNovel(user.id, novelId)) {
       return NextResponse.json({ error: '未找到作品' }, { status: 404 })
@@ -246,12 +251,54 @@ export async function POST(req: NextRequest) {
       systemPrompt += `\n\n${buildWritingStyleInstruction(activeStyle)}`
     }
 
+    // 只读分析 vs 正文回写：只读时不注入"去 AI 味"改写铁律（避免把审稿请求变成改写指令），
+    // 回写类请求（行内润色/扩写/缩写/续写/转文风）必须强制注入，否则输出会带满 AI 套话。
+    const isEditWriteback = action === 'edit'
+    const readOnlyChat = !isEditWriteback && action === 'chat' &&
+      preset !== 'chapter_gen' && !allowsAiProseWriteback(message || '', preset)
+    if (readOnlyChat) {
+      systemPrompt += '\n\n【只读分析】回答用户的问题。审稿或查错时，只报告问题、证据和建议，不改写或重发整章正文。'
+    } else {
+      systemPrompt += `\n\n${HUMAN_VOICE_SYSTEM_RULES}`
+    }
+
     const messages = [
-      { role: 'system', content: systemPrompt + (extraContext ? `\n\n以下是创作上下文：${extraContext}` : '') },
-      { role: 'user', content: userPrompt || '请帮我继续创作。' },
+      { role: 'system' as const, content: systemPrompt + (extraContext ? `\n\n以下是创作上下文：${extraContext}` : '') },
+      { role: 'user' as const, content: userPrompt || '请帮我继续创作。' },
     ]
 
-    const aiCandidates = await getPlatformAiCandidates()
+    // 模型选择：与流式接口保持一致，支持按后台别名切到指定模型
+    const platformConfig = await getPlatformConfig()
+    const mappings = parseModelMappings((platformConfig as any).modelMappings)
+    const matchedMapping = modelId
+      ? mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
+      : mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
+
+    let preferredConfig: AiEndpointConfig | null = null
+    if (matchedMapping?.configId) {
+      const bound = await db.userAiConfig.findFirst({
+        where: { id: matchedMapping.configId, enabled: true },
+      })
+      if (bound) {
+        preferredConfig = {
+          id: bound.id,
+          name: bound.name,
+          baseUrl: bound.baseUrl,
+          apiKey: bound.apiKey,
+          model: bound.model,
+        }
+      }
+    }
+    if (!preferredConfig && matchedMapping && (matchedMapping.realModel || matchedMapping.baseUrl || matchedMapping.apiKey)) {
+      const baseUrl = matchedMapping.baseUrl || platformConfig.defaultAiBaseUrl
+      const apiKey = matchedMapping.apiKey || platformConfig.defaultAiApiKey
+      const model = matchedMapping.realModel || platformConfig.defaultAiModel
+      if (baseUrl && apiKey && model) {
+        preferredConfig = { baseUrl, apiKey, model }
+      }
+    }
+
+    const aiCandidates = await getPlatformAiCandidates(preferredConfig)
     let reply = ''
 
     if (aiCandidates.length > 0) {

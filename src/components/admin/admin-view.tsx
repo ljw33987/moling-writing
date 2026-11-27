@@ -428,11 +428,11 @@ function UsersTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs">
                 <tr>
-                  <th className="text-left p-3 font-medium">{t('ad.users')}</th>
+                  <th className="text-left p-3 font-medium">用户</th>
                   <th className="text-left p-3 font-medium">Token</th>
                   <th className="text-left p-3 font-medium">套餐</th>
-                  <th className="text-left p-3 font-medium">{t('ad.novels')}</th>
-                  <th className="text-left p-3 font-medium">{t('ad.orders')}</th>
+                  <th className="text-left p-3 font-medium">作品</th>
+                  <th className="text-left p-3 font-medium">订单</th>
                   <th className="text-left p-3 font-medium">AI调用</th>
                   <th className="text-left p-3 font-medium">注册时间</th>
                   <th className="text-left p-3 font-medium">操作</th>
@@ -564,7 +564,7 @@ function UsersTab() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>{t('ad.users')}</Label>
+              <Label>用户</Label>
               <p className="text-sm text-muted-foreground">{editing?.email}</p>
             </div>
             <div className="space-y-2">
@@ -748,7 +748,7 @@ function OrdersTab() {
               <thead className="bg-muted/50 text-xs">
                 <tr>
                   <th className="text-left p-3">订单ID</th>
-                  <th className="text-left p-3">{t('ad.users')}</th>
+                  <th className="text-left p-3">用户</th>
                   <th className="text-left p-3">金额</th>
                   <th className="text-left p-3">Token</th>
                   <th className="text-left p-3">方式</th>
@@ -2589,7 +2589,7 @@ function BroadcastTab() {
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <Badge variant="outline" className={`text-xs ${tc.color}`}>{tc.label}</Badge>
                       {item.userId === null ? (
-                        <Badge variant="outline" className="text-xs text-blue-600">{t('ad.broadcast')}</Badge>
+                        <Badge variant="outline" className="text-xs text-blue-600">群发</Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs text-indigo-600 dark:text-indigo-400">单发</Badge>
                       )}

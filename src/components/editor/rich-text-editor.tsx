@@ -62,7 +62,10 @@ export function RichTextEditor({
   }, [onSelectionChange])
 
   return (
-    <div className={`rich-text-editor h-full flex flex-col ${editorMode === 'typewriter' ? 'typewriter-mode' : ''} ${editorMode === 'focus' ? 'focus-mode' : ''}`}>
+    <div
+      className={`rich-text-editor h-full flex flex-col ${editorMode === 'typewriter' ? 'typewriter-mode' : ''} ${editorMode === 'focus' ? 'focus-mode' : ''}`}
+      onMouseUp={handleSelectionChange}
+    >
       <MDXEditor
         ref={editorRef}
         markdown={value}
@@ -98,7 +101,6 @@ export function RichTextEditor({
             ),
           }),
         ]}
-        onSelect={handleSelectionChange}
       />
     </div>
   )

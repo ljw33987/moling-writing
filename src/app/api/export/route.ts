@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
+import { stripHtml } from '@/lib/context-assembler'
 
 // GET /api/export?novelId=xxx&format=txt|markdown
 // GET /api/export?chapterId=xxx&format=txt|markdown
@@ -27,10 +28,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '未找到' }, { status: 404 })
     }
 
+    const cleanBody = stripHtml(chapter.content)
     const content =
       format === 'markdown'
-        ? `# ${chapter.title}\n\n${chapter.content}\n`
-        : `${chapter.title}\n\n${chapter.content}\n`
+        ? `# ${chapter.title}\n\n${cleanBody}\n`
+        : `${chapter.title}\n\n${cleanBody}\n`
 
     const filename = `${chapter.title}.${format === 'markdown' ? 'md' : 'txt'}`
     return new NextResponse(content, {
@@ -70,7 +72,7 @@ export async function GET(req: NextRequest) {
     for (const vol of novel.volumes) {
       content += `## ${vol.title}\n\n`
       for (const ch of vol.chapters) {
-        content += `### ${ch.title}\n\n${ch.content}\n\n`
+        content += `### ${ch.title}\n\n${stripHtml(ch.content)}\n\n`
       }
     }
   } else {
@@ -81,7 +83,7 @@ export async function GET(req: NextRequest) {
     for (const vol of novel.volumes) {
       content += `【${vol.title}】\n\n`
       for (const ch of vol.chapters) {
-        content += `${ch.title}\n\n${ch.content}\n\n${'-'.repeat(40)}\n\n`
+        content += `${ch.title}\n\n${stripHtml(ch.content)}\n\n${'-'.repeat(40)}\n\n`
       }
     }
   }

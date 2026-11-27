@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { stripHtml } from '@/lib/context-assembler'
 import { callThirdPartyAIWithFallback, getPlatformAiCandidates } from '@/lib/platform-ai'
+import { HUMAN_VOICE_SYSTEM_RULES } from '@/lib/writing-style'
 
 /**
  * 统计章节中 AI 溯源段落与人工段落占比（基于 Provenance data-ai-run-id 属性）
@@ -85,8 +86,17 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt =
     mode === 'rewrite'
-      ? '你是资深中文网文主编，擅长消除“AI 味”（如过度对称排比、空洞抒情总结、“然而/不禁/仿佛”高频套话、机械过渡句）。请直接输出去 AI 味后的自然口语化/网文化正文，保持原情节和人设不变，不要解释。'
-      : '你是资深中文网文主编，请指出以下正文中的“AI 味”问题（模板化衔接、形容词堆叠、句式过于工整、说教式结尾等），给出 3-5 条具体修改建议。'
+      ? `你是资深中文小说主编，最擅长把有“AI 味”的段落洗成活生生的人类作家手写质感。
+${HUMAN_VOICE_SYSTEM_RULES}
+改写规则：
+- 严格保留原情节、人物设定与关键信息点，不得删减剧情。
+- 彻底重写所有翻译腔、总结腔、播音腔对白和模板化衔接词（如“然而、不禁、仿佛、一抹、眼神微眯、深吸一口气”），换成更接地气、有呼吸感的人类正常说话与叙事口吻。
+- 直接输出改写后的干净正文（不要任何解释、标题或前后缀）。`
+      : `你是资深中文网文主编，请对以下正文做深度“AI 味指纹诊断”。
+请按以下结构输出：
+1. **AI 味指数**：0~100 分（越高越像 AI 生成）及一句话总评。
+2. **命中问题点**：逐条指出文中的模板化衔接、形容词堆叠、句式过于工整、播音腔对话或说教式结尾。
+3. **人类口吻改写示范**：挑出 2~3 句最明显的 AI 味原句，给出「原句 → 人类自然口吻改写」对照示范。`
 
   const res = await callThirdPartyAIWithFallback(
     aiCandidates,

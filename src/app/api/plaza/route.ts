@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
         novel: {
           select: { id: true, totalWords: true, author: true, status: true },
         },
+        user: {
+          select: { id: true, penName: true, name: true, avatar: true },
+        },
         _count: { select: { likes: true, collects: true } },
       },
     }),

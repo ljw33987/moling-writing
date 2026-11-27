@@ -77,7 +77,7 @@ export function ForceChangePasswordDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={() => { /* 不允许关闭 */ }}>
-      <DialogContent className="max-w-md" closable={false}>
+      <DialogContent className="max-w-md" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gold flex items-center justify-center">

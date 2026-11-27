@@ -89,6 +89,9 @@ export function SettingsLibrary() {
   const [open, setOpen] = useState(false)
   const [aiGenOpen, setAiGenOpen] = useState(false)
   const [aiGenLoading, setAiGenLoading] = useState(false)
+  const [backstoryCard, setBackstoryCard] = useState<SettingCard | null>(null)
+  const [backstoryBrief, setBackstoryBrief] = useState('冷漠，孤儿，剑修')
+  const [backstoryLoading, setBackstoryLoading] = useState(false)
 
   const load = useCallback(async () => {
     if (type === 'prompts') return
@@ -151,28 +154,34 @@ export function SettingsLibrary() {
 
   const handleAIGenerate = async (card: SettingCard) => {
     if (type === 'character') {
-      const name = card.name
-      const brief = prompt(`请输入 ${name} 的几个关键词（如：性格、背景要点）`, '冷漠，孤儿，剑修')
-      if (!brief) return
-      toast.info('AI 生成中...')
-      try {
-        const r = await api<{ reply: string }>('/api/ai', {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'chat',
-            preset: 'char_backstory',
-            message: `角色名：${name}\n关键词：${brief}`,
-          }),
-        })
-        await api('/api/characters', {
-          method: 'PATCH',
-          body: JSON.stringify({ id: card.id, type, background: r.reply }),
-        })
-        toast.success('AI 已生成角色小传')
-        load()
-      } catch (e: any) {
-        toast.error(e.message)
-      }
+      setBackstoryCard(card)
+      setBackstoryBrief(card.personality?.trim() || '冷漠，孤儿，剑修')
+    }
+  }
+
+  const handleConfirmBackstory = async () => {
+    if (!backstoryCard || !backstoryBrief.trim()) return
+    setBackstoryLoading(true)
+    try {
+      const r = await api<{ reply: string }>('/api/ai', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'chat',
+          preset: 'char_backstory',
+          message: `角色名：${backstoryCard.name}\n关键词：${backstoryBrief.trim()}`,
+        }),
+      })
+      await api('/api/characters', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: backstoryCard.id, type, background: r.reply }),
+      })
+      toast.success('AI 已生成角色小传')
+      setBackstoryCard(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setBackstoryLoading(false)
     }
   }
 
@@ -535,11 +544,42 @@ export function SettingsLibrary() {
       <AIGenDialog
         open={aiGenOpen}
         onClose={() => setAiGenOpen(false)}
-        type={type}
+        type={type === 'prompts' ? 'character' : type}
         onGenSingle={handleAIGenSingle}
         onGenBatch={handleAIGenBatch}
         loading={aiGenLoading}
       />
+
+      <Dialog open={!!backstoryCard} onOpenChange={(v) => !v && setBackstoryCard(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI 生成「{backstoryCard?.name}」背景小传
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">性格与背景关键词</Label>
+            <Textarea
+              value={backstoryBrief}
+              onChange={(e) => setBackstoryBrief(e.target.value)}
+              rows={3}
+              className="text-xs"
+              placeholder="如：冷漠，孤儿，剑修，身负灭门血仇..."
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setBackstoryCard(null)}>
+              取消
+            </Button>
+            <Button size="sm" disabled={backstoryLoading || !backstoryBrief.trim()} onClick={handleConfirmBackstory}>
+              {backstoryLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              {backstoryLoading ? '生成中...' : '生成小传'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
