@@ -47,7 +47,7 @@ export function DocsView() {
           </div>
           <div>
             <h2 className="text-2xl font-bold">平台文档</h2>
-            <p className="text-sm text-muted-foreground">笔锋写作 · AI 驱动的网文创作平台 · 完整使用与运维指南</p>
+            <p className="text-sm text-muted-foreground">爆更猫AI写作 · AI 驱动的网文创作平台 · 完整使用与运维指南</p>
           </div>
         </div>
 
@@ -138,8 +138,8 @@ function OverviewDoc() {
   return (
     <>
       <DocSection title="平台简介">
-        <p><b>笔锋写作</b>是一个 AI 驱动的网文创作平台，集成了 AI 写作辅助、章节管理、设定库、自动连载、作品广场、用户系统、计费支付等完整功能。</p>
-        <p>平台名称「笔锋」取自「笔墨 + 灵感」，寓意用 AI 灵感赋能创作。</p>
+        <p><b>爆更猫AI写作</b>是一个 AI 驱动的网文创作平台，集成了 AI 写作辅助、章节管理、设定库、自动连载、作品广场、用户系统、计费支付等完整功能。</p>
+        <p>平台名称「爆更猫AI写作」聚焦长篇网文创作、个人文风模仿与高效爆更连载。</p>
       </DocSection>
 
       <DocSection title="技术栈">
@@ -513,7 +513,7 @@ function EmailDoc() {
           <p>1. 登录 163 邮箱网页版</p>
           <p>2. 设置 → POP3/SMTP/IMAP → 开启 SMTP 服务</p>
           <p>3. 在「客户端授权密码」中生成授权码（16 位字母）</p>
-          <p>4. 在笔锋写作后台填入授权码（不是登录密码）</p>
+          <p>4. 在爆更猫AI写作后台填入授权码（不是登录密码）</p>
         </div>
       </DocSection>
 

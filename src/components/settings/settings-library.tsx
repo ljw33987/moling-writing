@@ -35,8 +35,18 @@ import {
   Loader2,
   Network,
   Wand2,
+  Store,
+  Copy,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  getSavedPrompts,
+  removeSavedPrompt,
+  savePromptToLibrary,
+  SAVED_PROMPTS_EVENT,
+  type SavedPromptItem,
+} from '@/lib/saved-prompts'
 
 type CardType = 'character' | 'worldview' | 'item'
 
@@ -66,8 +76,12 @@ const TYPE_LABELS: Record<CardType, { label: string; icon: any; color: string }>
 }
 
 export function SettingsLibrary() {
-  const [type, setType] = useState<CardType>('character')
+  const [type, setType] = useState<CardType | 'prompts'>('character')
   const [cards, setCards] = useState<SettingCard[]>([])
+  const [savedPrompts, setSavedPrompts] = useState<SavedPromptItem[]>([])
+  const [newPromptTitle, setNewPromptTitle] = useState('')
+  const [newPromptText, setNewPromptText] = useState('')
+  const [showNewPrompt, setShowNewPrompt] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -77,6 +91,7 @@ export function SettingsLibrary() {
   const [aiGenLoading, setAiGenLoading] = useState(false)
 
   const load = useCallback(async () => {
+    if (type === 'prompts') return
     setLoading(true)
     try {
       const r = await api<{ items: SettingCard[] }>(`/api/characters?type=${type}`)
@@ -92,18 +107,26 @@ export function SettingsLibrary() {
     load()
   }, [load])
 
+  useEffect(() => {
+    const sync = () => setSavedPrompts(getSavedPrompts())
+    sync()
+    window.addEventListener(SAVED_PROMPTS_EVENT, sync)
+    return () => window.removeEventListener(SAVED_PROMPTS_EVENT, sync)
+  }, [])
+
   const handleSave = async (data: Partial<SettingCard>) => {
+    const { type: subtype, ...fields } = data
     try {
       if (editing?.id) {
         await api('/api/characters', {
           method: 'PATCH',
-          body: JSON.stringify({ id: editing.id, type, ...data }),
+          body: JSON.stringify({ ...fields, id: editing.id, type, subtype }),
         })
         toast.success('已更新')
       } else {
         await api('/api/characters', {
           method: 'POST',
-          body: JSON.stringify({ type, ...data }),
+          body: JSON.stringify({ ...fields, type, subtype }),
         })
         toast.success('已创建')
       }
@@ -239,7 +262,7 @@ export function SettingsLibrary() {
         for (const c of data.characters) {
           await api('/api/characters', {
             method: 'POST',
-            body: JSON.stringify({ type: 'character', ...c }),
+            body: JSON.stringify({ ...c, type: 'character' }),
           })
           count++
         }
@@ -249,7 +272,7 @@ export function SettingsLibrary() {
         for (const w of data.worldviews) {
           await api('/api/characters', {
             method: 'POST',
-            body: JSON.stringify({ type: 'worldview', ...w }),
+            body: JSON.stringify({ ...w, type: 'worldview', subtype: w.type }),
           })
           count++
         }
@@ -259,7 +282,7 @@ export function SettingsLibrary() {
         for (const it of data.items) {
           await api('/api/characters', {
             method: 'POST',
-            body: JSON.stringify({ type: 'item', ...it }),
+            body: JSON.stringify({ ...it, type: 'item', subtype: it.type }),
           })
           count++
         }
@@ -294,16 +317,18 @@ export function SettingsLibrary() {
               <Wand2 className="w-4 h-4" />
               AI 生成设定
             </Button>
-            <Button
-              onClick={() => {
-                setEditing(null)
-                setOpen(true)
-              }}
-              className="gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              新建{TYPE_LABELS[type].label}
-            </Button>
+            {type !== 'prompts' && (
+              <Button
+                onClick={() => {
+                  setEditing(null)
+                  setOpen(true)
+                }}
+                className="gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                新建{TYPE_LABELS[type].label}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -325,8 +350,139 @@ export function SettingsLibrary() {
               <Sword className="w-3.5 h-3.5" />
               道具/功法
             </TabsTrigger>
+            <TabsTrigger value="prompts" className="gap-1.5">
+              <Store className="w-3.5 h-3.5" />
+              提示词模板
+            </TabsTrigger>
           </TabsList>
 
+          {type === 'prompts' ? (
+            <div className="min-w-0 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-4 py-3">
+                <div>
+                  <div className="text-sm font-semibold">我的已选提示词（{savedPrompts.length}）</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    仅显示你在「AI 工具箱 → 提示词模板市场」中点击「套用」的模板，或在此新建的专属提示词；可在 AI 写作助手中直接调用或在此取消。
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={showNewPrompt ? 'outline' : 'default'}
+                  className="h-8 text-xs gap-1"
+                  onClick={() => setShowNewPrompt((v) => !v)}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {showNewPrompt ? '收起' : '新建提示词'}
+                </Button>
+              </div>
+
+              {showNewPrompt && (
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <Input
+                      value={newPromptTitle}
+                      onChange={(e) => setNewPromptTitle(e.target.value)}
+                      placeholder="提示词名称（如：古风环境白描指令）"
+                      className="h-8 text-xs"
+                    />
+                    <Textarea
+                      value={newPromptText}
+                      onChange={(e) => setNewPromptText(e.target.value)}
+                      placeholder="输入具体提示词内容..."
+                      rows={3}
+                      className="text-xs resize-y"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          if (!newPromptTitle.trim() || !newPromptText.trim()) {
+                            toast.error('请填写名称和提示词内容')
+                            return
+                          }
+                          savePromptToLibrary({
+                            id: `custom_${Date.now()}`,
+                            title: newPromptTitle.trim(),
+                            category: '自定义',
+                            description: '我在设定库创建的个人提示词',
+                            promptText: newPromptText.trim(),
+                          })
+                          setNewPromptTitle('')
+                          setNewPromptText('')
+                          setShowNewPrompt(false)
+                          toast.success('已添加到我的设定库提示词')
+                        }}
+                      >
+                        保存到设定库
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {savedPrompts.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                    <Store className="w-10 h-10 mb-3 text-muted-foreground opacity-35" />
+                    <p className="text-sm font-medium">还没有选入任何提示词</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      前往「AI 工具箱 → 提示词模板市场」点击任意模板的「套用」，它就会出现在这里；或点击上方「新建提示词」。
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {savedPrompts.map((sp) => (
+                    <Card key={sp.id} className="flex flex-col">
+                      <CardHeader className="p-4 pb-2 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {sp.category}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[11px] text-cinnabar hover:text-cinnabar gap-1"
+                            onClick={() => {
+                              removeSavedPrompt(sp.id)
+                              toast.success(`已从设定库取消「${sp.title}」`)
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                            取消套用
+                          </Button>
+                        </div>
+                        <CardTitle className="text-sm font-display">{sp.title}</CardTitle>
+                        {sp.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-1">{sp.description}</p>
+                        )}
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2 flex-1 flex flex-col justify-between gap-2">
+                        <div className="rounded bg-muted/40 p-2.5 text-[11px] text-muted-foreground max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                          {sp.promptText}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs gap-1"
+                            onClick={() => {
+                              navigator.clipboard.writeText(sp.promptText)
+                              toast.success('已复制提示词')
+                            }}
+                          >
+                            <Copy className="w-3 h-3" />
+                            复制
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
           <TabsContent value={type} className="min-w-0">
             {loading ? (
               <div className="flex justify-center py-12">
@@ -360,6 +516,7 @@ export function SettingsLibrary() {
               />
             )}
           </TabsContent>
+          )}
         </Tabs>
       </div>
 
@@ -369,7 +526,7 @@ export function SettingsLibrary() {
           setOpen(false)
           setEditing(null)
         }}
-        type={type}
+        type={type === 'prompts' ? 'character' : type}
         card={editing}
         onSave={handleSave}
       />
@@ -579,7 +736,7 @@ function SettingCardDialog({
         <DialogHeader>
           <DialogTitle>
             {card ? '编辑' : '新建'}
-            {TYPE_LABELS[type].label}
+            {TYPE_LABELS[type]?.label || '设定'}
           </DialogTitle>
         </DialogHeader>
 

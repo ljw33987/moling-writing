@@ -1042,7 +1042,8 @@ svg.ic-lg { width: 22px; height: 22px; }
 /* 横向滑动的书架 */
 .m-rail {
   display: flex; gap: 12px; overflow-x: auto; padding: 2px 16px 4px;
-  margin: 0 -16px; scroll-snap-type: x mandatory; scrollbar-width: none;
+  margin: 0 -16px; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+  scrollbar-width: none;
 }
 .m-rail::-webkit-scrollbar { display: none; }
 .m-rail > * { scroll-snap-align: start; flex: none; }

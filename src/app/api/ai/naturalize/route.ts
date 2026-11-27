@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { stripHtml } from '@/lib/context-assembler'
-import { callThirdPartyAI } from '@/lib/ai-providers'
-import { getPlatformDefaultAI } from '@/lib/platform-ai'
+import { callThirdPartyAIWithFallback, getPlatformAiCandidates } from '@/lib/platform-ai'
 
 /**
  * 统计章节中 AI 溯源段落与人工段落占比（基于 Provenance data-ai-run-id 属性）
@@ -78,13 +77,10 @@ export async function POST(req: NextRequest) {
   }
 
   const plain = stripHtml(text).slice(0, 4000)
-  const aiConfig =
-    (await db.userAiConfig.findFirst({
-      where: { userId: user.id, enabled: true, isDefault: true },
-    })) || (await getPlatformDefaultAI())
+  const aiCandidates = await getPlatformAiCandidates()
 
-  if (!aiConfig) {
-    return NextResponse.json({ error: '请先在设置中配置 AI 模型' }, { status: 400 })
+  if (aiCandidates.length === 0) {
+    return NextResponse.json({ error: '请先在管理后台配置 AI 接口' }, { status: 400 })
   }
 
   const systemPrompt =
@@ -92,8 +88,8 @@ export async function POST(req: NextRequest) {
       ? '你是资深中文网文主编，擅长消除“AI 味”（如过度对称排比、空洞抒情总结、“然而/不禁/仿佛”高频套话、机械过渡句）。请直接输出去 AI 味后的自然口语化/网文化正文，保持原情节和人设不变，不要解释。'
       : '你是资深中文网文主编，请指出以下正文中的“AI 味”问题（模板化衔接、形容词堆叠、句式过于工整、说教式结尾等），给出 3-5 条具体修改建议。'
 
-  const res = await callThirdPartyAI(
-    aiConfig,
+  const res = await callThirdPartyAIWithFallback(
+    aiCandidates,
     [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: plain },

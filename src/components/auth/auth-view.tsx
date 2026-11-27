@@ -141,9 +141,9 @@ export function AuthView() {
         {/* 左侧介绍 */}
         <div className="hidden lg:block space-y-6">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="笔锋写作" className="w-12 h-12 rounded-xl shadow-md" />
+            <img src="/logo.svg" alt="爆更猫AI写作" className="w-12 h-12 rounded-xl shadow-md" />
             <div>
-              <h1 className="text-3xl font-bold font-display">笔锋写作</h1>
+              <h1 className="text-3xl font-bold font-display">爆更猫AI写作</h1>
               <p className="text-sm text-muted-foreground">AI 驱动的网文创作平台</p>
             </div>
           </div>

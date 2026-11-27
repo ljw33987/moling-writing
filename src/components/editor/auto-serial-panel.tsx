@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api, formatTime } from '@/lib/helpers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,32 +76,36 @@ export function AutoSerialPanel({ novelId, volumes = [], onChapterCreated }: Pro
   const [plotDirection, setPlotDirection] = useState('')
   const [toggling, setToggling] = useState(false)
   const [runningNow, setRunningNow] = useState(false)
+  const onChapterCreatedRef = useRef(onChapterCreated)
+  onChapterCreatedRef.current = onChapterCreated
 
   const load = useCallback(async () => {
     try {
       const r = await api<{ task: AutoSerialTask }>(`/api/auto-serial?novelId=${novelId}`)
       setTask((prev) => {
         if (prev && r.task.totalGenerated > prev.totalGenerated) {
-          onChapterCreated?.()
+          onChapterCreatedRef.current?.()
         }
         return r.task
       })
-      setIntervalMin(r.task.intervalMin)
-      setTargetWords(r.task.targetWords)
-      setStartChapterNum(r.task.startChapterNum ? String(r.task.startChapterNum) : '')
-      setTargetVolumeId(r.task.targetVolumeId || 'auto')
-      setPlotDirection(r.task.plotDirection || '')
-    } catch (e: any) {
+      if (!open) {
+        setIntervalMin(r.task.intervalMin)
+        setTargetWords(r.task.targetWords)
+        setStartChapterNum(r.task.startChapterNum ? String(r.task.startChapterNum) : '')
+        setTargetVolumeId(r.task.targetVolumeId || 'auto')
+        setPlotDirection(r.task.plotDirection || '')
+      }
+    } catch {
       // 静默失败
     } finally {
       setLoading(false)
     }
-  }, [novelId, onChapterCreated])
+  }, [novelId, open])
 
   useEffect(() => {
-    load()
-    const pollMs = task?.enabled || task?.status === 'running' || runningNow ? 3000 : 10000
-    const i = setInterval(load, pollMs)
+    void load()
+    const pollMs = task?.enabled || task?.status === 'running' || runningNow ? 5000 : 12000
+    const i = setInterval(() => void load(), pollMs)
     return () => clearInterval(i)
   }, [load, task?.enabled, task?.status, runningNow])
 
@@ -198,18 +202,17 @@ export function AutoSerialPanel({ novelId, volumes = [], onChapterCreated }: Pro
         <TooltipTrigger asChild>
           <Badge
             variant="outline"
-            className={`gap-1.5 cursor-help ${
-              isGenerating
+            className={`gap-1.5 cursor-help ${isGenerating
                 ? 'text-primary border-[var(--brand-line)] bg-[var(--brand-soft)]'
                 : task.enabled
                   ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5'
                   : status.color
-            }`}
+              }`}
           >
             {isGenerating ? (
               <Loader2 className="w-3 h-3 animate-spin text-primary" />
             ) : task.enabled ? (
-              <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             ) : (
               <StatusIcon className="w-3 h-3" />
             )}

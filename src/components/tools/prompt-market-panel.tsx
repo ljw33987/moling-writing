@@ -21,11 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Heart, Copy, Sparkles, Plus, Flame, Loader2 } from 'lucide-react'
+import { Search, Heart, Copy, Sparkles, Plus, Flame, Loader2, Layers } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
+import {
+  getSavedPrompts,
+  removeSavedPrompt,
+  savePromptToLibrary,
+  SAVED_PROMPTS_EVENT,
+} from '@/lib/saved-prompts'
+import { PROMPT_CATEGORIES } from '@/lib/prompt-categories'
 
-const CATEGORIES = ['全部', '开篇钩子', '大纲模板', '人物设定', '爽点打磨', '去AI味', '对话张力']
+const CATEGORIES = ['全部', ...PROMPT_CATEGORIES]
+
+export interface AppliedPromptMeta {
+  id: string
+  title: string
+  category: string
+}
 
 interface PromptItem {
   id: string
@@ -40,7 +53,7 @@ interface PromptItem {
 }
 
 interface Props {
-  onApplyPrompt: (promptText: string) => void
+  onApplyPrompt: (promptText: string, meta: AppliedPromptMeta) => void
 }
 
 export function PromptMarketPanel({ onApplyPrompt }: Props) {
@@ -56,6 +69,15 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
   const [description, setDescription] = useState('')
   const [promptText, setPromptText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [savedIds, setSavedIds] = useState<string[]>([])
+  const [detailItem, setDetailItem] = useState<PromptItem | null>(null)
+
+  useEffect(() => {
+    const sync = () => setSavedIds(getSavedPrompts().map((p) => p.id))
+    sync()
+    window.addEventListener(SAVED_PROMPTS_EVENT, sync)
+    return () => window.removeEventListener(SAVED_PROMPTS_EVENT, sync)
+  }, [])
 
   const loadPrompts = useCallback(async () => {
     setLoading(true)
@@ -87,13 +109,25 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
     } catch {}
   }
 
-  const handleUse = async (item: PromptItem) => {
+  const handleToggleSave = async (item: PromptItem) => {
+    const isSaved = savedIds.includes(item.id)
+    if (isSaved) {
+      removeSavedPrompt(item.id)
+      toast.success(`已从设定库取消「${item.title}」`)
+      return
+    }
     api('/api/prompts', {
       method: 'PATCH',
       body: JSON.stringify({ id: item.id, action: 'use' }),
     }).catch(() => {})
-    onApplyPrompt(`${item.promptText}\n\n`)
-    toast.success(`已套用「${item.title}」，请在下方补充你的剧情后点击生成`)
+    savePromptToLibrary({
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      description: item.description,
+      promptText: item.promptText,
+    })
+    toast.success(`已套用到我的设定库「${item.title}」（可在写作 AI 助手中直接调用）`)
   }
 
   const handlePublish = async () => {
@@ -207,8 +241,8 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
                   <Textarea
                     value={promptText}
                     onChange={(e) => setPromptText(e.target.value)}
-                    rows={5}
-                    placeholder="写清楚给 AI 的角色定位、约束要求与输出格式..."
+                    rows={7}
+                    placeholder={'建议按「角色 / 任务 / 硬性要求 / 输出格式」分段写。\n例：\n【角色】你是本书的节奏编辑。\n【任务】……\n【硬性要求】1. ……\n【输出格式】……'}
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -231,6 +265,14 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
         </div>
       </div>
 
+      {/* 整合说明 */}
+      <div className="flex items-start gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground">
+        <Layers className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />
+        <p className="leading-relaxed">
+          模板已按「角色 · 任务 · 硬性要求 · 输出格式」结构编写，点击「套用」即可加入你的设定库，并在 AI 写作助手中随时调用（自动结合作品设定集、大纲与你的个人文风）。
+        </p>
+      </div>
+
       {/* 模板卡片网格 */}
       {loading ? (
         <div className="py-12 text-center text-sm text-muted-foreground">加载模板市场中...</div>
@@ -238,72 +280,158 @@ export function PromptMarketPanel({ onApplyPrompt }: Props) {
         <div className="py-12 text-center text-sm text-muted-foreground">暂无匹配的提示词模板</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item) => (
-            <Card key={item.id} className="flex flex-col hover:border-primary/40 transition">
-              <CardHeader className="p-4 pb-2 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="secondary" className="text-[10px]">
-                    {item.category}
-                  </Badge>
-                  {item.isOfficial && (
-                    <Badge className="text-[10px] bg-gold text-white hover:bg-gold/90">
-                      精选官方
+          {items.map((item) => {
+            const isSaved = savedIds.includes(item.id)
+            return (
+              <Card key={item.id} className={`flex flex-col transition ${isSaved ? 'border-primary/60 ring-1 ring-primary/15' : 'hover:border-primary/40'}`}>
+                <CardHeader className="p-4 pb-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {item.category}
                     </Badge>
-                  )}
-                </div>
-                <CardTitle className="text-sm leading-snug font-display">{item.title}</CardTitle>
-                <CardDescription className="text-xs line-clamp-2">{item.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 pt-2 flex-1 flex flex-col justify-between gap-3">
-                <div className="rounded bg-muted/40 p-2.5 text-[11px] text-muted-foreground line-clamp-3 leading-relaxed">
-                  {item.promptText}
-                </div>
+                    <div className="flex items-center gap-1.5">
+                      {isSaved && (
+                        <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                          已加入设定库
+                        </Badge>
+                      )}
+                      {item.isOfficial && (
+                        <Badge className="text-[10px] bg-gold text-white hover:bg-gold/90">
+                          精选官方
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <CardTitle
+                    className="text-sm leading-snug font-display cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setDetailItem(item)}
+                  >
+                    {item.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs line-clamp-2">{item.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-2 flex-1 flex flex-col justify-between gap-3">
+                  <div className="space-y-1">
+                    <div
+                      onClick={() => setDetailItem(item)}
+                      className="rounded bg-muted/40 p-2.5 text-[11px] text-muted-foreground max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-muted/60 transition-colors"
+                      title="点击查看完整提示词"
+                    >
+                      {item.promptText}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailItem(item)}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      查看完整内容
+                    </button>
+                  </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <div className="flex items-center gap-3">
-                    <span>@{item.authorName}</span>
-                    <span className="flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-gold" />
-                      {item.useCount}
-                    </span>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <div className="flex items-center gap-3">
+                      <span>@{item.authorName}</span>
+                      <span className="flex items-center gap-1">
+                        <Flame className="w-3 h-3 text-gold" />
+                        {item.useCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs gap-1"
+                        onClick={() => handleLike(item.id)}
+                      >
+                        <Heart className="w-3.5 h-3.5 text-cinnabar" />
+                        {item.likesCount}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(item.promptText)
+                          toast.success('已复制提示词')
+                        }}
+                        title="复制提示词"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={isSaved ? 'secondary' : 'default'}
+                        className={`h-7 px-2.5 text-xs gap-1 rounded-full ${isSaved ? 'border border-primary/30 text-primary' : 'bg-primary hover:bg-primary/90 shadow-sm'}`}
+                        onClick={() => handleToggleSave(item)}
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {isSaved ? '已套用' : '套用'}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs gap-1"
-                      onClick={() => handleLike(item.id)}
-                    >
-                      <Heart className="w-3.5 h-3.5 text-cinnabar" />
-                      {item.likesCount}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(item.promptText)
-                        toast.success('已复制提示词')
-                      }}
-                      title="复制提示词"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 px-2.5 text-xs gap-1 bg-primary hover:bg-primary/90 rounded-full shadow-sm"
-                      onClick={() => handleUse(item)}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      套用
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
+
+      {/* 提示词完整内容查看弹窗 */}
+      <Dialog open={!!detailItem} onOpenChange={(v) => !v && setDetailItem(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          {detailItem && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="secondary" className="text-xs">{detailItem.category}</Badge>
+                  <span className="text-xs text-muted-foreground">@{detailItem.authorName}</span>
+                </div>
+                <DialogTitle className="text-base">{detailItem.title}</DialogTitle>
+                <p className="text-xs text-muted-foreground">{detailItem.description}</p>
+              </DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-border bg-muted/30 p-3.5 text-xs leading-relaxed whitespace-pre-wrap select-text">
+                {detailItem.promptText}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs gap-1"
+                  onClick={() => {
+                    onApplyPrompt(detailItem.promptText, { id: detailItem.id, title: detailItem.title, category: detailItem.category })
+                    setDetailItem(null)
+                  }}
+                >
+                  去工具箱测试
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(detailItem.promptText)
+                      toast.success('已复制完整提示词')
+                    }}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    复制全文
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={savedIds.includes(detailItem.id) ? 'secondary' : 'default'}
+                    className="text-xs gap-1"
+                    onClick={() => handleToggleSave(detailItem)}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {savedIds.includes(detailItem.id) ? '取消套用' : '套用到设定库'}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -16,6 +16,7 @@ import { Loader2, Save, Settings, Cpu, Plus, Trash2, Coins, Gift, Sparkles, Shie
 import { toast } from 'sonner'
 import { AI_PROVIDERS } from '@/lib/ai-providers'
 import { DEFAULT_MODEL_MAPPINGS, type AdminModelMapping } from '@/lib/ai-models'
+import { AiConfigPanel, type AiConfig } from '@/components/user/ai-config-panel'
 
 export function PlatformConfigTab() {
   const [config, setConfig] = useState<any>(null)
@@ -36,6 +37,17 @@ export function PlatformConfigTab() {
   const [aiBaseUrl, setAiBaseUrl] = useState('')
   const [aiModel, setAiModel] = useState('')
   const [modelMappings, setModelMappings] = useState<AdminModelMapping[]>(DEFAULT_MODEL_MAPPINGS)
+  const [poolConfigs, setPoolConfigs] = useState<AiConfig[]>([])
+
+  const handlePoolConfigsChange = useCallback((list: AiConfig[]) => {
+    setPoolConfigs(list)
+    const primary = list.find((c) => c.isDefault && c.enabled) || list.find((c) => c.enabled)
+    if (primary) {
+      setAiProvider(primary.provider)
+      setAiBaseUrl(primary.baseUrl)
+      setAiModel(primary.model)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,8 +118,8 @@ export function PlatformConfigTab() {
     setModelMappings([
       ...modelMappings,
       {
-        aliasId: `moling_v4_${modelMappings.length + 1}`,
-        displayName: `moling_v4_${modelMappings.length + 1}`,
+        aliasId: `baogeng_v4_${modelMappings.length + 1}`,
+        displayName: `baogeng_v4_${modelMappings.length + 1}`,
         badge: '标准',
         description: '自定义映射模型',
         provider: aiProvider || 'deepseek',
@@ -271,62 +283,26 @@ export function PlatformConfigTab() {
         </CardContent>
       </Card>
 
-      {/* 平台默认 AI 配置 */}
+      {/* 平台 AI 接口池与备选优先级（统一管理 + 自动同步默认 AI） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Cpu className="w-4 h-4" />平台默认 AI 配置
-            {config?.hasApiKey ? (
+            <Cpu className="w-4 h-4" />平台 AI 接口池与备选优先级
+            {poolConfigs.some((c) => c.enabled) || config?.hasApiKey ? (
               <Badge variant="outline" className="ml-auto text-xs text-emerald-600">已配置</Badge>
             ) : (
               <Badge variant="outline" className="ml-auto text-xs text-amber-600">未配置</Badge>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded p-3 text-xs text-blue-700 dark:text-blue-300">
             <Sparkles className="w-3 h-3 inline mr-1" />
-            配置后，未绑定自己 API 的用户将使用此 AI 模型（消耗平台 Token）。
-            AI 调用优先级：用户自定义 API {'>'} 平台默认 AI {'>'} 内置 z-ai
+            在此统一管理全平台 AI 接口、测试连通性并设置优先级（<code className="font-mono">主接口 #1 → 备选 #2 → #3</code>）。
+            主接口（#1）会自动同步为平台默认 AI；当主接口触发 429 限流或异常时，系统会自动按优先级降级到下一个已启用的备选接口。
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">AI 提供商</Label>
-            <Select value={aiProvider} onValueChange={onProviderChange}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="选择提供商（留空则使用内置）" /></SelectTrigger>
-              <SelectContent>
-                {Object.values(AI_PROVIDERS).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {aiProvider && (
-            <>
-              <div className="space-y-1.5">
-                <Label className="text-xs">API Key {config?.hasApiKey && '（已设置，留空保留）'}</Label>
-                <Input type="password" value={aiApiKey} onChange={(e) => setAiApiKey(e.target.value)} placeholder={config?.hasApiKey ? '****（已设置）' : 'sk-...'} className="h-9 font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Base URL</Label>
-                <Input value={aiBaseUrl} onChange={(e) => setAiBaseUrl(e.target.value)} className="h-9 font-mono text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">模型</Label>
-                {AI_PROVIDERS[aiProvider]?.models?.length > 0 ? (
-                  <Select value={aiModel} onValueChange={setAiModel}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {AI_PROVIDERS[aiProvider].models.map((m: string) => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="h-9 font-mono text-xs" />
-                )}
-              </div>
-            </>
-          )}
+
+          <AiConfigPanel onConfigsChange={handlePoolConfigsChange} />
         </CardContent>
       </Card>
 
@@ -343,7 +319,7 @@ export function PlatformConfigTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded p-3 text-xs text-emerald-700 dark:text-emerald-300">
-            用户在写作助手下拉框中只会看到「对外名称」（如 <code className="font-mono">moling_v4</code>、<code className="font-mono">moling_v4_pro</code>），
+            用户在写作助手下拉框中只会看到「对外名称」（如 <code className="font-mono">baogeng_v4</code>、<code className="font-mono">baogeng_v4_pro</code>），
             不会暴露底层的 <code className="font-mono">deepseek-chat</code>、<code className="font-mono">MiniMax-M2.7</code> 等真实模型名称。
             实际 Base URL / API Key 留空时默认继承上方「平台默认 AI 配置」。
           </div>
@@ -392,7 +368,7 @@ export function PlatformConfigTab() {
                         updateModelMapping(idx, 'aliasId', e.target.value)
                         updateModelMapping(idx, 'displayName', e.target.value)
                       }}
-                      placeholder="如：moling_v4"
+                      placeholder="如：baogeng_v4"
                       className="h-8 text-xs font-mono"
                     />
                   </div>
@@ -416,46 +392,98 @@ export function PlatformConfigTab() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 border-t border-border/50">
+                <div className="space-y-2 pt-1 border-t border-border/50">
                   <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">实际提供商（后台隐藏）</Label>
-                    <Select value={m.provider || ''} onValueChange={(v) => updateModelMapping(idx, 'provider', v)}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="继承平台默认" /></SelectTrigger>
+                    <Label className="text-[11px] text-muted-foreground">优先绑定接口池中的接口（异常时自动按上方优先级降级备选）</Label>
+                    <Select
+                      value={m.configId || '__default__'}
+                      onValueChange={(v) => {
+                        if (v === '__default__') {
+                          setModelMappings(
+                            modelMappings.map((item, i) =>
+                              i === idx ? { ...item, configId: '' } : item
+                            )
+                          )
+                          return
+                        }
+                        const picked = poolConfigs.find((c) => c.id === v)
+                        setModelMappings(
+                          modelMappings.map((item, i) =>
+                            i === idx
+                              ? {
+                                  ...item,
+                                  configId: v,
+                                  provider: picked?.provider || item.provider,
+                                  realModel: picked?.model || item.realModel,
+                                  baseUrl: '',
+                                  apiKey: '',
+                                }
+                              : item
+                          )
+                        )
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="跟随平台主接口 #1 及备选优先级" />
+                      </SelectTrigger>
                       <SelectContent>
-                        {Object.values(AI_PROVIDERS).map((p) => (
-                          <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
-                        ))}
+                        <SelectItem value="__default__" className="text-xs">
+                          跟随平台主接口 (#1) 及备选优先级
+                        </SelectItem>
+                        {poolConfigs
+                          .filter((c) => c.enabled)
+                          .map((c, cIdx) => (
+                            <SelectItem key={c.id} value={c.id} className="text-xs">
+                              {cIdx === 0 ? '主接口 #1' : `备选 #${cIdx + 1}`} · {c.name} ({c.model})
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">实际模型名（后台隐藏）</Label>
-                    <Input
-                      value={m.realModel}
-                      onChange={(e) => updateModelMapping(idx, 'realModel', e.target.value)}
-                      placeholder="如：deepseek-chat / MiniMax-M2.7"
-                      className="h-8 text-xs font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">独立 Base URL（可选）</Label>
-                    <Input
-                      value={m.baseUrl}
-                      onChange={(e) => updateModelMapping(idx, 'baseUrl', e.target.value)}
-                      placeholder="留空继承平台默认"
-                      className="h-8 text-xs font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">独立 API Key（可选）</Label>
-                    <Input
-                      type="password"
-                      value={m.apiKey}
-                      onChange={(e) => updateModelMapping(idx, 'apiKey', e.target.value)}
-                      placeholder="留空继承平台默认"
-                      className="h-8 text-xs font-mono"
-                    />
-                  </div>
+
+                  {!m.configId && (
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">实际提供商（后台隐藏）</Label>
+                        <Select value={m.provider || ''} onValueChange={(v) => updateModelMapping(idx, 'provider', v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="继承平台默认" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.values(AI_PROVIDERS).map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">实际模型名（后台隐藏）</Label>
+                        <Input
+                          value={m.realModel}
+                          onChange={(e) => updateModelMapping(idx, 'realModel', e.target.value)}
+                          placeholder="如：deepseek-chat / MiniMax-M2.7"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">独立 Base URL（可选）</Label>
+                        <Input
+                          value={m.baseUrl}
+                          onChange={(e) => updateModelMapping(idx, 'baseUrl', e.target.value)}
+                          placeholder="留空继承平台默认"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">独立 API Key（可选）</Label>
+                        <Input
+                          type="password"
+                          value={m.apiKey}
+                          onChange={(e) => updateModelMapping(idx, 'apiKey', e.target.value)}
+                          placeholder="留空继承平台默认"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

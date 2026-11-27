@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>墨灵写作 · AI 网文创作平台 | 一句话灵感，长出一整部长篇</title>
+<meta name="description" content="墨灵写作是 AI 驱动的网文创作平台。沉浸式三栏编辑器、10 万字长文本记忆、18 个预设指令、AI 自动连载、设定库与作品广场——让作者不失忆、不卡文。注册即送 10,000 Token。">
+<meta name="keywords" content="AI写作,网文创作,AI续写,小说写作,自动连载,写作助手,墨灵写作">
+<meta property="og:title" content="墨灵写作 · AI 网文创作平台">
+<meta property="og:description" content="一句话灵感，长出一整部长篇。AI 长文本记忆 + 沉浸式编辑器 + 自动连载。">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/shot-editor.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%234F46E5'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>墨</text></svg>">
+<style>
+/* ============================================================
+   墨灵写作 · 官方落地页
+   冷白雾面 / 电光靛蓝 / 靛紫 AI 渐变
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F5F6F9; --surface:#FFFFFF; --surface-2:#FAFAFC; --surface-3:#F1F2F7;
+  --line:#E7E8F0; --line-2:#DCDEE8;
+  --ink:#13131B; --ink-2:#4E5060; --ink-3:#84879A; --ink-4:#A8ABBC;
+  --brand:#4F46E5; --brand-2:#6366F1; --brand-ink:#3730A3; --brand-soft:#EEEFFF; --brand-line:#C9CCFB;
+  --violet:#7C3AED; --violet-soft:#F3EEFF;
+  --cyan:#0891B2; --cyan-soft:#E4F6FA;
+  --green:#059669; --green-soft:#E5F6EF;
+  --amber:#D97706; --amber-soft:#FDF1DF;
+  --rose:#E11D48; --rose-soft:#FDE9EE;
+  --grad:linear-gradient(135deg,#6366F1 0%,#4F46E5 45%,#7C3AED 100%);
+  --grad-soft:linear-gradient(135deg,#EEEFFF 0%,#F6F0FF 100%);
+  --shadow-xs:0 1px 2px rgba(20,20,28,.05);
+  --shadow-sm:0 1px 3px rgba(20,20,28,.06),0 1px 2px rgba(20,20,28,.04);
+  --shadow-md:0 4px 14px -4px rgba(20,20,28,.10),0 2px 5px -2px rgba(20,20,28,.06);
+  --shadow-lg:0 18px 44px -16px rgba(20,20,28,.22),0 6px 14px -8px rgba(20,20,28,.12);
+  --shadow-xl:0 40px 80px -28px rgba(49,46,129,.42),0 12px 28px -12px rgba(20,20,28,.16);
+  --r:14px; --r-lg:20px; --r-xl:26px;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
+  --nav-h:66px;
+}
+html[data-theme="dark"]{
+  --bg:#0B0C11; --surface:#15171E; --surface-2:#1A1D25; --surface-3:#23262F;
+  --line:#252832; --line-2:#31353F;
+  --ink:#EDEFF6; --ink-2:#B2B6C6; --ink-3:#838899; --ink-4:#5F6474;
+  --brand:#7F83F2; --brand-2:#9EA1FF; --brand-ink:#C3C6FF; --brand-soft:#1D1F34; --brand-line:#343864;
+  --violet:#B794F6; --violet-soft:#221C35;
+  --cyan:#4FD1E5; --cyan-soft:#0C262D;
+  --green:#34D399; --green-soft:#0C271F;
+  --amber:#FBBF24; --amber-soft:#291F0E;
+  --rose:#FB7185; --rose-soft:#2D1419;
+  --grad:linear-gradient(135deg,#6366F1 0%,#7F83F2 45%,#A855F7 100%);
+  --grad-soft:linear-gradient(135deg,#1B1D2E 0%,#221B30 100%);
+  --shadow-xs:0 1px 2px rgba(0,0,0,.45);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 14px -4px rgba(0,0,0,.6),0 2px 5px -2px rgba(0,0,0,.5);
+  --shadow-lg:0 18px 44px -16px rgba(0,0,0,.75),0 6px 14px -8px rgba(0,0,0,.6);
+  --shadow-xl:0 40px 80px -28px rgba(0,0,0,.8),0 12px 28px -12px rgba(0,0,0,.6);
+}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--nav-h) + 16px)}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--ink);
+  font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  overflow-x:hidden; transition:background .3s,color .3s;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+.sec{padding:96px 0}
+.sec-sm{padding:64px 0}
+
+/* ---------- 导航 ---------- */
+.nav{
+  position:fixed;inset:0 0 auto 0;height:var(--nav-h);z-index:100;
+  background:color-mix(in oklch,var(--bg) 82%,transparent);
+  backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);
+  border-bottom:1px solid transparent;transition:border-color .25s,background .25s;
+}
+.nav.solid{background:color-mix(in oklch,var(--bg) 92%,transparent);border-bottom-color:var(--line)}
+.nav-in{max-width:1180px;margin:0 auto;padding:0 28px;height:100%;display:flex;align-items:center;gap:32px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.01em;flex:none}
+.logo-mark{
+  width:34px;height:34px;border-radius:10px;background:var(--grad);
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px;
+  box-shadow:0 4px 12px -3px rgba(79,70,229,.55);letter-spacing:-.03em;
+}
+.logo-sub{font-size:9.5px;color:var(--ink-4);font-weight:700;letter-spacing:.11em}
+.nav-links{display:flex;gap:4px;margin-left:8px}
+.nav-links a{padding:8px 12px;border-radius:9px;font-size:14px;font-weight:500;color:var(--ink-2);transition:background .15s,color .15s}
+.nav-links a:hover{background:var(--surface-3);color:var(--ink)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.icon-btn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--ink-2);transition:background .15s}
+.icon-btn:hover{background:var(--surface-3);color:var(--ink)}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:42px;padding:0 20px;border-radius:11px;font-size:14.5px;font-weight:600;
+  border:1px solid transparent;transition:all .18s;white-space:nowrap;
+}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.btn-p{background:var(--brand);color:#fff;box-shadow:0 3px 10px -2px rgba(79,70,229,.5)}
+.btn-p:hover{background:#4338CA;transform:translateY(-1px);box-shadow:0 6px 16px -4px rgba(79,70,229,.55)}
+.btn-o{border-color:var(--line-2);background:var(--surface);color:var(--ink-2)}
+.btn-o:hover{border-color:var(--ink-4);color:var(--ink)}
+.btn-l{height:52px;padding:0 28px;font-size:16px;border-radius:14px}
+.btn-g{background:var(--surface-3);color:var(--ink)}
+.nav .btn-p{height:38px;padding:0 16px;font-size:14px}
+.nav-toggle{display:none}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;padding:calc(var(--nav-h) + 72px) 0 80px;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;top:-260px;left:50%;transform:translateX(-50%);
+  width:1000px;height:700px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(99,102,241,.16),transparent 62%);pointer-events:none;
+}
+.hero-in{position:relative;text-align:center;max-width:820px;margin:0 auto}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 14px;
+  border-radius:999px;border:1px solid var(--brand-line);background:var(--brand-soft);
+  font-size:13px;font-weight:600;color:var(--brand-ink);margin-bottom:26px;
+}
+.pill span{background:var(--brand);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+h1{font-size:clamp(38px,6vw,64px);line-height:1.1;font-weight:800;letter-spacing:-.035em}
+h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p.lead{font-size:clamp(16px,1.6vw,19px);line-height:1.75;color:var(--ink-2);margin-top:22px;max-width:660px;margin-left:auto;margin-right:auto}
+.hero-cta{display:flex;gap:12px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+.hero-note{margin-top:16px;font-size:13px;color:var(--ink-4)}
+
+/* Hero 截图 */
+.shot-wrap{position:relative;margin-top:64px}
+.shot{
+  border-radius:var(--r-xl);overflow:hidden;border:1px solid var(--line);
+  box-shadow:var(--shadow-xl);background:var(--surface);
+}
+.shot img{width:100%}
+.shot-bar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.dots{display:flex;gap:6px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--line-2);display:block}
+.dots i:first-child{background:#F87171}.dots i:nth-child(2){background:#FBBF24}.dots i:nth-child(3){background:#34D399}
+.shot-url{margin:0 auto;font-size:12px;color:var(--ink-4);font-family:var(--mono)}
+.float-card{
+  position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow-lg);padding:12px 14px;z-index:2;
+}
+.fc-1{left:-26px;top:19%;width:216px}
+.fc-2{right:-26px;top:47%;width:232px}
+.fc-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fc-orb{width:26px;height:26px;border-radius:8px;background:var(--grad);display:grid;place-items:center;color:#fff}
+.fc-orb svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fc-t{font-size:12.5px;font-weight:650}
+.fc-s{font-size:10.5px;color:var(--ink-4)}
+.fc-body{font-size:11.5px;color:var(--ink-2);line-height:1.6}
+
+/* ---------- 数据条 ---------- */
+.stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.stats-in{max-width:1180px;margin:0 auto;padding:38px 28px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.stat-i{text-align:center}
+.stat-i b{display:block;font-size:clamp(26px,3vw,36px);font-weight:800;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-i span{font-size:13px;color:var(--ink-3);margin-top:6px;display:block}
+
+/* ---------- 通用区块头 ---------- */
+.head{max-width:660px;margin:0 auto 56px;text-align:center}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;
+  color:var(--brand);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;
+}
+.eyebrow svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+h2{font-size:clamp(28px,3.6vw,40px);font-weight:750;letter-spacing:-.03em;line-height:1.2}
+.head p{font-size:16.5px;color:var(--ink-2);margin-top:16px;line-height:1.75}
+
+/* ---------- 痛点 ---------- */
+.pains{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.pain{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:26px 24px;box-shadow:var(--shadow-xs);position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.pain:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.pain-q{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.45;margin-bottom:14px}
+.pain-q::before{content:"“";color:var(--ink-4);font-size:26px;line-height:0;vertical-align:-4px;margin-right:2px}
+.pain-a{font-size:14px;color:var(--ink-2);line-height:1.75}
+.pain-tag{
+  display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:12.5px;
+  font-weight:650;color:var(--brand);background:var(--brand-soft);border:1px solid var(--brand-line);
+  padding:5px 11px;border-radius:999px;
+}
+.pain-tag svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- 功能宫格 ---------- */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feat{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:26px 24px;box-shadow:var(--shadow-xs);transition:transform .2s,box-shadow .2s,border-color .2s;
+}
+.feat:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:var(--brand-line)}
+.feat-ic{
+  width:44px;height:44px;border-radius:13px;display:grid;place-items:center;margin-bottom:16px;
+}
+.feat-ic svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.feat h3{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:9px}
+.feat p{font-size:14px;color:var(--ink-2);line-height:1.75}
+.feat ul{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+.feat li{font-size:13px;color:var(--ink-3);display:flex;gap:8px;align-items:flex-start}
+.feat li svg{width:14px;height:14px;flex:none;margin-top:4px;stroke:var(--green);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- 界面预览 ---------- */
+.showcase{background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
+.tab{
+  height:38px;padding:0 18px;border-radius:11px;font-size:14px;font-weight:600;color:var(--ink-3);
+  border:1px solid var(--line-2);background:var(--bg);transition:all .18s;display:inline-flex;align-items:center;gap:7px;
+}
+.tab:hover{color:var(--ink);border-color:var(--ink-4)}
+.tab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.panel{display:none}
+.panel.on{display:block;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.panel-grid{display:grid;grid-template-columns:1fr 380px;gap:48px;align-items:center}
+.panel-copy h3{font-size:26px;font-weight:750;letter-spacing:-.03em;margin-bottom:14px}
+.panel-copy p{font-size:15.5px;color:var(--ink-2);line-height:1.8}
+.panel-list{margin-top:22px;display:flex;flex-direction:column;gap:11px}
+.panel-list li{list-style:none;display:flex;gap:11px;align-items:flex-start;font-size:14px;color:var(--ink-2);line-height:1.65}
+.panel-list svg{width:17px;height:17px;flex:none;margin-top:2px;stroke:var(--brand);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.shot-sm{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-lg)}
+
+/* 手机三连 */
+.phones{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:8px}
+.phone{
+  border-radius:26px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:var(--shadow-lg);background:var(--surface);max-width:280px;margin:0 auto;width:100%;
+}
+.phone img{width:100%}
+.phone-cap{text-align:center;margin-top:14px;font-size:13px;color:var(--ink-3);font-weight:500}
+
+/* ---------- 流程 ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;counter-reset:s}
+.step{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:28px 24px;position:relative;box-shadow:var(--shadow-xs);
+}
+.step-n{
+  width:36px;height:36px;border-radius:11px;background:var(--grad);color:#fff;
+  display:grid;place-items:center;font-weight:800;font-size:15px;margin-bottom:16px;
+  box-shadow:0 4px 12px -3px rgba(79,70,229,.5);
+}
+.step h3{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+.step p{font-size:14px;color:var(--ink-2);line-height:1.75}
+.step-arrow{position:absolute;right:-17px;top:38px;color:var(--ink-4);z-index:1}
+.step-arrow svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- 定价 ---------- */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
+.plan{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);
+  padding:30px 26px;box-shadow:var(--shadow-xs);position:relative;transition:transform .2s,box-shadow .2s;
+}
+.plan:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.plan.hot{
+  border:1.5px solid var(--brand);box-shadow:var(--shadow-lg);
+  background:linear-gradient(170deg,var(--brand-soft) 0%,var(--surface) 34%);
+}
+.plan-badge{
+  position:absolute;top:-11px;right:22px;height:24px;padding:0 11px;border-radius:999px;
+  background:var(--grad);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;
+}
+.plan-name{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.plan-price{font-size:40px;font-weight:800;letter-spacing:-.035em;margin-top:12px;line-height:1}
+.plan-price small{font-size:14px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.plan-desc{font-size:13px;color:var(--ink-3);margin-top:8px}
+.plan ul{margin:22px 0 24px;display:flex;flex-direction:column;gap:11px}
+.plan li{list-style:none;display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.plan li svg{width:16px;height:16px;flex:none;margin-top:2px;stroke:var(--green);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.plan li.off{color:var(--ink-4)}
+.plan li.off svg{stroke:var(--ink-4)}
+.plan .btn{width:100%}
+
+/* ---------- FAQ ---------- */
+.faq{max-width:760px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-q{
+  width:100%;display:flex;align-items:center;gap:16px;padding:22px 4px;
+  font-size:16.5px;font-weight:600;letter-spacing:-.01em;text-align:left;color:var(--ink);
+}
+.faq-q .mk{margin-left:auto;flex:none;width:26px;height:26px;border-radius:8px;background:var(--surface-3);
+  display:grid;place-items:center;transition:transform .25s,background .25s}
+.faq-q .mk svg{width:15px;height:15px;stroke:var(--ink-2);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.faq-item.on .mk{background:var(--brand);transform:rotate(45deg)}
+.faq-item.on .mk svg{stroke:#fff}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.faq-a p{font-size:14.5px;color:var(--ink-2);line-height:1.8;padding:0 4px 22px;max-width:660px}
+
+/* ---------- CTA ---------- */
+.cta{position:relative;overflow:hidden;border-radius:var(--r-xl);
+  background:linear-gradient(140deg,#312E81 0%,#4C1D95 55%,#6D28D9 100%);
+  padding:68px 40px;text-align:center;color:#fff;box-shadow:var(--shadow-xl);margin:0 auto;max-width:1180px}
+.cta::before{content:"";position:absolute;width:620px;height:620px;border-radius:50%;
+  background:radial-gradient(circle,rgba(165,180,252,.28),transparent 64%);top:-280px;left:50%;transform:translateX(-50%)}
+.cta h2{position:relative;font-size:clamp(26px,3.4vw,38px);color:#fff}
+.cta p{position:relative;font-size:16px;color:rgba(255,255,255,.72);margin-top:14px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.75}
+.cta-btns{position:relative;display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+.cta .btn-p{background:#fff;color:#312E81;box-shadow:0 6px 18px -6px rgba(0,0,0,.4)}
+.cta .btn-p:hover{background:#F3F1FF}
+.cta .btn-o{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.26)}
+.cta .btn-o:hover{background:rgba(255,255,255,.2)}
+
+/* ---------- Footer ---------- */
+footer{border-top:1px solid var(--line);background:var(--surface);margin-top:96px;padding:56px 0 32px}
+.foot-in{max-width:1180px;margin:0 auto;padding:0 28px}
+.foot-top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:36px;padding-bottom:36px;border-bottom:1px solid var(--line)}
+.foot-brand p{font-size:13.5px;color:var(--ink-3);margin-top:14px;line-height:1.75;max-width:280px}
+.foot h4{font-size:13px;font-weight:700;margin-bottom:14px}
+.foot ul{display:flex;flex-direction:column;gap:9px}
+.foot li{list-style:none}
+.foot a{font-size:13.5px;color:var(--ink-3);transition:color .15s}
+.foot a:hover{color:var(--brand)}
+.foot-btm{display:flex;align-items:center;justify-content:space-between;padding-top:22px;font-size:12.5px;color:var(--ink-4);flex-wrap:wrap;gap:12px}
+.foot-social{display:flex;gap:8px}
+
+/* ---------- 滚动揭示 ---------- */
+.rv{opacity:0;transform:translateY(22px);transition:opacity .6s cubic-bezier(.2,.7,.3,1),transform .6s cubic-bezier(.2,.7,.3,1)}
+.rv.in{opacity:1;transform:none}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:1024px){
+  .panel-grid{grid-template-columns:1fr;gap:32px}
+  .panel-copy{text-align:center}
+  .panel-list{max-width:520px;margin-left:auto;margin-right:auto;text-align:left}
+  .float-card{display:none}
+}
+@media(max-width:900px){
+  .nav-links{display:none}
+  .nav-toggle{display:grid}
+  .feat-grid{grid-template-columns:repeat(2,1fr)}
+  .pains{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+  .step-arrow{display:none}
+  .plans{grid-template-columns:1fr;max-width:440px;margin:0 auto}
+  .stats-in{grid-template-columns:repeat(2,1fr);gap:26px}
+  .foot-top{grid-template-columns:1fr 1fr}
+  .phones{grid-template-columns:1fr;max-width:300px;margin:0 auto}
+  .phone{margin-bottom:24px}
+}
+@media(max-width:640px){
+  .wrap{padding:0 20px}
+  .nav-in{padding:0 20px}
+  .sec{padding:64px 0}
+  .sec-sm{padding:44px 0}
+  .feat-grid{grid-template-columns:1fr}
+  .hero{padding-top:calc(var(--nav-h) + 48px)}
+  h1{font-size:34px}
+  .cta{padding:48px 22px}
+  .foot-top{grid-template-columns:1fr;gap:26px}
+  .hero-cta .btn{width:100%}
+  .shot{border-radius:18px}
+  .fc-1,.fc-2{display:none}
+}
+</style>
+<style>html{overflow:hidden!important}body{position:relative;top:-0px}.rv{opacity:1!important;transform:none!important}</style></head>
+<body>
+
+<!-- ============ 导航 ============ -->
+<nav class="nav" id="nav">
+  <div class="nav-in">
+    <a class="logo" href="#top">
+      <span class="logo-mark">墨</span>
+      <span>
+        墨灵写作
+        <span class="logo-sub" style="display:block">AI NOVEL STUDIO</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="#pain">为什么</a>
+      <a href="#features">功能</a>
+      <a href="#showcase">界面</a>
+      <a href="#mobile">手机版</a>
+      <a href="#pricing">定价</a>
+      <a href="#faq">常见问题</a>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn" id="themeBtn" aria-label="切换深色模式" title="切换深色模式">
+        <svg id="themeIcon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <a class="btn btn-o" href="#pricing">登录</a>
+      <a class="btn btn-p" href="#cta">免费开始</a>
+      <button class="icon-btn nav-toggle" id="menuBtn" aria-label="菜单">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ Hero ============ -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-in">
+      <span class="pill">AI 驱动的网文创作平台 <span>NEW</span></span>
+      <h1>一句话灵感，<br><span class="g">长出一整部长篇</span></h1>
+      <p class="lead">
+        AI 长文本记忆引擎自动注入世界观、大纲、前情与角色设定。
+        18 个预设指令、十万字上下文、定时自动连载 —— 让你的每一次落笔都不失忆、不卡文。
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-p btn-l" href="#cta">免费开始写作
+          <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg>
+        </a>
+        <a class="btn btn-o btn-l" href="#showcase">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 6 3.5-6 3.5z"/></svg>
+          看界面演示
+        </a>
+      </div>
+      <p class="hero-note">无需信用卡 · 注册即送 10,000 Token · 支持 6 家 AI 提供商</p>
+    </div>
+
+    <div class="shot-wrap">
+      <div class="shot">
+        <div class="shot-bar">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="shot-url">moling.app / editor / 剑起长安 / 第 12 章</div>
+        </div>
+        <img src="../assets/shot-editor.png" alt="墨灵写作三栏编辑器界面：左侧章节目录，中间正文编辑区，右侧 AI 写作助手" loading="eager">
+      </div>
+
+      <div class="float-card fc-1">
+        <div class="fc-top">
+          <span class="fc-orb"><svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
+          <div><div class="fc-t">长文本记忆</div><div class="fc-s">自动注入 4 类上下文</div></div>
+        </div>
+        <div class="fc-body">世界观 · 全书大纲 · 前情提要 · 角色设定</div>
+      </div>
+
+      <div class="float-card fc-2">
+        <div class="fc-top">
+          <span class="fc-orb"><svg viewBox="0 0 24 24"><path d="M13 2.5 4.5 14H11l-1 7.5 8.5-11.5H12z"/></svg></span>
+          <div><div class="fc-t">自动连载</div><div class="fc-s">每 30 分钟生成一章</div></div>
+        </div>
+        <div class="fc-body">睡着也在更新 · 已自动生成 9 章</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 数据条 ============ -->
+<section class="stats">
+  <div class="stats-in">
+    <div class="stat-i"><b>12,846</b><span>位作家在用</span></div>
+    <div class="stat-i"><b>38,209</b><span>部作品创作中</span></div>
+    <div class="stat-i"><b>1,042,338</b><span>次 AI 写作调用</span></div>
+    <div class="stat-i"><b>18</b><span>个内置预设指令</span></div>
+  </div>
+</section>
+
+<!-- ============ 痛点 ============ -->
+<section class="sec" id="pain">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M3 12h3M18 12h3M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5"/></svg>为什么是墨灵</span>
+      <h2>写网文最难的，从来不是打字</h2>
+      <p>真正拖垮一部长篇的，是"记不住"和"写不下去"。这两件事，墨灵写作替你扛下来。</p>
+    </div>
+
+    <div class="pains">
+      <div class="pain rv">
+        <div class="pain-q">写到 30 万字，人设全崩了</div>
+        <div class="pain-a">角色的口头禅、支线伏笔、前情提要散落在几十章里，AI 每次写作都从零开始，越写越离谱。</div>
+        <span class="pain-tag"><svg viewBox="0 0 24 24"><path d="m9 12 2.2 2.2L15.5 10"/></svg>长文本记忆引擎</span>
+      </div>
+      <div class="pain rv">
+        <div class="pain-q">每天坐电脑前 3 小时，还是卡文</div>
+        <div class="pain-a">灵感不等人，而 AI 给的永远是"少年握紧了手中的剑"这种废话，作者真正想要的是三个能立刻用的走向。</div>
+        <span class="pain-tag"><svg viewBox="0 0 24 24"><path d="m9 12 2.2 2.2L15.5 10"/></svg>18 个预设指令</span>
+      </div>
+      <div class="pain rv">
+        <div class="pain-q">日更三千字，肝到崩溃</div>
+        <div class="pain-a">不是每一章都值得你亲手写。定时任务让 AI 按你的剧情走向提示自动续写，你只需要审稿和调优。</div>
+        <span class="pain-tag"><svg viewBox="0 0 24 24"><path d="m9 12 2.2 2.2L15.5 10"/></svg>自动连载</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 功能 ============ -->
+<section class="sec" id="features" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/></svg>核心能力</span>
+      <h2>从第一句灵感，到稳定日更</h2>
+      <p>六个模块覆盖网文创作的完整链路，功能做了减法，逻辑没有妥协。</p>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--brand-soft);color:var(--brand)"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div>
+        <h3>沉浸式三栏编辑器</h3>
+        <p>章节目录、正文、AI 助手并排显示，栏宽自由拖拽。写作时其余全部让路。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>4 种模式：普通 / 打字机 / 专注 / 深色护眼</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>章节拖拽排序，跨卷移动</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>每章 30 个版本快照，随时回滚</li>
+        </ul>
+      </div>
+
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--violet-soft);color:var(--violet)"><svg viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 1 9-9c0 2-1.6 3-3.5 3H16a2 2 0 0 0-1.4 3.4A1.7 1.7 0 0 1 12 21z"/></svg></div>
+        <h3>AI 长文本记忆</h3>
+        <p>自动装配世界观、全书大纲、章节提要与角色设定，按 token 预算分层裁剪。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>十万字级上下文自动注入</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>AI 草稿独立于撤销栈，放心改</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>支持 DeepSeek / OpenAI / Claude / Gemini / Grok / MiniMax</li>
+        </ul>
+      </div>
+
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--cyan-soft);color:var(--cyan)"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></div>
+        <h3>设定库</h3>
+        <p>角色、世界观、道具功法三类卡片独立管理，写作时输入 <b>@</b> 直接引用。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>AI 一键生成全套设定</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>关键词 → 完整角色背景小传</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>设定全局共享，跨书复用</li>
+        </ul>
+      </div>
+
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--amber-soft);color:var(--amber)"><svg viewBox="0 0 24 24"><path d="m14 4.4 1.2 2.8 2.8 1.2-2.8 1.2L14 12.4l-1.2-2.8L10 8.4l2.8-1.2z"/></svg></div>
+        <h3>18 个预设指令</h3>
+        <p>建书、正文、辅助、类型、编辑、设定六大类，把网文老手的手感拆成可复用的流程。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>黄金三章开篇、网文起名器</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>精彩冲突对话、卡文破局思路</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>毒点检查、审稿评分、去 AI 味</li>
+        </ul>
+      </div>
+
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--green-soft);color:var(--green)"><svg viewBox="0 0 24 24"><path d="M13 2.5 4.5 14H11l-1 7.5 8.5-11.5H12z"/></svg></div>
+        <h3>自动连载</h3>
+        <p>独立后台进程按设定间隔生成新章节，带剧情走向提示，作品永远有新章可读。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>生成间隔与每章字数目标可配</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>生成结果直接进章节树，可一键润色</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>随时暂停 / 继续，不打断手写</li>
+        </ul>
+      </div>
+
+      <div class="feat rv">
+        <div class="feat-ic" style="background:var(--rose-soft);color:var(--rose)"><svg viewBox="0 0 24 24"><path d="M12 6.6S10 4.2 5 4.2v13.6c5 0 7 2.4 7 2.4s2-2.4 7-2.4V4.2c-5 0-7 2.4-7 2.4z"/><path d="M12 6.6v13.6"/></svg></div>
+        <h3>作品广场与导出</h3>
+        <p>一键发布到广场，也支持导出 TXT / Markdown / 全书 ZIP（按卷分文件夹）。</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>10 个分类 + 关键词搜索 + 排序</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>读者阅读页 · 上下章 · 目录 · 阅读进度</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>点赞 / 收藏 / 浏览量互动</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 界面预览 ============ -->
+<section class="sec showcase" id="showcase">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.6 12 5.6 21.5 12 21.5 12 18 18.4 12 18.4 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>界面一览</span>
+      <h2>好看，而且真的好用</h2>
+      <p>冷白底、电光靛蓝主色，所有 AI 元素统一用靛紫渐变 —— 一眼分清"你写的"和"AI 写的"。</p>
+    </div>
+
+    <div class="tabs rv" id="tabs">
+      <button class="tab on" data-p="p1"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>工作台</button>
+      <button class="tab" data-p="p2"><svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>编辑器</button>
+      <button class="tab" data-p="p3"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5z"/><path d="m3 12 9 5 9-5"/></svg>设定库</button>
+      <button class="tab" data-p="p4"><svg viewBox="0 0 24 24"><path d="M12 6.6S10 4.2 5 4.2v13.6c5 0 7 2.4 7 2.4s2-2.4 7-2.4V4.2c-5 0-7 2.4-7 2.4z"/></svg>作品广场</button>
+      <button class="tab" data-p="p5"><svg viewBox="0 0 24 24"><path d="m14 4.4 1.2 2.8 2.8 1.2-2.8 1.2L14 12.4l-1.2-2.8L10 8.4l2.8-1.2z"/></svg>AI 工具箱</button>
+    </div>
+
+    <div class="panel on" id="p1">
+      <div class="panel-grid">
+        <div class="shot-sm rv"><img src="../assets/shot-workspace.png" alt="墨灵写作工作台：继续写作、今日字数目标、自动连载状态与作品书架" loading="lazy"></div>
+        <div class="panel-copy rv">
+          <h3>工作台</h3>
+          <p>打开就是"继续写"，而不是一个空书架。最近编辑的书、当前章节、今日目标进度全部在第一屏。</p>
+          <ul class="panel-list">
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>「继续写作」大卡片直达上次章节</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>自动连载状态、最近章节一键续写</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>35 天创作热力图 + 日更目标进度</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p2">
+      <div class="panel-grid">
+        <div class="shot-sm rv"><img src="../assets/shot-dark.png" alt="墨灵写作编辑器深色模式：左侧章节目录、中间正文、右侧 AI 写作助手" loading="lazy"></div>
+        <div class="panel-copy rv">
+          <h3>编辑器</h3>
+          <p>三栏并排：章节目录、正文纸面、AI 助手。选中任意文字即可润色 / 扩写 / 缩写 / 续写 / 转文风。</p>
+          <ul class="panel-list">
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>打字机 / 专注 / 深色 / 护眼四种模式</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>AI 草稿独立容器，不会污染你的撤销栈</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>全文搜索、导出、版本历史、字数目标</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p3">
+      <div class="panel-grid">
+        <div class="shot-sm rv"><img src="../assets/shot-settings.png" alt="墨灵写作设定库：角色卡、世界观、道具功法三类设定与 AI 批量生成" loading="lazy"></div>
+        <div class="panel-copy rv">
+          <h3>设定库</h3>
+          <p>角色、世界观、道具功法三类卡片独立管理。写作时在编辑器输入 <b>@</b>，就能把任意设定卡塞进上下文。</p>
+          <ul class="panel-list">
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>AI 批量生成全套：3 角色 + 2 世界观 + 2 道具</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>关键词一键生成角色背景小传</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>设定库全局共享，跨书复用不重复劳动</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p4">
+      <div class="panel-grid">
+        <div class="shot-sm rv"><img src="../assets/shot-plaza.png" alt="墨灵写作作品广场：精选推荐、分类筛选与作品卡片墙" loading="lazy"></div>
+        <div class="panel-copy rv">
+          <h3>作品广场</h3>
+          <p>把写好的故事放出来。读者有完整的阅读页、目录、上下章与阅读进度，作者这边能看浏览和互动数据。</p>
+          <ul class="panel-list">
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>10 个分类 + 关键词搜索 + 最新/热门/推荐</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>点赞 / 收藏 / 浏览量实时反馈</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>随时隐藏或撤回 republished</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p5">
+      <div class="panel-grid">
+        <div class="shot-sm rv"><img src="../assets/shot-toolbox.png" alt="墨灵写作 AI 工具箱：书名简介、黄金三章、起名器等工具与生成结果" loading="lazy"></div>
+        <div class="panel-copy rv">
+          <h3>AI 工具箱</h3>
+          <p>建书、拆书、起名、审稿、封面生成 —— 卡壳的环节单独拎出来，做成一个一个的小工具。</p>
+          <ul class="panel-list">
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>8 个独立工具 + 提示词模板市场</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>TXT 智能分章导入，老书无痛搬家</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>原创封面生成，无版权风险</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 手机版 ============ -->
+<section class="sec" id="mobile">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>手机也能写</span>
+      <h2>通勤路上，也是创作时间</h2>
+      <p>手机端不是桌面版的缩小版，而是一套重新设计的移动交互：底部 Tab 导航、横滑书架、沉浸正文、上滑抽屉。</p>
+    </div>
+
+    <div class="phones">
+      <div class="rv">
+        <div class="phone"><img src="../assets/m-workspace.png" alt="墨灵写作手机版工作台" loading="lazy"></div>
+        <div class="phone-cap">工作台 · 底部导航 + 横滑书架</div>
+      </div>
+      <div class="rv">
+        <div class="phone"><img src="../assets/m-editor.png" alt="墨灵写作手机版沉浸式编辑器" loading="lazy"></div>
+        <div class="phone-cap">编辑器 · 全屏沉浸正文</div>
+      </div>
+      <div class="rv">
+        <div class="phone"><img src="../assets/m-ai.png" alt="墨灵写作手机版 AI 助手底部抽屉" loading="lazy"></div>
+        <div class="phone-cap">AI 助手 · 上滑抽屉</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 流程 ============ -->
+<section class="sec" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M4 12h16"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg>三步上手</span>
+      <h2>从零到日更，只要三步</h2>
+      <p>不用先学工具。第一次打开就能把第一句话变成一本书。</p>
+    </div>
+
+    <div class="steps">
+      <div class="step rv">
+        <div class="step-n">1</div>
+        <h3>丢一句话进去</h3>
+        <p>"少年剑修觉醒血瞳，被卷入宗门内乱" —— 一句话就是全部输入，类型可调。</p>
+        <span class="step-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg></span>
+      </div>
+      <div class="step rv">
+        <div class="step-n">2</div>
+        <h3>AI 生成整套设定</h3>
+        <p>自动产出书籍简介、全书大纲与三个核心角色卡，世界观和道具同时就位。</p>
+        <span class="step-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg></span>
+      </div>
+      <div class="step rv">
+        <div class="step-n">3</div>
+        <h3>写起来，然后交给 AI 续</h3>
+        <p>你写主线，AI 按你的走向提示自动生成后续章节，你只负责审稿和润色。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 定价 ============ -->
+<section class="sec" id="pricing">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>定价</span>
+      <h2>比请个编辑便宜太多</h2>
+      <p>Token 积分制，用多少充多少。也支持支付宝直接充值。</p>
+    </div>
+
+    <div class="plans">
+      <div class="plan rv">
+        <div class="plan-name">免费版</div>
+        <div class="plan-price">¥0<small> / 永久</small></div>
+        <div class="plan-desc">适合先试试水</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>每日 5,000 Token</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>基础 AI 模型</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>最多 3 部小说</li>
+          <li class="off"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>自动连载</li>
+        </ul>
+        <a class="btn btn-o" href="#cta">免费注册</a>
+      </div>
+
+      <div class="plan hot rv">
+        <span class="plan-badge">最受欢迎</span>
+        <div class="plan-name">月卡会员</div>
+        <div class="plan-price">¥29.9<small> / 月</small></div>
+        <div class="plan-desc">全功能解锁，按月灵活</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>每日 50,000 Token</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>高级 AI 模型</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>无限小说数量</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>专属预设指令库 + 自动连载</li>
+        </ul>
+        <a class="btn btn-p" href="#cta">升级月卡</a>
+      </div>
+
+      <div class="plan rv">
+        <div class="plan-name">年卡会员</div>
+        <div class="plan-price">¥299<small> / 年</small></div>
+        <div class="plan-desc">相当于每月 ¥24.9，省 2 个月</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>月卡全部权益</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>每日 200,000 Token</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>专属客服 + 优先体验新功能</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>支持接入自己的 API Key，写作不耗平台 Token</li>
+        </ul>
+        <a class="btn btn-o" href="#cta">升级年卡</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="sec sec-sm" id="faq" style="background:var(--surface);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.2"/></svg>常见问题</span>
+      <h2>作者最常问的几个</h2>
+    </div>
+
+    <div class="faq rv" id="faqList">
+      <div class="faq-item">
+        <button class="faq-q">AI 写的会不会一眼看出是 AI？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>内置了专门的「去 AI 味」指令，能识别"显然、不禁、仿佛"这类高频腔调并改写为具体动作与感官描写。同时平台统计你的 AI 采纳占比，你自己心里有数。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">AI 会不会改掉我写好的内容？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>不会。AI 生成的内容写进独立的「待采纳草稿」容器，和你的正文分开，也不进撤销栈。点「插入到正文」才会合并，每章还留 30 个版本快照随时回滚。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">我必须用平台的 AI 吗？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>不是。支持接入你自己的 DeepSeek / OpenAI / Claude / Gemini / Grok / MiniMax API Key，设为默认后 AI 写作直接走你自己的账户，<b>不消耗平台 Token</b>，只按第三方 API 计费。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">我的稿子安全吗？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>本地草稿 + 节流同步 + IndexedDB 三层防丢稿机制，断网也能写，联网后自动补传。所有作品默认私有，只有你主动点「发布到广场」才会公开。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">可以先写完再决定要不要用 AI 吗？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>完全可以。编辑器本身就是完整的 Markdown 富文本编辑器，不用任何 AI 也能写完整本小说；AI 只是可选的加速器。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">有手机版吗？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>有，而且是为手机重新设计的一套：底部 Tab 导航、横滑书架、全屏沉浸正文、AI 助手改成上滑抽屉。通勤路上灵感来了，掏手机就能接着写。</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="sec" id="cta" style="padding-top:72px">
+  <div class="wrap">
+    <div class="cta rv">
+      <h2>你的下一个故事，已经在等你</h2>
+      <p>注册即送 10,000 Token，够写两万字。从一句话开始，十分钟后你会有一个完整的作品。</p>
+      <div class="cta-btns">
+        <a class="btn btn-p btn-l" href="#top">免费开始写作
+          <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg>
+        </a>
+        <a class="btn btn-o btn-l" href="#showcase">先看看界面</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Footer ============ -->
+<footer>
+  <div class="foot-in">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a class="logo" href="#top">
+          <span class="logo-mark">墨</span>
+          <span>墨灵写作</span>
+        </a>
+        <p>AI 驱动的网文创作平台。沉浸式编辑器、长文本记忆、自动连载，把作者从重复劳动里解放出来。</p>
+        <div class="foot-social" style="margin-top:16px">
+          <a class="icon-btn" href="#" aria-label="微博"><svg viewBox="0 0 24 24"><path d="M18 8a3 3 0 1 0-5.7-1.3"/><path d="M6 15c0 3 2.7 5 6 5s6-2 6-5-2.7-5-6-5-6 2-6 5z"/><path d="M9.5 15a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0z"/></svg></a>
+          <a class="icon-btn" href="#" aria-label="邮箱"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="m3.6 6.6 8.4 6 8.4-6"/></svg></a>
+        </div>
+      </div>
+      <div class="foot">
+        <h4>产品</h4>
+        <ul>
+          <li><a href="#features">核心功能</a></li>
+          <li><a href="#showcase">界面预览</a></li>
+          <li><a href="#mobile">手机版</a></li>
+          <li><a href="#pricing">定价</a></li>
+        </ul>
+      </div>
+      <div class="foot">
+        <h4>资源</h4>
+        <ul>
+          <li><a href="#faq">常见问题</a></li>
+          <li><a href="#">平台文档</a></li>
+          <li><a href="#">提示词模板市场</a></li>
+          <li><a href="#">写作教程</a></li>
+        </ul>
+      </div>
+      <div class="foot">
+        <h4>关于</h4>
+        <ul>
+          <li><a href="#">联系我们</a></li>
+          <li><a href="#">用户协议</a></li>
+          <li><a href="#">隐私政策</a></li>
+          <li><a href="#">AI 服务条款</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-btm">
+      <span>© 2026 墨灵写作 · AI Novel Studio</span>
+      <span>本页面为产品介绍，界面仅作示意</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var $=function(s){return document.querySelector(s)};
+  var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+
+  /* 导航滚动态 */
+  var nav=$('#nav');
+  var onScroll=function(){ nav.classList.toggle('solid', window.scrollY>12); };
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+  /* 深浅色切换 */
+  var root=document.documentElement, btn=$('#themeBtn'), icon=$('#themeIcon');
+  var SUN='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2 12h2.2M19.8 12H22M4.4 19.6 6 18M18 6l1.6-1.6"/>';
+  var MOON='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+  function setTheme(t){
+    root.setAttribute('data-theme',t);
+    icon.innerHTML = t==='dark'?SUN:MOON;
+    try{ localStorage.setItem('moling-theme',t); }catch(e){}
+  }
+  var saved=null;
+  try{ saved=localStorage.getItem('moling-theme'); }catch(e){}
+  if(!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) saved='dark';
+  setTheme(saved||'light');
+  btn.addEventListener('click',function(){ setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark'); });
+
+  /* 界面预览 Tab */
+  $$('#tabs .tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      $$('#tabs .tab').forEach(function(x){x.classList.remove('on')});
+      t.classList.add('on');
+      $$('.panel').forEach(function(p){p.classList.remove('on')});
+      var p=document.getElementById(t.dataset.p);
+      if(p){ p.classList.add('on'); p.querySelectorAll('.rv').forEach(function(el){ el.classList.add('in'); }); }
+    });
+  });
+
+  /* FAQ 手风琴 */
+  $$('#faqList .faq-item').forEach(function(item){
+    var q=item.querySelector('.faq-q'), a=item.querySelector('.faq-a');
+    q.addEventListener('click',function(){
+      var open=item.classList.contains('on');
+      $$('#faqList .faq-item').forEach(function(x){
+        x.classList.remove('on');
+        x.querySelector('.faq-a').style.maxHeight=null;
+      });
+      if(!open){ item.classList.add('on'); a.style.maxHeight=a.scrollHeight+'px'; }
+    });
+  });
+
+  /* 滚动揭示 */
+  function revealInView(){
+    var vh=window.innerHeight;
+    $$('.rv:not(.in)').forEach(function(el){
+      var r=el.getBoundingClientRect();
+      if(r.top < vh*0.92 && r.bottom > 0) el.classList.add('in');
+    });
+  }
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    },{threshold:.12, rootMargin:'0px 0px -40px 0px'});
+    $$('.rv').forEach(function(el){io.observe(el)});
+    window.addEventListener('load',revealInView,{once:true});
+    setTimeout(revealInView,600);
+  } else {
+    $$('.rv').forEach(function(el){el.classList.add('in')});
+  }
+
+  /* 移动端菜单 */
+  var mb=$('#menuBtn');
+  mb.addEventListener('click',function(){
+    var open=nav.classList.toggle('menu-open');
+    var links=$('.nav-links');
+    if(open){
+      links.style.cssText='display:flex;position:absolute;top:66px;left:0;right:0;flex-direction:column;background:var(--surface);border-bottom:1px solid var(--line);padding:12px;gap:2px';
+      links.querySelectorAll('a').forEach(function(a){a.style.padding='12px 14px'});
+    } else { links.removeAttribute('style'); }
+  });
+  $$('.nav-links a').forEach(function(a){
+    a.addEventListener('click',function(){
+      if(nav.classList.contains('menu-open')){ nav.classList.remove('menu-open'); $('.nav-links').removeAttribute('style'); }
+    });
+  });
+
+  /* CTA 按钮滚动到顶部区（作为注册入口占位） */
+  $$('a[href="#top"]').forEach(function(a){
+    a.addEventListener('click',function(e){ e.preventDefault(); window.scrollTo({top:0,behavior:'smooth'}); });
+  });
+})();
+</script>
+</body>
+</html>

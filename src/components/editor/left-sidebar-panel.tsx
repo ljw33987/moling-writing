@@ -39,7 +39,7 @@ interface Props {
   onSelectMindmap: (id: string) => void
   onCreateMindmap: (file: MindmapFile) => void
   onDeleteMindmap: (id: string) => void
-  onTreeChange: () => void
+  onTreeChange: (chapterId?: string) => void
   onWritingStyleChange?: (styleId: string | null) => void
   onInsertCodexRef?: (id: string) => void
 }

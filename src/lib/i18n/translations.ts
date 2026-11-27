@@ -42,7 +42,7 @@ const zh: Dict = {
   'auth.penName': '笔名',
   'auth.loginSuccess': '欢迎回来',
   'auth.registerSuccess': '注册成功',
-  'auth.welcomeTitle': '笔锋写作',
+  'auth.welcomeTitle': '爆更猫AI写作',
   'auth.welcomeDesc': 'AI 驱动的网文创作平台',
   'auth.startCreate': '开始你的创作之旅',
   'auth.agree': '登录即表示同意《用户协议》和《隐私政策》',

@@ -13,7 +13,7 @@ datasource db {
 model PlatformConfig {
   id              String   @id @default("default")
   // 平台基础
-  platformName    String   @default("笔锋写作")
+  platformName    String   @default("爆更猫AI写作")
   platformIcon    String   @default("") // URL 或空
   platformDesc    String   @default("AI 驱动的长篇网文创作平台")
   // 平台模式
@@ -80,6 +80,7 @@ model UserAiConfig {
   // 状态
   enabled   Boolean  @default(true)
   isDefault Boolean  @default(false) // 是否为默认使用的 API
+  priority  Int      @default(100)   // 优先级（数字越小越优先，用于主接口与备选降级顺序）
   // 测试状态
   lastTestAt   DateTime?
   lastTestOk   Boolean  @default(false)
@@ -304,7 +305,7 @@ model EmailConfig {
   smtpSecure   Boolean  @default(true) // 465 为 true，587 为 false
   smtpUser     String   // 邮箱地址
   smtpPass     String   // 邮箱密码或授权码
-  fromName     String   @default("笔锋写作") // 发件人显示名
+  fromName     String   @default("爆更猫AI写作") // 发件人显示名
   // 状态
   enabled      Boolean  @default(true)
   lastTestAt   DateTime?
@@ -613,7 +614,7 @@ model PromptTemplate {
   category    String   @default("大纲模板") // 大纲模板 / 人物设定 / 去AI味 / 爽点打磨 / 开篇钩子 / 对话张力
   description String
   promptText  String
-  authorName  String   @default("笔锋官方")
+  authorName  String   @default("爆更猫官方")
   userId      String?
   useCount    Int      @default(0)
   likesCount  Int      @default(0)

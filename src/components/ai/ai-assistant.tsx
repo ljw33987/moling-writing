@@ -48,8 +48,11 @@ import {
   Feather,
   Tag,
   Pencil,
+  History,
 } from 'lucide-react'
 import { api, countWords } from '@/lib/helpers'
+import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
+import { getSavedPrompts, SAVED_PROMPTS_EVENT, type SavedPromptItem } from '@/lib/saved-prompts'
 import { toast } from 'sonner'
 import { PLATFORM_MODEL_ALIASES, type PublicAiModel } from '@/lib/ai-models'
 import type { AiReferenceOption } from '@/app/api/ai/references/route'
@@ -107,6 +110,25 @@ const BUILTIN_PROMPT_TAGS: PromptTag[] = [
     builtin: true,
   },
 ]
+
+interface MarketPromptItem {
+  id: string
+  title: string
+  category: string
+  description: string
+  promptText: string
+}
+
+interface AiActionHistoryItem {
+  id: string
+  kind: 'reply' | 'replace'
+  title: string
+  preview: string
+  fullText: string
+  words: number
+  createdAt: string
+  allowWriteback?: boolean
+}
 
 interface ChapterBrief {
   id: string
@@ -200,7 +222,7 @@ function parseMultiChapterSections(
       matched.push(current)
     } else if (
       current &&
-      /^#{1,3}\s+(修改说明|修改摘要|本次修改|修改总结|改动说明)/.test(line.trim())
+      /^(?:#{1,3}\s*[^\n]*(?:说明|摘要|总结|提示|建议|分析|衔接)|【[^\n】]{1,12}(?:说明|提示|摘要|总结|建议|分析|确认)】)/.test(line.trim())
     ) {
       inPostscript = true
       postscriptLines.push(line)
@@ -233,6 +255,85 @@ function parseMultiChapterSections(
     sections: Array.from(deduped.values()),
     postscript: postscriptLines.join('\n').trim(),
   }
+}
+
+function splitSingleChapterAndNotes(content: string): {
+  leadingNote: string
+  chapterTitle: string | null
+  bodyMarkdown: string
+  trailingNote: string
+} {
+  if (!content?.trim()) {
+    return { leadingNote: '', chapterTitle: null, bodyMarkdown: '', trailingNote: '' }
+  }
+
+  const lines = content.replace(/\r\n?/g, '\n').split('\n')
+  const chapterHeadingRe = /^#{1,4}\s*(第[一二三四五六七八九十百千万0-9]+[章节回][^\n]*)$|^(第[一二三四五六七八九十百千万0-9]+[章节回](?:\s+[^\n]+)?)$/
+  const leadingNoteStartRe = /^(【待作者确认】|〔待作者确认〕|【说明】|【创作说明】|注：|说明：)/
+  const trailingNoteStartRe = /^(?:#{1,3}\s*[^\n]*(?:说明|摘要|总结|提示|建议|分析|衔接|确认)|【[^\n】]{1,12}(?:说明|提示|摘要|总结|建议|分析|确认)】|〔待作者确认〕)/
+
+  let chapterIdx = -1
+  let chapterTitle: string | null = null
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    const m = trimmed.match(chapterHeadingRe)
+    if (m) {
+      chapterIdx = i
+      chapterTitle = (m[1] || m[2] || '').trim()
+      break
+    }
+  }
+
+  let leadingEnd = 0
+  if (chapterIdx > 0) {
+    leadingEnd = chapterIdx
+  } else if (chapterIdx === -1 && leadingNoteStartRe.test(lines[0].trim())) {
+    const sepIdx = lines.findIndex((l, idx) => idx > 0 && /^---+$/.test(l.trim()))
+    if (sepIdx > 0) {
+      leadingEnd = sepIdx + 1
+    } else {
+      const blankIdx = lines.findIndex((l, idx) => idx > 0 && l.trim() === '')
+      if (blankIdx > 0 && blankIdx < lines.length - 1) {
+        leadingEnd = blankIdx + 1
+      }
+    }
+  }
+
+  const leadingNote = lines
+    .slice(0, leadingEnd)
+    .filter((l) => !/^---+$/.test(l.trim()))
+    .join('\n')
+    .trim()
+
+  const bodyStart = chapterIdx >= 0 ? chapterIdx + 1 : leadingEnd
+  let trailingStart = lines.length
+  for (let i = bodyStart; i < lines.length; i++) {
+    if (trailingNoteStartRe.test(lines[i].trim())) {
+      trailingStart = i
+      if (i > bodyStart && /^---+$/.test(lines[i - 1].trim())) {
+        trailingStart = i - 1
+      }
+      break
+    }
+  }
+
+  const bodyMarkdown = lines
+    .slice(bodyStart, trailingStart)
+    .join('\n')
+    .replace(/^(?:\s*---+\s*\n)+/, '')
+    .trim()
+
+  const trailingNote = lines
+    .slice(trailingStart)
+    .filter((l) => !/^---+$/.test(l.trim()))
+    .join('\n')
+    .trim()
+
+  if (!bodyMarkdown) {
+    return { leadingNote: '', chapterTitle: null, bodyMarkdown: content, trailingNote: '' }
+  }
+
+  return { leadingNote, chapterTitle, bodyMarkdown, trailingNote }
 }
 
 interface Props {
@@ -291,9 +392,9 @@ export function AiAssistant({
   const [presets, setPresets] = useState<Preset[]>([])
   const [presetOpen, setPresetOpen] = useState(false)
 
-  // 模型选择（仅展示自定义脱敏名称，如 moling_v4 / moling_v4_pro）
+  // 模型选择（仅展示自定义脱敏名称，如 baogeng_v4 / baogeng_v4_pro）
   const [models, setModels] = useState<PublicAiModel[]>(PLATFORM_MODEL_ALIASES)
-  const [selectedModel, setSelectedModel] = useState<string>('moling_v4')
+  const [selectedModel, setSelectedModel] = useState<string>('baogeng_v4')
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
   // 个人写作风格
@@ -302,6 +403,10 @@ export function AiAssistant({
   const [styleDialogOpen, setStyleDialogOpen] = useState(false)
   const [appliedChapters, setAppliedChapters] = useState<Record<number, string[]>>({})
   const [applyingKey, setApplyingKey] = useState<string | null>(null)
+  const [actionHistory, setActionHistory] = useState<AiActionHistoryItem[]>([])
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'replace' | 'reply'>('all')
+  const historyHydratedRef = useRef<string | null>(null)
 
   // 附加提示词标签
   const [promptTags, setPromptTags] = useState<PromptTag[]>(BUILTIN_PROMPT_TAGS)
@@ -310,6 +415,7 @@ export function AiAssistant({
   const [editingTagId, setEditingTagId] = useState<string | null>(null)
   const [newTagLabel, setNewTagLabel] = useState('')
   const [newTagPrompt, setNewTagPrompt] = useState('')
+  const [marketPrompts, setMarketPrompts] = useState<SavedPromptItem[]>([])
 
   // @ 多文件引用状态
   const [availableRefs, setAvailableRefs] = useState<AiReferenceOption[]>([])
@@ -370,7 +476,11 @@ export function AiAssistant({
       }
       const savedActive = localStorage.getItem('moling_ai_active_tags')
       if (savedActive) setActiveTagIds(JSON.parse(savedActive))
-    } catch {}
+    } catch { }
+    const syncSaved = () => setMarketPrompts(getSavedPrompts())
+    syncSaved()
+    window.addEventListener(SAVED_PROMPTS_EVENT, syncSaved)
+    return () => window.removeEventListener(SAVED_PROMPTS_EVENT, syncSaved)
   }, [])
 
   const allPromptTags = promptTags
@@ -382,7 +492,7 @@ export function AiAssistant({
       if (nextActive !== undefined) {
         localStorage.setItem('moling_ai_active_tags', JSON.stringify(nextActive))
       }
-    } catch {}
+    } catch { }
   }
 
   const togglePromptTag = (id: string) => {
@@ -390,7 +500,7 @@ export function AiAssistant({
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
       try {
         localStorage.setItem('moling_ai_active_tags', JSON.stringify(next))
-      } catch {}
+      } catch { }
       return next
     })
   }
@@ -474,8 +584,65 @@ export function AiAssistant({
     } catch { }
   }
 
+  useEffect(() => {
+    if (!novelId) return
+    historyHydratedRef.current = null
+    try {
+      const savedMsgs = localStorage.getItem(`moling_ai_chat_history_${novelId}`)
+      if (savedMsgs) {
+        const parsed = JSON.parse(savedMsgs)
+        if (Array.isArray(parsed)) setMessages(parsed)
+      } else {
+        setMessages([])
+      }
+      const savedActions = localStorage.getItem(`moling_ai_action_history_${novelId}`)
+      if (savedActions) {
+        const parsed = JSON.parse(savedActions)
+        if (Array.isArray(parsed)) setActionHistory(parsed)
+      } else {
+        setActionHistory([])
+      }
+    } catch {}
+    historyHydratedRef.current = novelId
+  }, [novelId])
+
+  useEffect(() => {
+    if (!novelId || loading || historyHydratedRef.current !== novelId) return
+    try {
+      const cleanMsgs = messages.filter((m) => m.content?.trim()).slice(-40)
+      localStorage.setItem(`moling_ai_chat_history_${novelId}`, JSON.stringify(cleanMsgs))
+    } catch {}
+  }, [messages, novelId, loading])
+
+  const appendActionHistory = useCallback(
+    (entry: Omit<AiActionHistoryItem, 'id' | 'createdAt'>) => {
+      if (!novelId) return
+      const item: AiActionHistoryItem = {
+        ...entry,
+        id: `hist_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        createdAt: new Date().toISOString(),
+      }
+      setActionHistory((prev) => {
+        const next = [item, ...prev].slice(0, 50)
+        try {
+          localStorage.setItem(`moling_ai_action_history_${novelId}`, JSON.stringify(next))
+        } catch {}
+        return next
+      })
+    },
+    [novelId]
+  )
+
+  const canWriteReply = (messageIndex: number) => {
+    for (let index = messageIndex - 1; index >= 0; index--) {
+      const request = messages[index]
+      if (request.role === 'user') return allowsAiProseWriteback(request.content, request.preset)
+    }
+    return false
+  }
+
   const handleApplyChapterSections = async (msgIdx: number, sections: ParsedChapterSection[]) => {
-    if (sections.length === 0) return
+    if (!canWriteReply(msgIdx) || sections.length === 0) return
     const key = sections.length === 1 ? `${msgIdx}-${sections[0].chapterId}` : `${msgIdx}-all`
     setApplyingKey(key)
     try {
@@ -493,6 +660,14 @@ export function AiAssistant({
         const delta = sec.nextWords - sec.prevWords
         const deltaStr = delta >= 0 ? `+${delta}` : `${delta}`
         summaryParts.push(`${sec.title}(${deltaStr}字)`)
+        appendActionHistory({
+          kind: 'replace',
+          allowWriteback: true,
+          title: `写入「${sec.title}」(${deltaStr}字)`,
+          preview: sec.content.slice(0, 100),
+          fullText: sec.content,
+          words: sec.nextWords,
+        })
       }
       setAppliedChapters((prev) => ({
         ...prev,
@@ -602,7 +777,7 @@ export function AiAssistant({
       references: refsToUse.length > 0 ? [...refsToUse] : undefined,
     }
     setMessages((prev) => [...prev, userMsg])
-    if (!overrideRefs) {
+    if (!overrideRefs || content === input) {
       setInput('')
       setReferencedItems([])
     }
@@ -663,7 +838,8 @@ export function AiAssistant({
         return
       }
       if (!res.ok || !res.body) {
-        throw new Error('AI 调用失败')
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.error || `AI 调用失败 (HTTP ${res.status})`)
       }
 
       const reader = res.body.getReader()
@@ -684,6 +860,7 @@ export function AiAssistant({
               content: fullContent,
               preset,
               modelLabel: currentModelObj?.label || selectedModel,
+          references: userMsg.references,
             }
             return copy
           })
@@ -725,6 +902,16 @@ export function AiAssistant({
       }
 
       updateUI(true)
+      if (fullContent.trim()) {
+        appendActionHistory({
+          kind: 'reply',
+          allowWriteback: allowsAiProseWriteback(content, preset),
+          title: content.slice(0, 28) + (content.length > 28 ? '…' : ''),
+          preview: markdownToPlainText(fullContent).slice(0, 100),
+          fullText: fullContent,
+          words: countWords(markdownToPlainText(fullContent)),
+        })
+      }
     } catch (e: any) {
       setMessages((prev) => {
         const copy = [...prev]
@@ -796,6 +983,11 @@ export function AiAssistant({
 
   const handleClear = () => {
     setMessages([])
+    if (novelId) {
+      try {
+        localStorage.removeItem(`moling_ai_chat_history_${novelId}`)
+      } catch {}
+    }
   }
 
   const grouped = presets.reduce<Record<string, Preset[]>>((acc, p) => {
@@ -817,6 +1009,133 @@ export function AiAssistant({
             @多文件分析 · 已注入世界观/大纲/前情
           </div>
         </div>
+        <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px] relative" title="历史记录（回复与替换正文）">
+              <History className="w-3.5 h-3.5" />
+              {actionHistory.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 sm:w-96 p-3 space-y-2.5" align="end">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-primary" />
+                助手历史记录 ({actionHistory.length})
+              </div>
+              {actionHistory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionHistory([])
+                    if (novelId) {
+                      try {
+                        localStorage.removeItem(`moling_ai_action_history_${novelId}`)
+                      } catch {}
+                    }
+                    toast.success('已清空历史记录')
+                  }}
+                  className="text-[11px] text-muted-foreground hover:text-cinnabar"
+                >
+                  清空记录
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1 border-b border-border pb-2">
+              {([
+                { id: 'all', label: '全部' },
+                { id: 'replace', label: '替换/写入正文' },
+                { id: 'reply', label: 'AI 回复' },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setHistoryFilter(tab.id)}
+                  className={`px-2 py-0.5 rounded text-[11px] transition ${
+                    historyFilter === tab.id
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="max-h-72 overflow-y-auto space-y-2 pr-0.5">
+              {(() => {
+                const filtered = actionHistory.filter((item) =>
+                  historyFilter === 'all' ? true : item.kind === historyFilter
+                )
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-6 text-center text-xs text-muted-foreground">
+                      暂无记录（对话生成或替换正文后会自动保存在此）
+                    </div>
+                  )
+                }
+                return filtered.map((item) => (
+                  <div key={item.id} className="rounded-md border border-border bg-muted/20 p-2.5 space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <Badge
+                        variant={item.kind === 'replace' ? 'default' : 'secondary'}
+                        className="text-[9px] px-1.5 py-0 shrink-0"
+                      >
+                        {item.kind === 'replace' ? '替换正文' : 'AI 回复'}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground tnum">
+                        {item.words} 字 · {new Date(item.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="font-medium truncate">{item.title}</div>
+                    <div className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                      {item.preview}
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      {item.allowWriteback && <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-5 px-2 text-[10px]"
+                        onClick={() => {
+                          const plain = item.kind === 'reply'
+                            ? markdownToPlainText(splitSingleChapterAndNotes(item.fullText).bodyMarkdown)
+                            : item.fullText
+                          onInsertText(plain)
+                          appendActionHistory({
+                            kind: 'replace',
+                            allowWriteback: true,
+                            title: `再次写入「${chapters.find((c) => c.id === chapterId)?.title || '当前章节'}」`,
+                            preview: plain.slice(0, 100),
+                            fullText: plain,
+                            words: countWords(plain),
+                          })
+                          setHistoryOpen(false)
+                        }}
+                      >
+                        插入到当前正文
+                      </Button>}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-5 px-2 text-[10px]"
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            item.kind === 'reply' ? markdownToPlainText(item.fullText) : item.fullText
+                          )
+                          toast.success('已复制内容')
+                        }}
+                      >
+                        复制
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Popover open={presetOpen} onOpenChange={setPresetOpen}>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px]" title="预设指令库">
@@ -900,8 +1219,8 @@ export function AiAssistant({
             >
               <div
                 className={`w-7 h-7 rounded-[9px] shrink-0 flex items-center justify-center ${m.role === 'user'
-                    ? 'bg-[var(--surface-3)] text-foreground'
-                    : 'ai-brand-mark text-white'
+                  ? 'bg-[var(--surface-3)] text-foreground'
+                  : 'ai-brand-mark text-white'
                   }`}
               >
                 {m.role === 'user' ? (
@@ -953,6 +1272,13 @@ export function AiAssistant({
                     {m.content}
                   </div>
                 ) : (() => {
+                  if (!canWriteReply(i)) {
+                    return (
+                      <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border">
+                        <MarkdownRenderer content={m.content} />
+                      </div>
+                    )
+                  }
                   const refChapCount = (m.references || []).filter((r) => r.type === 'chapter').length
                   const parsed = !m.isError
                     ? parseMultiChapterSections(m.content, m.references, chapters)
@@ -962,9 +1288,43 @@ export function AiAssistant({
                   const appliedSet = new Set(appliedChapters[i] || [])
 
                   if (!isMultiCardMode) {
+                    const single = !m.isError
+                      ? splitSingleChapterAndNotes(m.content)
+                      : { leadingNote: '', chapterTitle: null, bodyMarkdown: m.content, trailingNote: '' }
+                    const hasSeparatedParts = !!(single.leadingNote || single.trailingNote || single.chapterTitle)
+
+                    if (!hasSeparatedParts) {
+                      return (
+                        <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
+                          <MarkdownRenderer content={m.content} />
+                        </div>
+                      )
+                    }
+
                     return (
-                      <div className="inline-block px-3.5 py-2.5 rounded-[12px] text-left max-w-full bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
-                        <MarkdownRenderer content={m.content} />
+                      <div className="space-y-2 max-w-full text-left">
+                        {single.leadingNote && (
+                          <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+                            <MarkdownRenderer content={single.leadingNote} />
+                          </div>
+                        )}
+                        <div className="rounded-[12px] bg-card border border-border border-l-2 border-l-[var(--violet)] shadow-xs overflow-hidden">
+                          {single.chapterTitle && (
+                            <div className="px-3.5 py-2 bg-muted/40 border-b border-border flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <span className="text-xs font-semibold truncate">{single.chapterTitle}</span>
+                              <span className="text-[10px] text-muted-foreground ml-auto shrink-0">正文（插入时仅写入此部分）</span>
+                            </div>
+                          )}
+                          <div className="px-3.5 py-2.5">
+                            <MarkdownRenderer content={single.bodyMarkdown} />
+                          </div>
+                        </div>
+                        {single.trailingNote && (
+                          <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+                            <MarkdownRenderer content={single.trailingNote} />
+                          </div>
+                        )}
                       </div>
                     )
                   }
@@ -1073,7 +1433,8 @@ export function AiAssistant({
                   )
                 })()}
                 {m.role === 'assistant' && (() => {
-                  const multiSections = !m.isError
+                  const allowWriteback = canWriteReply(i)
+                  const multiSections = !m.isError && allowWriteback
                     ? parseMultiChapterSections(m.content, m.references, chapters).sections
                     : []
                   const hasMultiSections = multiSections.length >= 2
@@ -1083,23 +1444,39 @@ export function AiAssistant({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {!m.isError && !hasMultiSections && (
                           <>
-                            <Button
+                            {allowWriteback && <Button
                               variant="default"
                               size="sm"
                               className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                              onClick={() => onInsertText(markdownToPlainText(m.content))}
+                              onClick={() => {
+                                const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
+                                const plain = markdownToPlainText(cleanBody)
+                                onInsertText(plain)
+                                const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
+                                appendActionHistory({
+                                  kind: 'replace',
+                                  allowWriteback: true,
+                                  title: `替换写入「${targetTitle}」`,
+                                  preview: plain.slice(0, 100),
+                                  fullText: plain,
+                                  words: countWords(plain),
+                                })
+                              }}
                             >
                               <Send className="w-3 h-3" />
                               插入到正文
-                            </Button>
+                            </Button>}
                             <Button
                               variant="outline"
                               size="sm"
                               className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
                               onClick={() => {
-                                navigator.clipboard.writeText(markdownToPlainText(m.content))
+                                const copyText = allowWriteback
+                                  ? markdownToPlainText(splitSingleChapterAndNotes(m.content).bodyMarkdown)
+                                  : m.content
+                                navigator.clipboard.writeText(copyText)
                                 setCopiedIndex(i)
-                                toast.success('已复制纯文本')
+                                toast.success('已复制')
                                 setTimeout(() => setCopiedIndex(null), 1500)
                               }}
                             >
@@ -1346,8 +1723,8 @@ export function AiAssistant({
               type="button"
               onClick={() => setStyleDialogOpen(true)}
               className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors max-w-[115px] ${activeStyleId
-                  ? 'bg-primary/10 text-primary border border-primary/25 font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
+                ? 'bg-primary/10 text-primary border border-primary/25 font-medium'
+                : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
                 }`}
               title="设置或提炼我的专属写作风格（去 AI 味）"
             >
@@ -1361,11 +1738,10 @@ export function AiAssistant({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors shrink-0 ${
-                    activeTagIds.length > 0
+                  className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors shrink-0 ${activeTagIds.length > 0
                       ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-medium'
                       : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
-                  }`}
+                    }`}
                   title="添加附加提示词标签（如：简要说明修改点）"
                 >
                   <Tag className="w-3 h-3 shrink-0" />
@@ -1383,51 +1759,59 @@ export function AiAssistant({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                  {allPromptTags.map((tag) => {
-                    const active = activeTagIds.includes(tag.id)
-                    const isEditingThis = editingTagId === tag.id
-                    return (
-                      <div
-                        key={tag.id}
-                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${
-                          isEditingThis
-                            ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium'
-                            : active
-                              ? 'border-primary bg-primary/10 text-primary font-medium'
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                  {(() => {
+                    const availableTags = allPromptTags.filter(
+                      (tag) => !activeTagIds.includes(tag.id) || editingTagId === tag.id
+                    )
+                    if (availableTags.length === 0) {
+                      return (
+                        <div className="text-[11px] text-muted-foreground py-1">
+                          当前可选标签已全部启用（点击输入框上方标签的 × 可取消并回到此处）
+                        </div>
+                      )
+                    }
+                    return availableTags.map((tag) => {
+                      const isEditingThis = editingTagId === tag.id
+                      return (
+                        <div
+                          key={tag.id}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${
+                            isEditingThis
+                              ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium'
                               : 'border-border bg-card hover:bg-muted text-foreground'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => togglePromptTag(tag.id)}
-                          className="inline-flex items-center gap-1"
-                          title={tag.prompt}
+                          }`}
                         >
-                          {active && <Check className="w-3 h-3 shrink-0" />}
-                          <span>{tag.label}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEditTag(tag)}
-                          className="ml-0.5 text-muted-foreground hover:text-primary"
-                          title="修改此标签"
-                        >
-                          <Pencil className="w-2.5 h-2.5" />
-                        </button>
-                        {!tag.builtin && (
                           <button
                             type="button"
-                            onClick={() => handleDeletePromptTag(tag.id)}
-                            className="text-muted-foreground hover:text-cinnabar"
-                            title="删除自定义标签"
+                            onClick={() => togglePromptTag(tag.id)}
+                            className="inline-flex items-center gap-1"
+                            title={tag.prompt}
                           >
-                            <X className="w-3 h-3" />
+                            <span>{tag.label}</span>
                           </button>
-                        )}
-                      </div>
-                    )
-                  })}
+                          <button
+                            type="button"
+                            onClick={() => startEditTag(tag)}
+                            className="ml-0.5 text-muted-foreground hover:text-primary"
+                            title="修改此标签"
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                          </button>
+                          {!tag.builtin && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePromptTag(tag.id)}
+                              className="text-muted-foreground hover:text-cinnabar"
+                              title="删除自定义标签"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
 
                 <div className="pt-2 border-t border-border space-y-2">
@@ -1468,6 +1852,83 @@ export function AiAssistant({
                     {editingTagId ? '保存修改' : '添加并启用标签'}
                   </Button>
                 </div>
+
+                <div className="pt-2 border-t border-border space-y-1.5">
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    我的设定库提示词（点击调用）
+                  </div>
+                  {marketPrompts.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-border bg-muted/20 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                      设定库中暂未套用提示词，可前往「AI 工具箱 → 提示词模板市场」点击「套用」，或在「设定库 → 提示词模板」中新建。
+                    </div>
+                  ) : (() => {
+                    const availableMarketPrompts = marketPrompts.filter(
+                      (mp) => !activeTagIds.includes(`mp_${mp.id}`)
+                    )
+                    if (availableMarketPrompts.length === 0) {
+                      return (
+                        <div className="text-[11px] text-muted-foreground py-1">
+                          已套用的设定库提示词均已启用（点击上方标签 × 可取消并回到此处）
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-0.5">
+                        {availableMarketPrompts.map((mp) => (
+                          <div
+                            key={mp.id}
+                            className="rounded-md border border-border bg-muted/20 p-2 space-y-1 text-[11px]"
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="font-medium truncate">{mp.title}</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
+                                {mp.category}
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground line-clamp-1">{mp.description}</p>
+                            <div className="flex items-center gap-1.5 pt-0.5">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="h-5 px-2 text-[10px]"
+                                onClick={() => {
+                                  const tagId = `mp_${mp.id}`
+                                  const exists = promptTags.find((t) => t.id === tagId)
+                                  const nextTags = exists
+                                    ? promptTags
+                                    : [...promptTags, { id: tagId, label: mp.title.slice(0, 16), prompt: mp.promptText }]
+                                  const nextActive = activeTagIds.includes(tagId)
+                                    ? activeTagIds
+                                    : [...activeTagIds, tagId]
+                                  setActiveTagIds(nextActive)
+                                  persistPromptTags(nextTags, nextActive)
+                                  toast.success(`已启用提示词标签「${mp.title}」`)
+                                }}
+                              >
+                                作为标签启用
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-5 px-2 text-[10px]"
+                                onClick={() => {
+                                  setInput((prev) => (prev ? `${prev}\n${mp.promptText}` : mp.promptText))
+                                  setTagPopoverOpen(false)
+                                  textareaRef.current?.focus()
+                                  toast.success(`已填入「${mp.title}」`)
+                                }}
+                              >
+                                填入输入框
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
               </PopoverContent>
             </Popover>
 
@@ -1493,7 +1954,7 @@ export function AiAssistant({
               key={quick.label}
               type="button"
               disabled={loading}
-              onClick={() => sendMessage(quick.prompt, undefined, referencedItems)}
+              onClick={() => sendMessage(input.trim() ? `${quick.prompt}\n\n${input.trim()}` : quick.prompt)}
               className="text-[11px] px-2.5 py-1 rounded-[7px] border border-border bg-card hover:bg-[var(--surface-3)] text-muted-foreground hover:text-foreground transition-colors"
             >
               {quick.label}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { getOwnedChapter } from '@/lib/ownership'
+import { stripHtml } from '@/lib/context-assembler'
 
 // GET /api/chapters/revisions?chapterId=xxx
 export async function GET(req: NextRequest) {
@@ -93,36 +94,31 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: '未找到' }, { status: 404 })
   }
 
-  // 先保存当前内容为快照（回滚前的状态）
-  await db.chapterRevision.create({
-    data: {
-      chapterId: revision.chapterId,
-      content: revision.chapter.content,
-      words: revision.chapter.words,
-      title: revision.chapter.title,
-      reason: 'pre-rollback',
-    },
-  })
-
-  // 回滚章节内容
-  const words = revision.content.replace(/\s/g, '').length
-  const chapter = await db.chapter.update({
-    where: { id: revision.chapterId },
-    data: {
-      content: revision.content,
-      words,
-      title: revision.title,
-    },
-  })
-
-  // 更新小说总字数
-  const agg = await db.chapter.aggregate({
-    where: { novelId: chapter.novelId },
-    _sum: { words: true },
-  })
-  await db.novel.update({
-    where: { id: chapter.novelId },
-    data: { totalWords: agg._sum.words || 0 },
+  const words = stripHtml(revision.content).replace(/\s/g, '').length
+  const chapter = await db.$transaction(async (tx) => {
+    const current = await tx.chapter.findUniqueOrThrow({ where: { id: revision.chapterId } })
+    await tx.chapterRevision.create({
+      data: {
+        chapterId: current.id,
+        content: current.content,
+        words: stripHtml(current.content).replace(/\s/g, '').length,
+        title: current.title,
+        reason: 'pre-rollback',
+      },
+    })
+    const restored = await tx.chapter.update({
+      where: { id: current.id },
+      data: { content: revision.content, words, title: revision.title },
+    })
+    const agg = await tx.chapter.aggregate({
+      where: { novelId: restored.novelId },
+      _sum: { words: true },
+    })
+    await tx.novel.update({
+      where: { id: restored.novelId },
+      data: { totalWords: agg._sum.words || 0 },
+    })
+    return restored
   })
 
   return NextResponse.json({ chapter, message: '已回滚到历史版本' })

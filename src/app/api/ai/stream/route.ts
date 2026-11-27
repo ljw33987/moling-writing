@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { PRESETS } from '../route'
-import { callThirdPartyAI } from '@/lib/ai-providers'
-import { getPlatformConfig, getPlatformDefaultAI } from '@/lib/platform-ai'
+import { createThinkStreamFilter, stripThinkTags } from '@/lib/ai-providers'
+import { getPlatformConfig, getPlatformAiCandidates, callThirdPartyAIWithFallback, type AiEndpointConfig } from '@/lib/platform-ai'
 import { getPlatformProAiFromEnv, parseModelMappings } from '@/lib/ai-models'
 import { assembleNovelContext, resolveReferencedContext } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
 import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
 import ZAI from 'z-ai-web-dev-sdk'
 
 // POST /api/ai/stream - 流式 AI 调用（SSE）
@@ -24,15 +25,21 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { action, preset, message, novelId, chapterId, targetStyle, modelId, referencedItems, writingStyleId, promptTags } = body
+  const { action, preset, message, novelId, chapterId: rawChapterId, targetStyle, modelId, referencedItems, writingStyleId, promptTags } = body
 
   if (novelId && !await getOwnedNovel(user.id, novelId)) {
     return NextResponse.json({ error: '未找到作品' }, { status: 404 })
   }
+  let chapterId: string | null = rawChapterId || null
   if (chapterId) {
     const chapter = await getOwnedChapter(user.id, chapterId)
     if (!chapter || (novelId && chapter.novelId !== novelId)) {
-      return NextResponse.json({ error: '未找到章节' }, { status: 404 })
+      if (novelId) {
+        // 若前端缓存了已删除或旧作品的 chapterId，自动降级为仅按当前作品上下文生成
+        chapterId = null
+      } else {
+        return NextResponse.json({ error: '未找到章节' }, { status: 404 })
+      }
     }
   }
 
@@ -68,14 +75,14 @@ export async function POST(req: NextRequest) {
     userPrompt = `${editPrompt[preset] || '请处理以下文本：'}\n\n${message || ''}`
   }
 
-  // 解析后台模型映射：将对外别名（如 moling_v4 / moling_v4_pro）映射为实际底层接口与模型
+  // 解析后台模型映射：将对外别名（如 baogeng_v4 / baogeng_v4_pro）映射为实际底层接口与模型
   const platformConfig = await getPlatformConfig()
   const mappings = parseModelMappings((platformConfig as any).modelMappings)
   const matchedMapping = modelId
     ? mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
     : mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
 
-  if (matchedMapping?.isPro || modelId === 'moling_v4_pro') {
+  if (matchedMapping?.isPro || modelId === 'baogeng_v4_pro' || modelId === 'moling_v4_pro') {
     systemPrompt += '\n\n【深度分析与精修模式】请对引用材料与上下文进行结构化、深层次的推演、拆解与高质量输出。'
   }
 
@@ -85,7 +92,11 @@ export async function POST(req: NextRequest) {
     systemPrompt += `\n\n${buildWritingStyleInstruction(activeStyle)}`
   }
 
-  if (refChapters.length >= 2) {
+  const readOnlyChat = action === 'chat' && preset !== 'chapter_gen' &&
+    !allowsAiProseWriteback(message || '', preset)
+  if (readOnlyChat) {
+    systemPrompt += '\n\n【只读分析】回答用户的问题。审稿或查错时，只报告问题、证据和建议，不改写或重发整章正文。'
+  } else if (refChapters.length >= 2) {
     const chapterList = refChapters.map((c: any, idx: number) => `${idx + 1}. ${c.title}`).join('、')
     systemPrompt += `\n\n【多章节协同任务强制规范】用户本次显式 @ 引用了 ${refChapters.length} 个章节（${chapterList}）。如果用户要求修改、润色、去AI味或重写，你必须按顺序逐一全部处理并输出这 ${refChapters.length} 个章节的完整内容，严禁只输出最后一章或遗漏任何一章！每一章都必须严格以二级标题 \`## 章节原标题\`（例如 \`## ${refChapters[0].title}\`）单独成行开头，紧接着输出该章完整正文，以便系统自动分章精准写回对应章节。`
     if (action !== 'edit' && userPrompt) {
@@ -93,41 +104,48 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (Array.isArray(promptTags) && promptTags.length > 0) {
+  if (!readOnlyChat && Array.isArray(promptTags) && promptTags.length > 0) {
     const validTags = promptTags.map((t: any) => String(t || '').trim()).filter(Boolean)
     if (validTags.length > 0) {
       systemPrompt += `\n\n【附加创作与输出要求】\n${validTags.map((t: string, idx: number) => `${idx + 1}. ${t}`).join('\n')}`
     }
   }
 
-  let targetAiConfig: { baseUrl: string; apiKey: string; model: string } | null = null
+  let preferredConfig: AiEndpointConfig | null = null
 
-  if (matchedMapping && (matchedMapping.realModel || matchedMapping.baseUrl || matchedMapping.apiKey)) {
+  if (matchedMapping?.configId) {
+    const bound = await db.userAiConfig.findFirst({
+      where: { id: matchedMapping.configId, enabled: true },
+    })
+    if (bound) {
+      preferredConfig = {
+        id: bound.id,
+        name: bound.name,
+        baseUrl: bound.baseUrl,
+        apiKey: bound.apiKey,
+        model: bound.model,
+      }
+    }
+  }
+
+  if (!preferredConfig && matchedMapping && (matchedMapping.realModel || matchedMapping.baseUrl || matchedMapping.apiKey)) {
     const baseUrl = matchedMapping.baseUrl || platformConfig.defaultAiBaseUrl
     const apiKey = matchedMapping.apiKey || platformConfig.defaultAiApiKey
     const model = matchedMapping.realModel || platformConfig.defaultAiModel
     if (baseUrl && apiKey && model) {
-      targetAiConfig = { baseUrl, apiKey, model }
+      preferredConfig = { baseUrl, apiKey, model }
     }
   }
 
-  if (!targetAiConfig && (matchedMapping?.isPro || modelId === 'moling_v4_pro')) {
+  if (!preferredConfig && (matchedMapping?.isPro || modelId === 'baogeng_v4_pro' || modelId === 'moling_v4_pro')) {
     const proEnv = getPlatformProAiFromEnv()
     if (proEnv) {
-      targetAiConfig = proEnv
+      preferredConfig = proEnv
     }
   }
 
-  if (!targetAiConfig) {
-    const userDefault = await db.userAiConfig.findFirst({
-      where: { userId: user.id, enabled: true, isDefault: true },
-    })
-    if (userDefault) {
-      targetAiConfig = { baseUrl: userDefault.baseUrl, apiKey: userDefault.apiKey, model: userDefault.model }
-    }
-  }
-
-  const userAiConfig = targetAiConfig
+  const aiCandidates = await getPlatformAiCandidates(preferredConfig)
+  const hasThirdPartyAi = aiCandidates.length > 0
 
   const messages = [
     { role: 'system', content: systemPrompt + (extraContext ? `\n\n以下是创作上下文：${extraContext}` : '') },
@@ -137,17 +155,20 @@ export async function POST(req: NextRequest) {
   // 创建 SSE 流
   const encoder = new TextEncoder()
   let fullReply = ''
+  const thinkFilter = createThinkStreamFilter()
+  let cancelled = false
+  const isCancelled = () => cancelled || req.signal.aborted
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        if (userAiConfig) {
-          // 使用第三方 API（流式）
-          const result = await callThirdPartyAI(
-            { baseUrl: userAiConfig.baseUrl, apiKey: userAiConfig.apiKey, model: userAiConfig.model },
-            messages,
-            { stream: true }
-          )
+        if (hasThirdPartyAi) {
+          // 按优先级依次尝试平台接口池，遇到 429/异常自动切换备选接口（流式）
+          const result = await callThirdPartyAIWithFallback(aiCandidates, messages, { stream: true })
+          if (isCancelled()) {
+            await result.stream?.cancel()
+            return
+          }
 
           if (!result.ok) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: result.error })}\n\n`))
@@ -163,6 +184,10 @@ export async function POST(req: NextRequest) {
 
             while (true) {
               const { done, value } = await reader.read()
+              if (isCancelled()) {
+                await reader.cancel()
+                return
+              }
               if (done) break
               buffer += decoder.decode(value, { stream: true })
 
@@ -177,8 +202,11 @@ export async function POST(req: NextRequest) {
                     const parsed = JSON.parse(data)
                     const delta = parsed.choices?.[0]?.delta?.content || ''
                     if (delta) {
-                      fullReply += delta
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
+                      const cleanDelta = thinkFilter.push(delta)
+                      if (cleanDelta) {
+                        fullReply += cleanDelta
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: cleanDelta })}\n\n`))
+                      }
                     }
                   } catch { }
                 }
@@ -186,51 +214,11 @@ export async function POST(req: NextRequest) {
             }
           } else {
             // 非流式降级
-            fullReply = result.reply || ''
+            fullReply = stripThinkTags(result.reply || '')
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: fullReply })}\n\n`))
           }
         } else {
-          // 优先级 2：检查平台默认 AI
-          const platformAI = await getPlatformDefaultAI()
-          if (platformAI) {
-            // 使用平台默认 AI（流式）
-            const result = await callThirdPartyAI(platformAI, messages, { stream: true })
-            if (!result.ok) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: result.error })}\n\n`))
-              controller.close()
-              return
-            }
-            if (result.stream) {
-              const reader = result.stream.getReader()
-              const decoder = new TextDecoder()
-              let buffer = ''
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                buffer += decoder.decode(value, { stream: true })
-                const lines = buffer.split('\n')
-                buffer = lines.pop() || ''
-                for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    const data = line.slice(6).trim()
-                    if (data === '[DONE]') continue
-                    try {
-                      const parsed = JSON.parse(data)
-                      const delta = parsed.choices?.[0]?.delta?.content || ''
-                      if (delta) {
-                        fullReply += delta
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
-                      }
-                    } catch { }
-                  }
-                }
-              }
-            } else {
-              fullReply = result.reply || ''
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: fullReply })}\n\n`))
-            }
-          } else {
-            // 优先级 3：使用内置 z-ai（流式）
+          // 兜底：使用内置 z-ai（流式）
             const zai = await ZAI.create()
             const completion: any = await zai.chat.completions.create({
               messages,
@@ -244,6 +232,10 @@ export async function POST(req: NextRequest) {
 
             while (true) {
               const { done, value } = await reader.read()
+              if (isCancelled()) {
+                await reader.cancel()
+                return
+              }
               if (done) break
               buffer += decoder.decode(value, { stream: true })
 
@@ -258,16 +250,19 @@ export async function POST(req: NextRequest) {
                     const parsed = JSON.parse(data)
                     const delta = parsed.choices?.[0]?.delta?.content || ''
                     if (delta) {
-                      fullReply += delta
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`))
+                      const cleanDelta = thinkFilter.push(delta)
+                      if (cleanDelta) {
+                        fullReply += cleanDelta
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: cleanDelta })}\n\n`))
+                      }
                     }
                   } catch { }
                 }
               }
-            }
           }
         }
 
+        if (isCancelled()) return
         // 计算消耗 + 保存记录
         const tokensUsed = Math.ceil((userPrompt.length + fullReply.length) / 3)
         await db.user.update({
@@ -297,13 +292,18 @@ export async function POST(req: NextRequest) {
           },
         })
 
+        if (isCancelled()) return
         // 发送结束事件
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, tokensUsed, remainingTokens: Math.max(0, user.tokens - tokensUsed) })}\n\n`))
         controller.close()
       } catch (e: any) {
+        if (isCancelled()) return
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: e.message })}\n\n`))
         controller.close()
       }
+    },
+    cancel() {
+      cancelled = true
     },
   })
 

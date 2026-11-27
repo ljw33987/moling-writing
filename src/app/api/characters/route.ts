@@ -37,7 +37,10 @@ export async function POST(req: NextRequest) {
   const user = session.user
 
   const body = await req.json()
-  const { type = 'character', novelId, ...fields } = body
+  const { type = 'character', novelId, subtype, ...fields } = body
+  if (!['character', 'worldview', 'item'].includes(type)) {
+    return NextResponse.json({ error: '无效的设定类型' }, { status: 400 })
+  }
 
   if (novelId && !await getOwnedNovel(user.id, novelId)) {
     return NextResponse.json({ error: '未找到作品' }, { status: 404 })
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
   } else if (type === 'worldview') {
     Object.assign(data, {
       name: fields.name || '新设定',
-      type: fields.type || 'geography',
+      type: subtype || fields.worldviewType || 'geography',
       description: fields.description || null,
     })
     const item = await db.worldview.create({ data })
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
   } else {
     Object.assign(data, {
       name: fields.name || '新道具',
-      type: fields.type || 'item',
+      type: subtype || 'item',
       attributes: fields.attributes || null,
       effect: fields.effect || null,
     })
@@ -82,7 +85,7 @@ export async function PATCH(req: NextRequest) {
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
 
   const body = await req.json()
-  const { id, type = 'character', ...fields } = body
+  const { id, type = 'character', subtype, ...fields } = body
   if (!id) return NextResponse.json({ error: '需要 id' }, { status: 400 })
 
   if (!['character', 'worldview', 'item'].includes(type)) {
@@ -101,13 +104,14 @@ export async function PATCH(req: NextRequest) {
 
   const allowed: Record<string, string[]> = {
     character: ['name', 'avatar', 'appearance', 'personality', 'background', 'abilities', 'relations', 'novelId'],
-    worldview: ['name', 'type', 'description', 'novelId'],
-    item: ['name', 'type', 'attributes', 'effect', 'novelId'],
+    worldview: ['name', 'description', 'novelId'],
+    item: ['name', 'attributes', 'effect', 'novelId'],
   }
   const data: any = {}
   for (const key of allowed[type] || []) {
     if (fields[key] !== undefined) data[key] = fields[key]
   }
+  if (type !== 'character' && typeof subtype === 'string' && subtype.trim()) data.type = subtype.trim()
 
   let item: any
   if (type === 'character') item = await db.character.update({ where: { id }, data })

@@ -93,6 +93,37 @@ const SPRITE = `<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><de
 </defs></svg>`
 
 const BASE_CSS = fs.readFileSync(path.join(__dirname, 'base.css'), 'utf8')
+const BUSINESS_CSS = fs.readFileSync(path.join(__dirname, 'business.css'), 'utf8')
+
+/* 主题切换：zero（默认，Studio Zero）| business（AXIOM 玄序） */
+const THEME = process.env.THEME || 'zero'
+const IS_BIZ = THEME === 'business'
+
+/* 构建期调色板映射：把写死在 HTML 里的旧色整体换成商务色系 */
+const PALETTE = {
+  '#4f46e5': '#1C3D6E', '#6366f1': '#2E6099', '#4d4fec': '#234C80',
+  '#7c3aed': '#0E1B2E', '#a855f7': '#1C3D6E', '#312e81': '#132A47',
+  '#4c1d95': '#0E1B2E', '#6d28d9': '#1C3D6E', '#1e1b4b': '#0A1626',
+  '#c026d3': '#A8823C', '#c4b5fd': '#C9A96A', '#1d4ed8': '#234C80',
+  '#111827': '#0C1726', '#1e293b': '#14243A', '#475569': '#3D4B60',
+  '#374151': '#334054', '#64748b': '#6E7A8C',
+  '#0891b2': '#2F6E8F', '#0e7490': '#215A78', '#0f766e': '#1D5E52',
+  '#0ea5e9': '#3C87B5', '#059669': '#1F7A5A',
+  '#d97706': '#9A6B18', '#b45309': '#8A5A16', '#f59e0b': '#B8862F',
+  '#dc2626': '#A32B2B', '#e11d48': '#A62B3F', '#9f1239': '#7E1F31',
+  '#c9ccfb': '#BFD0E4', '#dde0fb': '#DCE6F2', '#bfc3f7': '#B3C8E0',
+  '#8e93ef': '#7E9CC4',
+  '#eef0ff': '#E9F0F8', '#f7f7ff': '#F4F7FB', '#fdf7ff': '#F1F5FA',
+  '#f8f8ff': '#F4F7FB', '#f5f0ff': '#EDF2F8', '#f7f0ff': '#EDF2F8',
+  '#e8e9f0': '#DCE2EA', '#f1f3f9': '#EEF1F5', '#fafbfe': '#F7F9FB',
+  '#fdf1df': '#F5F0E4', '#fef7ec': '#F8F5EE', '#e7f6f0': '#E6F0EA',
+  '#eff9f5': '#EDF4EF', '#e6f6fa': '#E7EFF3', '#eff8fb': '#EDF3F6',
+  '#fde9ee': '#F3ECEE', '#fdf0f4': '#F6F0F1',
+}
+function recolor(html) {
+  if (!IS_BIZ) return html
+  return html.replace(/#[0-9A-Fa-f]{6}\b/g, (m) => PALETTE[m.toLowerCase()] || m)
+}
 
 const ic = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`
 
@@ -181,7 +212,7 @@ function topnav(active) {
 <header class="topnav">
   <div style="display:flex;align-items:center;gap:9px;flex:none">
     <div class="brand-mark" style="width:30px;height:30px;border-radius:9px;font-size:14px">墨</div>
-    <span style="font-weight:700;font-size:15px;letter-spacing:-.01em">墨灵写作</span>
+    <span class="brand-text" style="font-weight:700;font-size:15px;letter-spacing:-.01em">墨灵写作</span>
   </div>
   <nav class="topnav-links">
     ${NAV_ITEMS.map(n => `<a class="${active === n.id ? 'on' : ''}">${ic(n.icon)}<span>${n.label}</span></a>`).join('')}
@@ -301,8 +332,12 @@ for (const f of files) {
   body = body.replace(/<!--MTAB:([\w-]+)-->/g, (_, a) => mtabbar(a))
 
   const isMobile = /^m-/.test(f)
-  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><style>${BASE_CSS}</style></head><body style="${isMobile ? 'width:390px;height:844px;overflow:hidden' : ''}">${SPRITE}${body}</body></html>`
-  const outDir = path.join(__dirname, 'out', isMobile ? 'mobile' : '')
+  const scale = process.env.SCALE ? Number(process.env.SCALE) : (isMobile ? 3 : 2)
+  const css = IS_BIZ ? `${BASE_CSS}\n${BUSINESS_CSS}` : BASE_CSS
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><style>${css}</style></head><body style="${isMobile ? 'width:390px;height:844px;overflow:hidden' : ''}">${SPRITE}${recolor(body)}</body></html>`
+  const outDir = path.join(
+    process.env.OUTDIR ? path.resolve(__dirname, process.env.OUTDIR) : path.join(__dirname, 'out'),
+    IS_BIZ ? 'business' : '', isMobile ? 'mobile' : '')
   fs.mkdirSync(path.join(outDir, '_html'), { recursive: true })
   const tmp = path.join(outDir, '_html', f.replace(/\.body\.html$/, '.html'))
   fs.writeFileSync(tmp, html, 'utf8')
@@ -313,7 +348,7 @@ for (const f of files) {
     '--disable-lcd-text', '--font-render-hinting=none',
     `--screenshot=${png}`,
     isMobile ? '--window-size=390,844' : '--window-size=1600,1000',
-    `--force-device-scale-factor=${isMobile ? 3 : 2}`,
+    `--force-device-scale-factor=${scale}`,
     'file:///' + tmp.replace(/\\/g, '/'),
   ], { stdio: 'ignore' })
   console.log('✓', path.basename(png), fs.statSync(png).size + 'B')

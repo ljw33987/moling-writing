@@ -156,7 +156,7 @@ export function TopBar() {
           <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
             墨
           </div>
-          <span className="font-semibold text-[15px] tracking-tight text-foreground">墨灵写作</span>
+          <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
         </div>
         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
       </header>
@@ -171,7 +171,7 @@ export function TopBar() {
           <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
             墨
           </div>
-          <span className="font-semibold text-[15px] tracking-tight text-foreground">墨灵写作</span>
+          <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
@@ -192,7 +192,7 @@ export function TopBar() {
         <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
           墨
         </div>
-        <span className="font-semibold text-[15px] tracking-tight text-foreground hidden sm:block">墨灵写作</span>
+        <span className="font-semibold text-[15px] tracking-tight text-foreground hidden sm:block">爆更猫AI写作</span>
       </button>
 
       <div className="h-5 w-px bg-border hidden md:block shrink-0" />

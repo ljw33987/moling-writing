@@ -42,7 +42,7 @@ const STEPS: {
   targetView?: ViewType
 }[] = [
   {
-    title: '欢迎来到墨灵写作',
+    title: '欢迎来到爆更猫AI写作',
     subtitle: 'AI 驱动的专业网文与长篇小说创作平台',
     description:
       '只需 1 分钟了解核心工作流：从灵感立项、大纲拆解、三栏沉浸式写作到长篇记忆辅助，助你稳定日更。',

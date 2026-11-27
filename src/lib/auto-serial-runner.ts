@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { callThirdPartyAI } from '@/lib/ai-providers'
-import { getPlatformConfig } from '@/lib/platform-ai'
+import { getPlatformConfig, getPlatformAiCandidates, callThirdPartyAIWithFallback, type AiEndpointConfig } from '@/lib/platform-ai'
 import { parseModelMappings } from '@/lib/ai-models'
 import { stripHtml } from '@/lib/context-assembler'
 import { buildWritingStyleInstruction, resolveWritingStyleForNovel } from '@/lib/writing-style'
@@ -144,52 +144,34 @@ ${recentChapters || '（这是开篇第一章）'}
       { role: 'user', content: userPrompt },
     ]
 
-    // 解析 AI 配置（与 /api/ai/stream 保持一致：用户默认配置 -> 平台映射/默认配置 -> 内置 ZAI）
-    let aiConfig: { baseUrl: string; apiKey: string; model: string } | null = null
+    // 解析平台默认映射与备选接口池（按优先级自动降级）
+    const platformConfig = await getPlatformConfig()
+    const mappings = parseModelMappings((platformConfig as any).modelMappings)
+    const defaultMapping = mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
 
-    const userAi = await db.userAiConfig.findFirst({
-      where: { userId: task.userId, enabled: true, isDefault: true },
-    })
-    if (userAi && userAi.apiKey?.trim() && !userAi.apiKey.startsWith('****')) {
-      aiConfig = {
-        baseUrl: userAi.baseUrl.trim(),
-        apiKey: userAi.apiKey.trim(),
-        model: userAi.model.trim(),
+    let preferred: AiEndpointConfig | null = null
+    if (defaultMapping?.configId) {
+      const bound = await db.userAiConfig.findFirst({
+        where: { id: defaultMapping.configId, enabled: true },
+      })
+      if (bound) {
+        preferred = { id: bound.id, name: bound.name, baseUrl: bound.baseUrl, apiKey: bound.apiKey, model: bound.model }
+      }
+    }
+    if (!preferred && defaultMapping && (defaultMapping.realModel || defaultMapping.baseUrl || defaultMapping.apiKey)) {
+      const baseUrl = (defaultMapping.baseUrl || platformConfig.defaultAiBaseUrl || '').trim()
+      const apiKey = (defaultMapping.apiKey || platformConfig.defaultAiApiKey || '').trim()
+      const model = (defaultMapping.realModel || platformConfig.defaultAiModel || '').trim()
+      if (baseUrl && apiKey && !apiKey.startsWith('****') && model) {
+        preferred = { baseUrl, apiKey, model }
       }
     }
 
-    if (!aiConfig) {
-      const platformConfig = await getPlatformConfig()
-      const mappings = parseModelMappings((platformConfig as any).modelMappings)
-      const defaultMapping = mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
-
-      if (defaultMapping && (defaultMapping.realModel || defaultMapping.baseUrl || defaultMapping.apiKey)) {
-        const baseUrl = (defaultMapping.baseUrl || platformConfig.defaultAiBaseUrl || '').trim()
-        const apiKey = (defaultMapping.apiKey || platformConfig.defaultAiApiKey || '').trim()
-        const model = (defaultMapping.realModel || platformConfig.defaultAiModel || '').trim()
-        if (baseUrl && apiKey && !apiKey.startsWith('****') && model) {
-          aiConfig = { baseUrl, apiKey, model }
-        }
-      }
-
-      if (
-        !aiConfig &&
-        platformConfig.defaultAiApiKey?.trim() &&
-        !platformConfig.defaultAiApiKey.startsWith('****') &&
-        platformConfig.defaultAiBaseUrl?.trim() &&
-        platformConfig.defaultAiModel?.trim()
-      ) {
-        aiConfig = {
-          baseUrl: platformConfig.defaultAiBaseUrl.trim(),
-          apiKey: platformConfig.defaultAiApiKey.trim(),
-          model: platformConfig.defaultAiModel.trim(),
-        }
-      }
-    }
+    const aiCandidates = await getPlatformAiCandidates(preferred)
 
     let reply = ''
-    if (aiConfig) {
-      const res = await callThirdPartyAI(aiConfig, messages)
+    if (aiCandidates.length > 0) {
+      const res = await callThirdPartyAIWithFallback(aiCandidates, messages)
       if (!res.ok) throw new Error(res.error || 'AI 接口调用失败')
       reply = res.reply || ''
     } else {

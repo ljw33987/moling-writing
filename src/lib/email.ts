@@ -36,17 +36,17 @@ export async function sendTestEmail(targetEmail: string) {
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.smtpUser}>`,
       to: targetEmail,
-      subject: '【笔锋写作】邮件服务测试',
+      subject: '【爆更猫AI写作】邮件服务测试',
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="background: linear-gradient(135deg, #8b5cf6, #ec4899); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">笔锋写作</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">爆更猫AI写作</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">AI 驱动的网文创作平台</p>
           </div>
           <div style="background: #fafafa; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
             <h2 style="color: #1f2937; margin: 0 0 12px; font-size: 18px;">邮件服务测试成功</h2>
             <p style="color: #4b5563; line-height: 1.6; margin: 0 0 12px;">
-              这是一封来自笔锋写作平台的测试邮件。如果你收到了，说明 SMTP 邮件服务配置正确，可以正常向用户发送验证码邮件。
+              这是一封来自爆更猫AI写作平台的测试邮件。如果你收到了，说明 SMTP 邮件服务配置正确，可以正常向用户发送验证码邮件。
             </p>
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 16px 0;">
               <p style="margin: 0; font-size: 12px; color: #6b7280;">配置信息</p>
@@ -86,11 +86,11 @@ export async function sendVerificationCode(email: string, code: string, purpose:
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.smtpUser}>`,
       to: email,
-      subject: `【笔锋写作】${purposeText}验证码：${code}`,
+      subject: `【爆更猫AI写作】${purposeText}验证码：${code}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="background: linear-gradient(135deg, #8b5cf6, #ec4899); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">笔锋写作</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">爆更猫AI写作</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">AI 驱动的网文创作平台</p>
           </div>
           <div style="background: #fafafa; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
@@ -188,11 +188,11 @@ export async function sendRedeemNotification(
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.smtpUser}>`,
       to: email,
-      subject: `【笔锋写作】兑换成功 - ${data.rewardDesc}`,
+      subject: `【爆更猫AI写作】兑换成功 - ${data.rewardDesc}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="background: linear-gradient(135deg, #8b5cf6, #ec4899); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">笔锋写作</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">爆更猫AI写作</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">兑换成功通知</p>
           </div>
           <div style="background: #fafafa; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
@@ -280,11 +280,11 @@ export async function sendAnnouncementEmail(
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.smtpUser}>`,
       to: email,
-      subject: `【笔锋写作】${typeText[data.type] || '公告'}：${data.title}`,
+      subject: `【爆更猫AI写作】${typeText[data.type] || '公告'}：${data.title}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="background: linear-gradient(135deg, ${typeColor[data.type] || '#8b5cf6'}, #ec4899); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">笔锋写作</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">爆更猫AI写作</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">${typeText[data.type] || '平台公告'}</p>
           </div>
           <div style="background: #fafafa; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
@@ -292,7 +292,7 @@ export async function sendAnnouncementEmail(
             <div style="color: #4b5563; line-height: 1.7; margin: 0 0 16px; white-space: pre-wrap;">${data.content}</div>
             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0; border-top: 1px solid #e5e7eb; padding-top: 12px;">
               发布时间：${(data.publishAt ? new Date(data.publishAt) : new Date()).toLocaleString('zh-CN')}<br/>
-              请登录笔锋写作查看完整内容。
+              请登录爆更猫AI写作查看完整内容。
             </p>
           </div>
         </div>
@@ -330,11 +330,11 @@ export async function sendMessageEmail(
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.smtpUser}>`,
       to: email,
-      subject: `【笔锋写作】${typeText[data.type] || '消息'}：${data.title}`,
+      subject: `【爆更猫AI写作】${typeText[data.type] || '消息'}：${data.title}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <div style="background: linear-gradient(135deg, #8b5cf6, #ec4899); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">笔锋写作</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">爆更猫AI写作</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">来自 ${data.senderName} 的消息</p>
           </div>
           <div style="background: #fafafa; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
@@ -342,7 +342,7 @@ export async function sendMessageEmail(
             <div style="color: #4b5563; line-height: 1.7; margin: 0 0 16px; white-space: pre-wrap;">${data.content}</div>
             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0; border-top: 1px solid #e5e7eb; padding-top: 12px;">
               发送时间：${new Date().toLocaleString('zh-CN')}<br/>
-              请登录笔锋写作查看并回复。
+              请登录爆更猫AI写作查看并回复。
             </p>
           </div>
         </div>

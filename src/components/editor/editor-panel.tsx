@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -71,6 +71,8 @@ export function EditorPanel({
 }: Props) {
   const internalTiptapRef = useRef<NovelTiptapHandle | null>(null)
   const tiptapRef = externalTiptapRef ?? internalTiptapRef
+  const generation = useRef<AbortController | null>(null)
+  useEffect(() => () => generation.current?.abort(), [])
 
   const [selectedText, setSelectedText] = useState('')
   const [inlineMenuOpen, setInlineMenuOpen] = useState(false)
@@ -84,7 +86,8 @@ export function EditorPanel({
 
   // 内联 AI 操作（润色 / 扩写 / 缩写 / 续写 / 转文风）
   const handleInlineAI = async (preset: string, targetStyle?: string) => {
-    if (!selectedText) return
+    const editor = tiptapRef.current
+    if (!selectedText || !editor || aiLoading) return
     setAiLoading(true)
     setInlineMenuOpen(false)
     try {
@@ -99,7 +102,8 @@ export function EditorPanel({
           chapterId: chapter?.id,
         }),
       })
-      tiptapRef.current?.replaceSelection(r.reply)
+      if (tiptapRef.current !== editor) return
+      editor.replaceSelection(r.reply)
       toast.success('已应用 AI 修改（Ctrl+Z 可整段撤销）')
     } catch (e: any) {
       toast.error(e.message)
@@ -114,14 +118,19 @@ export function EditorPanel({
       toast.error('请填写核心事件')
       return
     }
+    const editor = tiptapRef.current
+    if (!editor || generation.current || aiLoading) return
+    const request = new AbortController()
+    generation.current = request
     setAiLoading(true)
     setGenChapterOpen(false)
     const runId = `ch-${Date.now()}`
-    tiptapRef.current?.startAiDraftStream(runId)
+    editor.startAiDraftStream(runId)
 
     try {
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
+        signal: request.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'chat',
@@ -157,7 +166,7 @@ export function EditorPanel({
             const parsed = JSON.parse(payload)
             if (parsed.error) throw new Error(parsed.error)
             const chunk = parsed.text || parsed.content || parsed.delta || ''
-            if (chunk) tiptapRef.current?.appendAiDraftChunk(chunk)
+            if (chunk && !request.signal.aborted && tiptapRef.current === editor) editor.appendAiDraftChunk(chunk)
           } catch (e) {
             if (e instanceof SyntaxError) continue
             throw e
@@ -165,18 +174,16 @@ export function EditorPanel({
         }
       }
 
-      tiptapRef.current?.finishAiDraftStream()
-      // 同步保存章节摘要
-      api('/api/chapters', {
-        method: 'PATCH',
-        body: JSON.stringify({ id: chapter.id, summary: coreEvent }),
-      }).catch(() => {})
+      if (request.signal.aborted || tiptapRef.current !== editor) return
+      editor.finishAiDraftStream()
       toast.success('AI 草稿已生成，请在正文区点击「采纳」或「丢弃」')
       setCoreEvent('')
     } catch (e: any) {
-      tiptapRef.current?.finishAiDraftStream()
+      if (request.signal.aborted || tiptapRef.current !== editor) return
+      editor.finishAiDraftStream()
       toast.error(e.message || '生成失败')
     } finally {
+      generation.current = null
       setAiLoading(false)
     }
   }

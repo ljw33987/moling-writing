@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,10 +32,11 @@ import {
   Download,
   Store,
   FileUp,
+  Layers,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
-import { PromptMarketPanel } from './prompt-market-panel'
+import { PromptMarketPanel, type AppliedPromptMeta } from './prompt-market-panel'
 import { MarkdownRenderer, markdownToPlainText } from '@/components/ai/markdown-renderer'
 
 interface ToolDef {
@@ -153,20 +154,66 @@ export function AiToolboxView() {
   const [coverTheme, setCoverTheme] = useState<'xianxia' | 'urban' | 'scifi' | 'history' | 'romance'>('xianxia')
 
   // TXT 智能分章导入状态
-  const [novels, setNovels] = useState<Array<{ id: string; title: string }>>([])
+  const [novels, setNovels] = useState<Array<{ id: string; title: string; writingStyleId?: string | null }>>([])
   const [targetNovelId, setTargetNovelId] = useState('')
   const [volumeTitle, setVolumeTitle] = useState('TXT 导入卷')
   const [txtContent, setTxtContent] = useState('')
   const [importing, setImporting] = useState(false)
 
+  // 作品上下文与作者文风：决定生成时自动带入哪些设定集与文风
+  const [contextNovelId, setContextNovelId] = useState('none')
+  const [contextChapterId, setContextChapterId] = useState('none')
+  const [contextChapters, setContextChapters] = useState<Array<{ id: string; title: string }>>([])
+  const [writingStyleId, setWritingStyleId] = useState('auto')
+  const [writingStyles, setWritingStyles] = useState<Array<{ id: string; name: string; isDefault: boolean }>>([])
+  // 已套用的市场模板：进入「模板模式」，不再套用工具预设，避免预设与模板指令打架
+  const [appliedTemplate, setAppliedTemplate] = useState<AppliedPromptMeta | null>(null)
+
   useEffect(() => {
-    api<{ novels: Array<{ id: string; title: string }> }>('/api/novels')
+    api<{ novels: Array<{ id: string; title: string; writingStyleId?: string | null }> }>('/api/novels')
       .then((r) => {
         setNovels(r.novels || [])
         if (r.novels?.[0]?.id) setTargetNovelId(r.novels[0].id)
       })
       .catch(() => {})
+    api<{ styles: Array<{ id: string; name: string; isDefault: boolean }> }>('/api/writing-styles')
+      .then((r) => setWritingStyles(r.styles || []))
+      .catch(() => {})
   }, [])
+
+  /** 解析本次实际生效的文风：none=不用 / 具体 id=指定 / auto=作品绑定优先，其次我的默认文风 */
+  const effectiveStyleId = useMemo<string | undefined>(() => {
+    if (writingStyleId === 'none') return 'none'
+    if (writingStyleId !== 'auto') return writingStyleId
+    const novel = novels.find((n) => n.id === contextNovelId)
+    if (novel?.writingStyleId) return novel.writingStyleId
+    return writingStyles.find((s) => s.isDefault)?.id
+  }, [writingStyleId, contextNovelId, novels, writingStyles])
+
+  const effectiveNovelId = contextNovelId === 'none' ? undefined : contextNovelId
+  const effectiveChapterId = contextChapterId === 'none' ? undefined : contextChapterId
+
+  // 切换作品时同步加载章节目录，供章节级模板（爽点体检 / 去AI味 / 章末钩子）取用当前章节
+  useEffect(() => {
+    if (contextNovelId === 'none') {
+      setContextChapters([])
+      setContextChapterId('none')
+      return
+    }
+    let cancelled = false
+    api<{ chapters: Array<{ id: string; title: string }> }>(`/api/chapters?novelId=${contextNovelId}`)
+      .then((r) => {
+        if (cancelled) return
+        setContextChapters(r.chapters || [])
+        setContextChapterId('none')
+      })
+      .catch(() => {
+        if (!cancelled) setContextChapters([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [contextNovelId])
 
   function splitBookChapters(text: string): Array<{ title: string; content: string }> {
     const normalized = text.replace(/\r\n?/g, '\n')
@@ -305,8 +352,12 @@ export function AiToolboxView() {
         method: 'POST',
         body: JSON.stringify({
           action: 'chat',
-          preset: activeTool.preset,
+          // 套用市场模板后进入模板模式：不带工具预设，避免预设与模板指令互相打架
+          preset: appliedTemplate ? undefined : activeTool.preset,
           message: prompt,
+          novelId: effectiveNovelId,
+          chapterId: effectiveChapterId,
+          writingStyleId: effectiveStyleId,
         }),
       })
       setOutput(r.reply || '')
@@ -361,7 +412,7 @@ export function AiToolboxView() {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-background">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         {/* 页头 */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -414,9 +465,10 @@ export function AiToolboxView() {
 
         {mode === 'market' ? (
           <PromptMarketPanel
-            onApplyPrompt={(text) => {
+            onApplyPrompt={(text, meta) => {
               setPrompt(text)
-              setActiveTool(TOOLS[0])
+              setAppliedTemplate(meta)
+              setOutput('')
               setMode('ai')
             }}
           />
@@ -531,7 +583,7 @@ export function AiToolboxView() {
                   <circle cx="60" cy="340" r="110" fill="#f59e0b" opacity="0.08" />
                   <rect x="16" y="16" width="268" height="368" fill="none" stroke="#f59e0b" strokeOpacity="0.45" strokeWidth="1.5" rx="8" />
                   <text x="150" y="62" textAnchor="middle" fill="#fbbf24" fontSize="11" letterSpacing="4">
-                    笔锋写作 · 原创典藏
+                    爆更猫AI写作 · 原创典藏
                   </text>
                   <text x="150" y="178" textAnchor="middle" fill="#ffffff" fontSize="28" fontWeight="bold" fontFamily="serif">
                     {(coverTitle || '未命名作品').slice(0, 8)}
@@ -612,9 +664,74 @@ export function AiToolboxView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* 左侧紧凑工具导航栏 */}
-            <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
+          <div className="space-y-5">
+            {/* 作品上下文与作者文风：决定生成时自动带入哪些设定集与笔触 */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">作品上下文</span>
+                <Select value={contextNovelId} onValueChange={setContextNovelId}>
+                  <SelectTrigger className="h-7 w-[190px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">不指定（纯自由创作）</SelectItem>
+                    {novels.map((n) => (
+                      <SelectItem key={n.id} value={n.id}>
+                        {n.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {contextNovelId !== 'none' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-foreground whitespace-nowrap">当前章节</span>
+                  <Select value={contextChapterId} onValueChange={setContextChapterId}>
+                    <SelectTrigger className="h-7 w-[190px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">不指定（仅用全书设定）</SelectItem>
+                      {contextChapters.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground whitespace-nowrap">作者文风</span>                <Select value={writingStyleId} onValueChange={setWritingStyleId}>
+                  <SelectTrigger className="h-7 w-[190px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">自动（作品绑定 / 默认文风）</SelectItem>
+                    <SelectItem value="none">不使用文风</SelectItem>
+                    {writingStyles.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                        {s.isDefault ? '（默认）' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <span className="text-[11px] text-muted-foreground leading-relaxed">
+                生成会自动带上该作品的设定集、大纲与时间线
+                {contextChapterId !== 'none' ? '，以及当前章节正文与前情摘要' : ''}
+                ，并按你的文风输出
+              </span>
+            </div>
+
+            {/* 顶部 4×2 工具矩阵 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               {TOOLS.map((tool) => {
                 const selected = activeTool?.id === tool.id
                 return (
@@ -624,21 +741,23 @@ export function AiToolboxView() {
                     onClick={() => {
                       setActiveTool(tool)
                       setOutput('')
+                      // 切换工具即退出模板模式，避免模板指令与工具预设互相干扰
+                      setAppliedTemplate(null)
                     }}
-                    className={`w-full text-left rounded-[14px] border p-2.5 flex items-center gap-3 transition-all bg-card hover:border-[var(--brand-line)] hover:shadow-sm ${
+                    className={`w-full text-left rounded-[12px] border p-2.5 flex items-center gap-2.5 transition-all bg-card hover:border-[var(--brand-line)] hover:shadow-sm ${
                       selected
-                        ? 'border-primary/60 bg-primary/8 shadow-xs ring-1 ring-primary/20'
+                        ? 'border-primary bg-primary/8 shadow-xs ring-1 ring-primary/25'
                         : 'border-border bg-card hover:bg-muted/50 hover:border-primary/30'
                     }`}
                   >
                     <img
                       src={tool.image}
                       alt={tool.title}
-                      className="w-10 h-10 rounded-lg shadow-2xs shrink-0 object-cover"
+                      className="w-9 h-9 rounded-lg shadow-2xs shrink-0 object-cover"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className={`text-xs sm:text-[13px] font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
                           {tool.title}
                         </span>
                         <Badge variant={selected ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
@@ -652,21 +771,22 @@ export function AiToolboxView() {
               })}
             </div>
 
-            {/* 右侧创作工作台 */}
-            <div className="lg:col-span-8">
-              {activeTool && (
-                <Card className="shadow-xs border-border/80">
-                  <CardHeader className="pb-4 border-b border-border/60 flex flex-row items-center justify-between gap-4 space-y-0">
-                    <div className="flex items-center gap-3.5 min-w-0">
+            {/* 下方全宽左右分屏创作区（左输入 + 右结果） */}
+            {activeTool && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                {/* 左侧输入区 */}
+                <Card className="lg:col-span-5 shadow-xs border-border/80 flex flex-col">
+                  <CardHeader className="pb-3.5 border-b border-border/60 flex flex-row items-center justify-between gap-3 space-y-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <img
                         src={activeTool.image}
                         alt={activeTool.title}
-                        className="w-11 h-11 rounded-xl shadow-xs shrink-0 object-cover"
+                        className="w-10 h-10 rounded-xl shadow-xs shrink-0 object-cover"
                       />
                       <div className="min-w-0">
-                        <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
-                          <span>{activeTool.title}</span>
-                          <Badge variant="outline" className="text-[10px] font-normal">
+                        <CardTitle className="text-base font-display flex items-center gap-2">
+                          <span className="truncate">{activeTool.title}</span>
+                          <Badge variant="outline" className="text-[10px] font-normal shrink-0">
                             {activeTool.badge}
                           </Badge>
                         </CardTitle>
@@ -678,16 +798,19 @@ export function AiToolboxView() {
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs shrink-0"
-                      onClick={() => setPrompt(activeTool.placeholder.replace(/^例：/, ''))}
+                      onClick={() => {
+                        setPrompt(activeTool.placeholder.replace(/^例：/, ''))
+                        setAppliedTemplate(null)
+                      }}
                     >
                       填入示例
                     </Button>
                   </CardHeader>
 
-                  <CardContent className="p-5 space-y-4">
+                  <CardContent className="p-4 flex-1 flex flex-col gap-3">
                     {/* 拆书专属：整本上传（支持百万字级） */}
                     {activeTool.id === 'deconstruct' && (
-                      <div className="rounded-xl border border-border bg-[var(--surface-2)] p-3.5 space-y-3">
+                      <div className="rounded-xl border border-border bg-[var(--surface-2)] p-3 space-y-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <label className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] border border-border bg-card hover:bg-muted text-xs font-medium cursor-pointer transition-colors">
                             <FileUp className="w-3.5 h-3.5 text-primary" />
@@ -700,7 +823,7 @@ export function AiToolboxView() {
                             />
                           </label>
                           <span className="text-[11px] text-muted-foreground">
-                            支持百万字级整本小说（自动识别 UTF-8 / GBK 编码并智能分章）
+                            支持百万字级整本小说（自动分章）
                           </span>
                         </div>
 
@@ -740,98 +863,125 @@ export function AiToolboxView() {
                       </div>
                     )}
 
-                    <div className="space-y-2">
-                      <Textarea
-                        value={prompt.length > 30000 ? `${prompt.slice(0, 12000)}\n\n...（完整文本共 ${prompt.length.toLocaleString()} 字，已加载至内存，点击「立即生成」将按整本模式拆解）...` : prompt}
-                        onChange={(e) => {
-                          setPrompt(e.target.value)
-                          if (!e.target.value) {
-                            setBookFileName('')
-                            setBookChapters([])
-                          }
-                        }}
-                        placeholder={activeTool.placeholder}
-                        rows={6}
-                        className="resize-y text-sm leading-relaxed"
-                      />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          已输入 {prompt.length.toLocaleString()} 字
-                          {deconstructProgress && (
-                            <span className="ml-2 text-primary font-medium">{deconstructProgress}</span>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {prompt && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-xs text-muted-foreground"
-                              onClick={() => {
-                                setPrompt('')
-                                setOutput('')
-                                setBookFileName('')
-                                setBookChapters([])
-                              }}
-                            >
-                              清空
-                            </Button>
-                          )}
-                          <Button
-                            onClick={handleRunAi}
-                            disabled={loading}
-                            size="sm"
-                            className="h-8 px-4 gap-1.5 bg-primary rounded-full shadow-sm hover:bg-primary/90 text-primary-foreground"
-                          >
-                            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                            {loading ? '正在生成...' : '立即生成'}
-                          </Button>
+                    {/* 模板模式提示 */}
+                    {appliedTemplate && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/8 px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="text-xs text-foreground truncate">
+                            模板模式：<span className="font-medium">{appliedTemplate.title}</span>
+                            <span className="text-muted-foreground">（{appliedTemplate.category}）</span>
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            可直接补充本次素材后点击生成
+                          </span>
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-muted-foreground"
+                          onClick={() => setAppliedTemplate(null)}
+                        >
+                          退出模板模式
+                        </Button>
                       </div>
-                    </div>
+                    )}
 
-                    {/* 结构化结果区 */}
-                    <div className="rounded-xl border border-border bg-muted/20 overflow-hidden">
-                      <div className="px-4 py-2.5 border-b border-border/60 bg-muted/30 flex items-center justify-between text-xs">
-                        <span className="font-medium text-muted-foreground">AI 生成结果</span>
-                        {output && (
+                    <Textarea
+                      value={prompt.length > 30000 ? `${prompt.slice(0, 12000)}\n\n...（完整文本共 ${prompt.length.toLocaleString()} 字，已加载至内存，点击「立即生成」将按整本模式拆解）...` : prompt}
+                      onChange={(e) => {
+                        setPrompt(e.target.value)
+                        if (!e.target.value) {
+                          setBookFileName('')
+                          setBookChapters([])
+                        }
+                      }}
+                      placeholder={activeTool.placeholder}
+                      rows={11}
+                      className="flex-1 min-h-[260px] resize-y text-sm leading-relaxed"
+                    />
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        已输入 {prompt.length.toLocaleString()} 字
+                        {deconstructProgress && (
+                          <span className="ml-2 text-primary font-medium">{deconstructProgress}</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {prompt && (
                           <Button
+                            type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-6 px-2 text-xs gap-1"
+                            className="h-8 text-xs text-muted-foreground"
                             onClick={() => {
-                              navigator.clipboard.writeText(markdownToPlainText(output))
-                              setCopied(true)
-                              toast.success('已复制纯文本')
-                              setTimeout(() => setCopied(false), 1500)
+                              setPrompt('')
+                              setOutput('')
+                              setBookFileName('')
+                              setBookChapters([])
+                              setAppliedTemplate(null)
                             }}
                           >
-                            {copied ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
-                            复制结果
+                            清空
                           </Button>
                         )}
-                      </div>
-                      <div className="p-4 min-h-[220px] max-h-[460px] overflow-y-auto">
-                        {loading ? (
-                          <div className="h-[180px] flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
-                            <Loader2 className="w-5 h-5 animate-spin text-gold" />
-                            <span>AI 正在深度构思中，请稍候...</span>
-                          </div>
-                        ) : output ? (
-                          <MarkdownRenderer content={output} />
-                        ) : (
-                          <div className="h-[180px] flex flex-col items-center justify-center text-center text-muted-foreground gap-1.5">
-                            <Sparkles className="w-5 h-5 opacity-40" />
-                            <p className="text-xs">输入灵感或点击右上角「填入示例」，生成结果将在此处以结构化排版呈现</p>
-                          </div>
-                        )}
+                        <Button
+                          onClick={handleRunAi}
+                          disabled={loading}
+                          size="sm"
+                          className="h-8 px-4 gap-1.5 bg-primary rounded-full shadow-sm hover:bg-primary/90 text-primary-foreground"
+                        >
+                          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          {loading ? '正在生成...' : '立即生成'}
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-            </div>
+
+                {/* 右侧全高结果阅读区 */}
+                <Card className="lg:col-span-7 shadow-xs border-border/80 flex flex-col overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/60 bg-muted/25 flex items-center justify-between text-xs shrink-0">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      AI 生成结果
+                    </span>
+                    {output && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs gap-1"
+                        onClick={() => {
+                          navigator.clipboard.writeText(markdownToPlainText(output))
+                          setCopied(true)
+                          toast.success('已复制纯文本')
+                          setTimeout(() => setCopied(false), 1500)
+                        }}
+                      >
+                        {copied ? <Check className="w-3 h-3 text-jade" /> : <Copy className="w-3 h-3" />}
+                        复制结果
+                      </Button>
+                    )}
+                  </div>
+                  <div className="p-5 flex-1 min-h-[380px] max-h-[68vh] overflow-y-auto">
+                    {loading ? (
+                      <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
+                        <Loader2 className="w-5 h-5 animate-spin text-gold" />
+                        <span>AI 正在深度构思中，请稍候...</span>
+                      </div>
+                    ) : output ? (
+                      <MarkdownRenderer content={output} />
+                    ) : (
+                      <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center text-muted-foreground gap-1.5">
+                        <Sparkles className="w-5 h-5 opacity-40" />
+                        <p className="text-xs">在左侧输入灵感或点击「填入示例」，生成结果将在此处全栏结构化呈现</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            )}
           </div>
         )}
       </div>

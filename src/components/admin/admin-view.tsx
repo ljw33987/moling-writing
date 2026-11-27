@@ -126,39 +126,39 @@ export function AdminView() {
               </div>
             </div>
 
-          <TabsContent value="overview" className="mt-4">
-            <OverviewTab />
-          </TabsContent>
-          <TabsContent value="users" className="mt-4">
-            <UsersTab />
-          </TabsContent>
-          <TabsContent value="novels" className="mt-4">
-            <NovelsTab />
-          </TabsContent>
-          <TabsContent value="orders" className="mt-4">
-            <OrdersTab />
-          </TabsContent>
-          <TabsContent value="messages" className="mt-4">
-            <MessagesTab />
-          </TabsContent>
-          <TabsContent value="announcements" className="mt-4">
-            <AnnouncementsTab />
-          </TabsContent>
-          <TabsContent value="broadcast" className="mt-4">
-            <BroadcastTab />
-          </TabsContent>
-          <TabsContent value="email" className="mt-4">
-            <EmailConfigTab />
-          </TabsContent>
-          <TabsContent value="redeem" className="mt-4">
-            <RedeemCodesTab />
-          </TabsContent>
-          <TabsContent value="docs" className="mt-4">
-            <DocsView />
-          </TabsContent>
-          <TabsContent value="config" className="mt-4">
-            <PlatformConfigTab />
-          </TabsContent>
+            <TabsContent value="overview" className="mt-4">
+              <OverviewTab />
+            </TabsContent>
+            <TabsContent value="users" className="mt-4">
+              <UsersTab />
+            </TabsContent>
+            <TabsContent value="novels" className="mt-4">
+              <NovelsTab />
+            </TabsContent>
+            <TabsContent value="orders" className="mt-4">
+              <OrdersTab />
+            </TabsContent>
+            <TabsContent value="messages" className="mt-4">
+              <MessagesTab />
+            </TabsContent>
+            <TabsContent value="announcements" className="mt-4">
+              <AnnouncementsTab />
+            </TabsContent>
+            <TabsContent value="broadcast" className="mt-4">
+              <BroadcastTab />
+            </TabsContent>
+            <TabsContent value="email" className="mt-4">
+              <EmailConfigTab />
+            </TabsContent>
+            <TabsContent value="redeem" className="mt-4">
+              <RedeemCodesTab />
+            </TabsContent>
+            <TabsContent value="docs" className="mt-4">
+              <DocsView />
+            </TabsContent>
+            <TabsContent value="config" className="mt-4">
+              <PlatformConfigTab />
+            </TabsContent>
           </div>
         </div>
       </Tabs>
@@ -899,8 +899,8 @@ function MessagesTab() {
                       m.role === 'user'
                         ? 'text-emerald-600 text-xs'
                         : m.role === 'assistant'
-                        ? 'text-indigo-600 dark:text-indigo-400 text-xs'
-                        : 'text-slate-500 text-xs'
+                          ? 'text-indigo-600 dark:text-indigo-400 text-xs'
+                          : 'text-slate-500 text-xs'
                     }
                   >
                     {m.role === 'user' ? '用户' : m.role === 'assistant' ? 'AI' : '系统'}
@@ -959,7 +959,7 @@ function EmailConfigTab() {
   const [smtpSecure, setSmtpSecure] = useState(true)
   const [smtpUser, setSmtpUser] = useState('')
   const [smtpPass, setSmtpPass] = useState('')
-  const [fromName, setFromName] = useState('笔锋写作')
+  const [fromName, setFromName] = useState('爆更猫AI写作')
   const [enabled, setEnabled] = useState(true)
 
   const load = useCallback(async () => {
@@ -974,7 +974,7 @@ function EmailConfigTab() {
         setSmtpSecure(r.config.smtpSecure ?? true)
         setSmtpUser(r.config.smtpUser || '')
         setSmtpPass('')
-        setFromName(r.config.fromName || '笔锋写作')
+        setFromName(r.config.fromName || '爆更猫AI写作')
         setEnabled(r.config.enabled ?? true)
       }
     } catch (e: any) {
@@ -1214,7 +1214,7 @@ function EmailConfigTab() {
                 type="email"
                 value={smtpUser}
                 onChange={(e) => setSmtpUser(e.target.value)}
-                placeholder="如 moling_support@163.com"
+                placeholder="如 support@baogengmao.com"
               />
             </div>
             <div className="space-y-2">
@@ -1231,7 +1231,7 @@ function EmailConfigTab() {
               <Input
                 value={fromName}
                 onChange={(e) => setFromName(e.target.value)}
-                placeholder="笔锋写作"
+                placeholder="爆更猫AI写作"
               />
             </div>
           </div>
@@ -1285,6 +1285,7 @@ function EmailConfigTab() {
 
 // ============ 兑换码管理 ============
 function RedeemCodesTab() {
+  const { t } = useI18n()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -1427,7 +1428,7 @@ function RedeemCodesTab() {
       if (search) params.set('search', search)
       if (typeFilter === 'generic') params.set('isGeneric', 'true')
       if (typeFilter === 'exclusive') params.set('isGeneric', 'false')
-      
+
       // 直接浏览器下载（带 cookie）
       const url = `/api/admin/redeem-codes?${params.toString()}`
       const a = document.createElement('a')

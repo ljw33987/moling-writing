@@ -72,7 +72,7 @@ interface Props {
   novel: NovelDetail
   currentChapterId: string | null
   onSelect: (id: string) => void
-  onChange: () => void
+  onChange: (chapterId?: string) => void
 }
 
 // 所有章节的扁平列表（带 volumeId），用于跨卷拖拽
@@ -112,6 +112,7 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
       toast.error('请输入标题')
       return
     }
+    let createdChapterId: string | undefined
     try {
       if (addDialog?.type === 'volume') {
         await api('/api/chapters', {
@@ -124,7 +125,7 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
           }),
         })
       } else if (addDialog?.volumeId) {
-        await api('/api/chapters', {
+        const { chapter } = await api<{ chapter: { id: string } }>('/api/chapters', {
           method: 'POST',
           body: JSON.stringify({
             type: 'chapter',
@@ -133,12 +134,13 @@ export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Pro
             novelId: novel.id,
           }),
         })
+        createdChapterId = chapter.id
       }
       toast.success('已创建')
       setNewTitle('')
       setIsOutline(false)
       setAddDialog(null)
-      onChange()
+      onChange(createdChapterId)
     } catch (e: any) {
       toast.error(e.message)
     }
@@ -742,8 +744,16 @@ ${parseTarget.text.slice(0, 7000)}`,
                         ))}
                       </SortableContext>
                       {vol.chapters.length === 0 && (
-                        <div className="text-xs text-muted-foreground px-4 py-2 italic">
-                          暂无章节（可拖入章节或本地文件）
+                        <div className="px-4 py-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="italic">暂无章节（可拖入章节或本地文件）</span>
+                          <button
+                            type="button"
+                            onClick={() => setAddDialog({ type: 'chapter', volumeId: vol.id })}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-[11px] font-medium shrink-0 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                            新建章节
+                          </button>
                         </div>
                       )}
                     </div>
@@ -967,6 +977,17 @@ function DroppableVolumeRow({
         <span className="text-xs text-muted-foreground mr-1 tnum">
           {vol.chapters.length}
         </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onAddChapter()
+          }}
+          className="opacity-65 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-primary rounded p-0.5 transition-opacity"
+          title="在此卷新建章节"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

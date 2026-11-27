@@ -74,7 +74,9 @@ export function EditorView() {
   } = useAppStore()
 
   const [novel, setNovel] = useState<NovelDetail | null>(null)
-  const [currentChapter, setCurrentChapterState] = useState<Chapter | null>(null)
+  const [chapterState, setCurrentChapterState] = useState<Chapter | null>(null)
+  const currentChapter = chapterState?.id === currentChapterId ? chapterState : null
+  const novelLoadId = useRef(0)
   const [loading, setLoading] = useState(true)
   const [mindmapFiles, setMindmapFiles] = useState<MindmapFile[]>([])
   const [activeMindmapId, setActiveMindmapId] = useState<string | null>(null)
@@ -167,19 +169,22 @@ export function EditorView() {
 
   const loadNovel = useCallback(async () => {
     if (!currentNovelId) return
+    const loadId = ++novelLoadId.current
+    const isCurrent = () => loadId === novelLoadId.current &&
+      useAppStore.getState().currentNovelId === currentNovelId
     try {
       const r = await api<{ novel: NovelDetail }>(`/api/novels?id=${currentNovelId}`)
+      if (!isCurrent()) return
       setNovel(r.novel)
-      // 默认选第一章
-      if (!currentChapterId && r.novel.volumes.length > 0 && r.novel.volumes[0].chapters.length > 0) {
-        setCurrentChapter(r.novel.volumes[0].chapters[0].id)
-      }
+      const allChapters = r.novel.volumes.flatMap((v) => v.chapters)
+      const selectedId = useAppStore.getState().currentChapterId
+      setCurrentChapter(allChapters.find((c) => c.id === selectedId)?.id ?? allChapters[0]?.id ?? null)
     } catch (e: any) {
-      toast.error(e.message || '加载小说失败')
+      if (isCurrent()) toast.error(e.message || '加载小说失败')
     } finally {
-      setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
-  }, [currentNovelId, currentChapterId, setCurrentChapter])
+  }, [currentNovelId, setCurrentChapter])
 
   useEffect(() => {
     loadNovel()
@@ -187,16 +192,18 @@ export function EditorView() {
 
   // 当 currentChapterId 变化时，从 novel 中找到当前章节
   useEffect(() => {
-    if (!novel || !currentChapterId) {
+    if (!novel) {
       setCurrentChapterState(null)
       return
     }
-    for (const v of novel.volumes) {
-      const c = v.chapters.find((c) => c.id === currentChapterId)
-      if (c) {
-        setCurrentChapterState(c)
-        void checkRecovery(c.id, c.content)
-        return
+    if (currentChapterId) {
+      for (const v of novel.volumes) {
+        const c = v.chapters.find((c) => c.id === currentChapterId)
+        if (c) {
+          setCurrentChapterState(c)
+          void checkRecovery(c.id, c.content)
+          return
+        }
       }
     }
     setCurrentChapterState(null)
@@ -286,8 +293,13 @@ export function EditorView() {
   }
 
   // 章节被树中操作后的刷新
-  const handleTreeChange = () => {
-    loadNovel()
+  const handleTreeChange = (chapterId?: string) => {
+    if (chapterId) {
+      setActiveMindmapId(null)
+      setMobileDrawer(null)
+      setCurrentChapter(chapterId)
+    }
+    void loadNovel()
   }
 
   // 插入正文：先清空当前章节正文，再用干净的纯文本段落全部替换写入
@@ -360,10 +372,7 @@ export function EditorView() {
           <AutoSerialPanel
             novelId={novel.id}
             volumes={novel.volumes}
-            onChapterCreated={(newId) => {
-              void loadNovel()
-              if (newId) setCurrentChapter(newId)
-            }}
+            onChapterCreated={handleTreeChange}
           />
           <LongNovelTools
             novelId={novel.id}
@@ -454,6 +463,7 @@ export function EditorView() {
             />
           ) : (
             <EditorPanel
+              key={currentChapterId ?? 'unselected'}
               chapter={currentChapter}
               novel={novel}
               onContentChange={handleContentChange}
@@ -514,6 +524,7 @@ export function EditorView() {
               />
             ) : (
               <EditorPanel
+                key={currentChapterId ?? 'unselected'}
                 chapter={currentChapter}
                 novel={novel}
                 onContentChange={handleContentChange}

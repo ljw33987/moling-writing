@@ -29,10 +29,12 @@ import {
   ChevronRight,
   Power,
   AlertCircle,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface AiConfig {
+export interface AiConfig {
   id: string
   provider: string
   name: string
@@ -45,6 +47,7 @@ interface AiConfig {
   lastTestAt: string | null
   lastTestOk: boolean
   lastTestErr: string | null
+  priority?: number
   createdAt: string
 }
 
@@ -76,7 +79,7 @@ function ProviderLogo({ provider, className }: { provider: string; className?: s
   )
 }
 
-export function AiConfigPanel() {
+export function AiConfigPanel({ onConfigsChange }: { onConfigsChange?: (configs: AiConfig[]) => void } = {}) {
   const [configs, setConfigs] = useState<AiConfig[]>([])
   const [providers, setProviders] = useState<any>({})
   const [loading, setLoading] = useState(true)
@@ -91,12 +94,13 @@ export function AiConfigPanel() {
       const r = await api<{ configs: AiConfig[]; providers: any }>('/api/user/ai-config')
       setConfigs(r.configs)
       setProviders(r.providers)
+      onConfigsChange?.(r.configs)
     } catch (e: any) {
       toast.error(e.message)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onConfigsChange])
 
   useEffect(() => {
     load()
@@ -170,6 +174,29 @@ export function AiConfigPanel() {
     }
   }
 
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= configs.length) return
+    const next = [...configs]
+    const [moved] = next.splice(index, 1)
+    next.splice(target, 0, moved)
+    setConfigs(next)
+    try {
+      await api('/api/user/ai-config', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          action: 'reorder',
+          orderedIds: next.map((c) => c.id),
+        }),
+      })
+      toast.success('已调整接口优先级并同步到平台')
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+      load()
+    }
+  }
+
   const defaultConfig = configs.find((c) => c.isDefault && c.enabled)
   const enabledCount = configs.filter((c) => c.enabled).length
 
@@ -177,15 +204,13 @@ export function AiConfigPanel() {
     <div className="space-y-5">
       {/* 顶部状态横幅 */}
       {!loading && (
-        <div className={`rounded-xl p-4 border ${
-          defaultConfig
-            ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800'
-            : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200 dark:border-amber-800'
-        }`}>
+        <div className={`rounded-xl p-4 border ${defaultConfig
+          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800'
+          : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200 dark:border-amber-800'
+          }`}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              defaultConfig ? 'bg-emerald-500' : 'bg-amber-500'
-            }`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${defaultConfig ? 'bg-emerald-500' : 'bg-amber-500'
+              }`}>
               {defaultConfig ? (
                 <CheckCircle2 className="w-5 h-5 text-white" />
               ) : (
@@ -196,22 +221,22 @@ export function AiConfigPanel() {
               {defaultConfig ? (
                 <>
                   <div className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                    当前使用：{defaultConfig.name}
+                    当前平台主接口 (#1)：{defaultConfig.name}
                   </div>
                   <div className="text-xs text-emerald-600 dark:text-emerald-400">
-                    {getStyle(defaultConfig.provider).icon} {providers[defaultConfig.provider]?.name || defaultConfig.provider} · {defaultConfig.model}
-                    {' · AI 写作不消耗平台 Token'}
+                    {providers[defaultConfig.provider]?.name || defaultConfig.provider} · {defaultConfig.model}
+                    {' · 主接口异常时将按优先级自动切换备选接口'}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    {configs.length === 0 ? '尚未配置第三方 AI API' : '未设置默认 API'}
+                    {configs.length === 0 ? '尚未配置平台 AI 接口' : '未设置默认主接口'}
                   </div>
                   <div className="text-xs text-amber-600 dark:text-amber-400">
                     {configs.length === 0
-                      ? '绑定后 AI 写作将使用你自己的模型，不消耗平台 Token'
-                      : 'AI 写作将使用平台内置模型（消耗 Token），点击下方设为默认可切换'}
+                      ? '添加并启用接口后，将作为全平台 AI 创作主接口与备选池'
+                      : '点击下方「设为默认」或调整优先级 #1 即可同步为平台主接口'}
                   </div>
                 </>
               )}
@@ -273,14 +298,13 @@ export function AiConfigPanel() {
           </Card>
         ) : (
           <div className="space-y-2.5">
-            {configs.map((c) => {
+            {configs.map((c, idx) => {
               const style = getStyle(c.provider)
               return (
                 <Card
                   key={c.id}
-                  className={`group overflow-hidden transition-all ${
-                    c.isDefault ? `border-2 ${style.border}` : ''
-                  } ${!c.enabled ? 'opacity-60' : ''}`}
+                  className={`group overflow-hidden transition-all ${c.isDefault ? `border-2 ${style.border}` : ''
+                    } ${!c.enabled ? 'opacity-60' : ''}`}
                 >
                   <CardContent className="p-0">
                     <div className="flex items-stretch">
@@ -296,6 +320,9 @@ export function AiConfigPanel() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant={idx === 0 ? 'default' : 'outline'} className="text-[10px] px-1.5 py-0 font-mono">
+                                  {idx === 0 ? '主接口 #1' : `备选 #${idx + 1}`}
+                                </Badge>
                                 <span className="font-medium text-sm truncate">{c.name}</span>
                                 {c.isDefault && (
                                   <Badge variant="default" className="text-[9px] px-1.5 py-0 gap-0.5 bg-indigo-600">
@@ -342,7 +369,29 @@ export function AiConfigPanel() {
                         )}
 
                         {/* 操作按钮 */}
-                        <div className="flex items-center gap-1.5 -ml-1">
+                        <div className="flex items-center flex-wrap gap-1.5 -ml-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1"
+                            disabled={idx === 0}
+                            onClick={() => handleMove(idx, -1)}
+                            title="提高优先级"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                            上移
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1"
+                            disabled={idx === configs.length - 1}
+                            onClick={() => handleMove(idx, 1)}
+                            title="降低优先级"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                            下移
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -572,11 +621,10 @@ function ConfigDialog({
                     <button
                       key={p.id}
                       onClick={() => handleProviderChange(p.id)}
-                      className={`p-2.5 rounded-lg border-2 transition-all text-center ${
-                        provider === p.id
-                          ? `${ps.border} ${ps.bg} scale-105`
-                          : 'border-transparent bg-muted/40 hover:bg-muted'
-                      }`}
+                      className={`p-2.5 rounded-lg border-2 transition-all text-center ${provider === p.id
+                        ? `${ps.border} ${ps.bg} scale-105`
+                        : 'border-transparent bg-muted/40 hover:bg-muted'
+                        }`}
                     >
                       <div className="mb-0.5 flex items-center justify-center">
                         <ProviderLogo provider={p.id} className="w-7 h-7" />
@@ -657,11 +705,10 @@ function ConfigDialog({
                   <button
                     key={m}
                     onClick={() => setModel(m)}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition ${
-                      model === m
-                        ? `${style.bg} ${style.text} border ${style.border}`
-                        : 'bg-muted/50 hover:bg-muted text-muted-foreground'
-                    }`}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition ${model === m
+                      ? `${style.bg} ${style.text} border ${style.border}`
+                      : 'bg-muted/50 hover:bg-muted text-muted-foreground'
+                      }`}
                   >
                     {m}
                   </button>

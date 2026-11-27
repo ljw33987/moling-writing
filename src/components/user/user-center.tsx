@@ -228,7 +228,6 @@ export function UserCenter() {
   const navs: { id: Section; label: string; icon: any; badge?: number }[] = [
     { id: 'profile', label: t('uc.profile'), icon: UserIcon },
     { id: 'recharge', label: t('uc.recharge'), icon: Crown },
-    { id: 'aiconfig', label: t('uc.aiConfig'), icon: Cpu },
     { id: 'redeem', label: t('uc.redeem'), icon: Ticket },
     { id: 'orders', label: t('uc.orders'), icon: Receipt, badge: orders.length },
   ]
@@ -330,7 +329,6 @@ export function UserCenter() {
             )}
             {section === 'redeem' && <RedeemCard onRedeemed={load} />}
             {section === 'orders' && <OrdersSection orders={orders} />}
-            {section === 'aiconfig' && <AiConfigPanel />}
           </div>
         </div>
       </div>

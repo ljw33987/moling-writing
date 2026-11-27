@@ -89,6 +89,35 @@ export const AI_PROVIDERS: Record<string, ProviderPreset> = {
   },
 }
 
+// 过滤推理模型的 <think>...</think> 思考过程，避免英文思考内容泄漏到正文
+export function stripThinkTags(text: string): string {
+  if (!text) return ''
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '')
+  const openIdx = cleaned.search(/<think>/i)
+  if (openIdx !== -1) {
+    cleaned = cleaned.slice(0, openIdx)
+  }
+  return cleaned.replace(/^[\s\S]*?<\/think>/i, '').trimStart()
+}
+
+// 流式过滤 <think>...</think> 块
+export function createThinkStreamFilter() {
+  let raw = ''
+  let emittedLength = 0
+
+  return {
+    push(delta: string): string {
+      raw += delta
+      const cleaned = stripThinkTags(raw)
+      // 若仍在 <think> 标签内或尾部刚出现部分 "<th..." 前缀，暂缓输出
+      if (cleaned.length <= emittedLength) return ''
+      const next = cleaned.slice(emittedLength)
+      emittedLength = cleaned.length
+      return next
+    },
+  }
+}
+
 // 调用第三方 AI（OpenAI 兼容格式）
 export async function callThirdPartyAI(
   config: {
@@ -126,7 +155,8 @@ export async function callThirdPartyAI(
     }
 
     const data = await res.json()
-    const reply = data.choices?.[0]?.message?.content || ''
+    const rawReply = data.choices?.[0]?.message?.content || ''
+    const reply = stripThinkTags(rawReply)
     return { ok: true, reply }
   } catch (e: any) {
     return { ok: false, error: e.message }

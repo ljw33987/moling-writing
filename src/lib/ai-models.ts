@@ -9,11 +9,12 @@ export interface PublicAiModel {
 }
 
 export interface AdminModelMapping {
-  aliasId: string       // 对外暴露的模型名（如 moling_v4、moling_v4_pro）
+  aliasId: string       // 对外暴露的模型名（如 baogeng_v4、baogeng_v4_pro）
   displayName: string   // 前端显示名称
   badge: string         // 标签（如 标准 / 增强）
   description: string   // 描述
   provider: string      // 后台实际提供商（如 deepseek / minimax，不对外暴露）
+  configId?: string     // 绑定的平台接口池 ID（可选）
   baseUrl: string       // 后台实际 Base URL（留空则使用平台默认）
   apiKey: string        // 后台实际 API Key（留空则使用平台默认）
   realModel: string     // 后台实际模型名（如 deepseek-chat / MiniMax-M2.7，不对外暴露）
@@ -24,8 +25,8 @@ export interface AdminModelMapping {
 
 export const DEFAULT_MODEL_MAPPINGS: AdminModelMapping[] = [
   {
-    aliasId: 'moling_v4',
-    displayName: 'moling_v4',
+    aliasId: 'baogeng_v4',
+    displayName: 'baogeng_v4',
     badge: '标准',
     description: '响应迅速，适合日常创作对话、续写与润色',
     provider: '',
@@ -36,8 +37,8 @@ export const DEFAULT_MODEL_MAPPINGS: AdminModelMapping[] = [
     isDefault: true,
   },
   {
-    aliasId: 'moling_v4_pro',
-    displayName: 'moling_v4_pro',
+    aliasId: 'baogeng_v4_pro',
+    displayName: 'baogeng_v4_pro',
     badge: '增强',
     description: '深度推理与长篇精修，适合多文件分析、拆书与复杂大纲推演',
     provider: '',
@@ -66,7 +67,7 @@ export function parseModelMappings(raw: string | null | undefined): AdminModelMa
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed
     }
-  } catch {}
+  } catch { }
   return DEFAULT_MODEL_MAPPINGS
 }
 
