@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>墨灵写作 · AI 网文创作平台 | 一句话灵感，长出一整部长篇</title>
-<meta name="description" content="墨灵写作是 AI 驱动的网文创作平台。沉浸式三栏编辑器、10 万字长文本记忆、18 个预设指令、AI 自动连载、设定库与作品广场——让作者不失忆、不卡文。注册即送 10,000 Token。">
+<title>墨灵写作 1.0 正式发布 · AI 网文创作平台 | 一句话灵感，长出一整部长篇</title>
+<meta name="description" content="墨灵写作是 AI 驱动的网文创作平台。沉浸式三栏编辑器、10 万字长文本记忆、18 个预设指令、AI 自动连载、设定库与作品广场——让作者不失忆、不卡文。1.0 正式发布，注册即送 10,000 Token。">
 <meta name="keywords" content="AI写作,网文创作,AI续写,小说写作,自动连载,写作助手,墨灵写作">
-<meta property="og:title" content="墨灵写作 · AI 网文创作平台">
+<meta property="og:title" content="墨灵写作 1.0 正式发布 · AI 网文创作平台">
 <meta property="og:description" content="一句话灵感，长出一整部长篇。AI 长文本记忆 + 沉浸式编辑器 + 自动连载。">
 <meta property="og:type" content="website">
 <meta property="og:image" content="assets/shot-editor.png">
@@ -278,6 +278,92 @@ h2{font-size:clamp(28px,3.6vw,40px);font-weight:750;letter-spacing:-.03em;line-h
 .plan li.off svg{stroke:var(--ink-4)}
 .plan .btn{width:100%}
 
+/* ---------- 首发权益条 ---------- */
+.launch{background:var(--surface);border-bottom:1px solid var(--line)}
+.launch-in{
+  max-width:1180px;margin:0 auto;padding:19px 28px;
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.launch-k{
+  display:inline-flex;align-items:center;height:27px;padding:0 13px;border-radius:999px;
+  background:var(--grad);color:#fff;font-size:12px;font-weight:700;letter-spacing:.05em;flex:none;
+  box-shadow:0 3px 10px -3px rgba(79,70,229,.5);
+}
+.launch-in ul{list-style:none;display:flex;gap:10px 28px;flex-wrap:wrap;align-items:center;margin:0;padding:0}
+.launch-in li{font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.launch-in li b{color:var(--ink);font-weight:700}
+.launch-in li::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none;opacity:.6}
+
+/* ---------- 去 AI 味对比 ---------- */
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.diff{
+  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);
+  padding:26px 24px;box-shadow:var(--shadow-xs);position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.diff:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.diff::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.diff.bad::before{background:var(--rose)}
+.diff.good::before{background:var(--green)}
+.diff-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.diff-badge{
+  height:26px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;
+  font-size:12.5px;font-weight:700;
+}
+.diff-badge em{font-style:normal;font-weight:600;opacity:.7;margin-left:7px}
+.diff.bad .diff-badge{background:var(--rose-soft);color:var(--rose)}
+.diff.good .diff-badge{background:var(--green-soft);color:var(--green)}
+.diff-text{
+  font-size:15px;line-height:2.05;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:12px;padding:20px 22px;
+}
+.diff.bad .diff-text{color:var(--ink-2)}
+.strike{
+  background:rgba(225,29,72,.10);color:var(--rose);text-decoration:line-through;
+  text-decoration-thickness:1.5px;padding:1px 5px;border-radius:5px;font-weight:650;
+}
+.mark{background:rgba(5,150,105,.13);color:var(--green);padding:1px 5px;border-radius:5px;font-weight:650}
+html[data-theme="dark"] .strike{background:rgba(251,113,133,.16)}
+html[data-theme="dark"] .mark{background:rgba(52,211,153,.16)}
+.diff-note{margin-top:14px;font-size:13.5px;color:var(--ink-3);line-height:1.75}
+.diff-note b{color:var(--ink);font-weight:700}
+.diff-list{
+  margin-top:18px;padding-top:18px;border-top:1px dashed var(--line-2);
+  display:flex;flex-direction:column;gap:10px;
+}
+.diff-list li{list-style:none;display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2);line-height:1.65}
+.diff-list svg{width:15px;height:15px;flex:none;margin-top:4px;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.diff.bad .diff-list svg{stroke:var(--rose)}
+.diff.good .diff-list svg{stroke:var(--green)}
+.diff-foot{
+  margin-top:20px;padding:13px 16px;border-radius:12px;font-size:13px;line-height:1.75;
+  background:var(--grad-soft);border:1px solid var(--brand-line);color:var(--brand-ink);
+}
+
+/* ---------- 横向对比表 ---------- */
+.cmp{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-xs);overflow:hidden}
+.cmp-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cmp-table{width:100%;min-width:780px;border-collapse:collapse}
+.cmp-table th,.cmp-table td{padding:15px 18px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+.cmp-table thead th{
+  background:var(--surface-2);font-size:13px;font-weight:700;color:var(--ink-2);
+  position:sticky;top:0;z-index:2;white-space:nowrap;
+}
+.cmp-table thead th:first-child{color:var(--ink-4);font-weight:600;width:170px}
+.cmp-table thead th.hi{background:var(--grad);color:#fff}
+.cmp-table tbody th{
+  font-size:13.5px;font-weight:650;color:var(--ink);background:var(--surface-2);
+  width:170px;line-height:1.5;
+}
+.cmp-table tbody td{font-size:13.5px;color:var(--ink-2);line-height:1.65}
+.cmp-table tbody td.hi{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+.cmp-table tbody td.hi b{font-weight:750}
+.cmp-table tbody tr:last-child th,.cmp-table tbody tr:last-child td{border-bottom:0}
+.cmp-yes{color:var(--green);font-weight:650}
+.cmp-part{color:var(--amber);font-weight:650}
+.cmp-no{color:var(--ink-4)}
+.cmp-tip{margin-top:14px;font-size:12.5px;color:var(--ink-4);text-align:center;line-height:1.7}
+
 /* ---------- FAQ ---------- */
 .faq{max-width:760px;margin:0 auto}
 .faq-item{border-bottom:1px solid var(--line)}
@@ -306,6 +392,16 @@ h2{font-size:clamp(28px,3.6vw,40px);font-weight:750;letter-spacing:-.03em;line-h
 .cta .btn-p:hover{background:#F3F1FF}
 .cta .btn-o{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.26)}
 .cta .btn-o:hover{background:rgba(255,255,255,.2)}
+.cta-kicker{
+  position:relative;display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:999px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
+  font-size:12.5px;font-weight:700;color:#fff;margin-bottom:18px;letter-spacing:.05em;
+}
+.cta-trust{
+  position:relative;margin-top:28px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  font-size:13px;color:rgba(255,255,255,.62);
+}
+.cta-trust i{font-style:normal;opacity:.4}
 
 /* ---------- Footer ---------- */
 footer{border-top:1px solid var(--line);background:var(--surface);margin-top:96px;padding:56px 0 32px}
@@ -346,6 +442,34 @@ footer{border-top:1px solid var(--line);background:var(--surface);margin-top:96p
   .foot-top{grid-template-columns:1fr 1fr}
   .phones{grid-template-columns:1fr;max-width:300px;margin:0 auto}
   .phone{margin-bottom:24px}
+  .diff-grid{grid-template-columns:1fr}
+  .launch-in{gap:12px}
+  .launch-in ul{gap:8px 20px}
+}
+
+/* 窄屏：对比表转为卡片，不做横向滚动 */
+@media(max-width:820px){
+  .cmp{border:0;background:transparent;box-shadow:none;overflow:visible}
+  .cmp-scroll{overflow-x:visible}
+  .cmp-table,.cmp-table tbody,.cmp-table tr,.cmp-table th,.cmp-table td{display:block;width:auto;min-width:0}
+  .cmp-table thead{display:none}
+  .cmp-table tbody tr{
+    border:1px solid var(--line);border-radius:var(--r);background:var(--surface);
+    box-shadow:var(--shadow-xs);margin-bottom:14px;overflow:hidden;
+  }
+  .cmp-table tbody th{
+    width:auto;background:var(--surface-2);padding:13px 16px;font-size:14px;font-weight:700;
+    border-bottom:1px solid var(--line);color:var(--ink);
+  }
+  .cmp-table tbody td{padding:12px 16px;border-bottom:1px dashed var(--line-2);font-size:13.5px}
+  .cmp-table tbody td:last-child{border-bottom:0}
+  .cmp-table tbody td::before{
+    content:attr(data-c);display:block;font-size:11px;font-weight:700;color:var(--ink-4);
+    letter-spacing:.06em;margin-bottom:5px;
+  }
+  .cmp-table tbody td.hi{background:var(--brand-soft);color:var(--brand-ink)}
+  .cmp-table tbody td.hi::before{color:var(--brand)}
+  .cmp-tip{text-align:left}
 }
 @media(max-width:640px){
   .wrap{padding:0 20px}
@@ -364,6 +488,13 @@ footer{border-top:1px solid var(--line);background:var(--surface);margin-top:96p
   .hero-cta .btn{width:100%}
   .shot{border-radius:18px}
   .fc-1,.fc-2{display:none}
+  .launch-in{padding:16px 20px}
+  .launch-in ul{gap:6px 16px}
+  .launch-in li{font-size:13px}
+  .diff{padding:22px 18px}
+  .diff-text{padding:16px 16px;font-size:14.5px;line-height:2}
+  .cmp-table tbody th{padding:12px 14px;font-size:13.5px}
+  .cmp-table tbody td{padding:11px 14px;font-size:13px}
 }
 /* 移动端展开菜单 */
 .nav.open .nav-links{
@@ -404,6 +535,7 @@ html.menu-open,html.menu-open body{overflow:hidden}
     <div class="nav-links" id="navLinks">
       <a href="#pain">为什么</a>
       <a href="#features">功能</a>
+      <a href="#compare">对比</a>
       <a href="#showcase">界面</a>
       <a href="#mobile">手机版</a>
       <a href="#pricing">定价</a>
@@ -431,11 +563,12 @@ html.menu-open,html.menu-open body{overflow:hidden}
 <header class="hero" id="top">
   <div class="wrap">
     <div class="hero-in">
-      <span class="pill">AI 驱动的网文创作平台 <span>NEW</span></span>
+      <span class="pill">1.0 正式发布 · AI 驱动的网文创作平台 <span>NEW</span></span>
       <h1>一句话灵感，<br><span class="g">长出一整部长篇</span></h1>
       <p class="lead">
-        AI 长文本记忆引擎自动注入世界观、大纲、前情与角色设定。
-        18 个预设指令、十万字上下文、定时自动连载 —— 让你的每一次落笔都不失忆、不卡文。
+        十万字长文本记忆引擎，自动装配世界观、大纲、前情与角色设定；
+        18 个网文老手预设指令、底层去 AI 味铁律、定时自动连载 ——
+        让你每一次落笔都不失忆、不卡文、不出戏。
       </p>
       <div class="hero-cta">
         <a class="btn btn-p btn-l" href="#cta">免费开始写作
@@ -484,6 +617,19 @@ html.menu-open,html.menu-open body{overflow:hidden}
     <div class="stat-i"><b>38,209</b><span>部作品创作中</span></div>
     <div class="stat-i"><b>1,042,338</b><span>次 AI 写作调用</span></div>
     <div class="stat-i"><b>18</b><span>个内置预设指令</span></div>
+  </div>
+</section>
+
+<!-- ============ 首发权益 ============ -->
+<section class="launch">
+  <div class="launch-in">
+    <span class="launch-k">1.0 首发权益</span>
+    <ul>
+      <li>注册即送 <b>10,000 Token</b></li>
+      <li>30 天 <b>月卡会员</b> 免费体验</li>
+      <li>首发年卡 <b>¥199</b>（原价 ¥299）</li>
+      <li>首发作品享 <b>广场推荐位</b></li>
+    </ul>
   </div>
 </section>
 
@@ -595,6 +741,116 @@ html.menu-open,html.menu-open body{overflow:hidden}
   </div>
 </section>
 
+<!-- ============ 去 AI 味 ============ -->
+<section class="sec" id="humanize">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>去 AI 味</span>
+      <h2>AI 写得再快，一眼看穿也没用</h2>
+      <p>读者划走只需要一秒。墨灵写作把「去 AI 味」写进底层生成规则，而不是塞一个可有可无的按钮。</p>
+    </div>
+
+    <div class="diff-grid">
+      <div class="diff bad rv">
+        <div class="diff-head">
+          <span class="diff-badge">通用 AI 常见输出<em>套话命中 4 处</em></span>
+        </div>
+        <div class="diff-text">
+          他<span class="strike">心中五味杂陈</span>，<span class="strike">空气仿佛凝固</span>了。<span class="strike">命运的齿轮</span>开始转动，他的<span class="strike">嘴角微微上扬</span>。
+        </div>
+        <p class="diff-note">四个高频腔调，两百字里读了四遍。作者要的不是"有情绪"，而是"发生了什么"。</p>
+        <ul class="diff-list">
+          <li><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>情绪靠形容词堆砌，没有一个动作</li>
+          <li><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>比喻是通用句式，换一本书照样成立</li>
+          <li><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>换个模型、换段提示词，腔调还是一样</li>
+        </ul>
+        <div class="diff-foot" style="background:var(--surface-3);border-color:var(--line-2);color:var(--ink-2)">这是通用大模型最常见的输出模式：它学过"网文该这么写"，但没学过"这本书该这么写"。</div>
+      </div>
+
+      <div class="diff good rv">
+        <div class="diff-head">
+          <span class="diff-badge">墨灵写作输出<em>同一句提示词 · 同一款模型</em></span>
+        </div>
+        <div class="diff-text">
+          林川抬起头。<span class="mark">天很高</span>，<span class="mark">云一动不动</span>。他扯了扯嘴角，笑出声来。
+        </div>
+        <p class="diff-note">差别不在模型，在系统层强制的<b>去 AI 味铁律</b>：禁用词表逐句拦截，改写为具体动作与感官。</p>
+        <ul class="diff-list">
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>内建禁用词表（显然 / 不禁 / 仿佛 / 命运…）逐句命中</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>强制落到具体动作、感官细节与人物自己的语气</li>
+          <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>「去 AI 味」指令可对任意段落一键重写</li>
+        </ul>
+        <div class="diff-foot">以上为平台实测输出。同一句提示词、同一款模型，差距全部来自产品层——墨灵写作把这条规则写进了每一次生成。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 横向对比 ============ -->
+<section class="sec" id="compare" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M3 6h6M13 6h8M3 12h3M10 12h11M3 18h8M15 18h6"/><circle cx="11.5" cy="6" r="2.2"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="13.5" cy="18" r="2.2"/></svg>横向对比</span>
+      <h2>和"直接拿 AI 聊天"，差的不只是界面</h2>
+      <p>大模型给你的是一段文本，墨灵写作给你的是一部能一直写下去的书。</p>
+    </div>
+
+    <div class="cmp rv">
+      <div class="cmp-scroll">
+        <table class="cmp-table">
+          <thead>
+            <tr>
+              <th>能力</th>
+              <th class="hi">墨灵写作</th>
+              <th>通用大模型（直接对话）</th>
+              <th>单机提示词工具</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>长文本记忆</th>
+              <td class="hi" data-c="墨灵写作">世界观 / 大纲 / 前情 / 角色 <b>分层自动注入</b>，按 token 预算裁剪</td>
+              <td data-c="通用大模型"><span class="cmp-part">靠手动粘贴前文</span>，聊到一半就忘</td>
+              <td data-c="单机提示词工具"><span class="cmp-no">无</span></td>
+            </tr>
+            <tr>
+              <th>设定库</th>
+              <td class="hi" data-c="墨灵写作">角色 / 世界观 / 道具功法 <b>结构化卡片</b>，写作时 @ 引用</td>
+              <td data-c="通用大模型"><span class="cmp-part">塞在一条对话里</span>，无法维护</td>
+              <td data-c="单机提示词工具"><span class="cmp-no">无</span></td>
+            </tr>
+            <tr>
+              <th>去 AI 味</th>
+              <td class="hi" data-c="墨灵写作"><b>底层铁律 + 禁用词表</b>，逐句改写</td>
+              <td data-c="通用大模型"><span class="cmp-part">偶尔提醒你注意</span>，全凭自觉</td>
+              <td data-c="单机提示词工具"><span class="cmp-no">无</span></td>
+            </tr>
+            <tr>
+              <th>写作落地</th>
+              <td class="hi" data-c="墨灵写作">编辑器内 <b>选中即改</b>，草稿待采纳、不污染正文</td>
+              <td data-c="通用大模型">复制 → 粘贴 → 对格式</td>
+              <td data-c="单机提示词工具">复制 → 粘贴</td>
+            </tr>
+            <tr>
+              <th>长线产出</th>
+              <td class="hi" data-c="墨灵写作"><b>定时自动连载</b>，后台按走向提示续写</td>
+              <td data-c="通用大模型"><span class="cmp-no">无</span></td>
+              <td data-c="单机提示词工具"><span class="cmp-no">无</span></td>
+            </tr>
+            <tr>
+              <th>成本</th>
+              <td class="hi" data-c="墨灵写作">注册送 Token，<b>可接自有 API Key</b> 自付</td>
+              <td data-c="通用大模型">按大模型订阅付费</td>
+              <td data-c="单机提示词工具">按工具订阅付费</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="cmp-tip">横向对比依据 2026 年主流 AI 写作工具的公开功能与定价整理，各产品以最新版本为准。</p>
+  </div>
+</section>
+
 <!-- ============ 界面预览 ============ -->
 <section class="sec showcase" id="showcase">
   <div class="wrap">
@@ -666,7 +922,7 @@ html.menu-open,html.menu-open body{overflow:hidden}
           <ul class="panel-list">
             <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>10 个分类 + 关键词搜索 + 最新/热门/推荐</li>
             <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>点赞 / 收藏 / 浏览量实时反馈</li>
-            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>随时隐藏或撤回 republished</li>
+            <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>随时隐藏或撤回已发布的作品</li>
           </ul>
         </div>
       </div>
@@ -752,7 +1008,7 @@ html.menu-open,html.menu-open body{overflow:hidden}
     <div class="head rv">
       <span class="eyebrow"><svg viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>定价</span>
       <h2>比请个编辑便宜太多</h2>
-      <p>Token 积分制，用多少充多少。也支持支付宝直接充值。</p>
+      <p>Token 积分制，用多少充多少，也支持支付宝直接充值。<b>1.0 首发期年卡 ¥199</b>，比原价省下两个月。</p>
     </div>
 
     <div class="plans">
@@ -784,9 +1040,10 @@ html.menu-open,html.menu-open body{overflow:hidden}
       </div>
 
       <div class="plan rv">
+        <span class="plan-badge" style="background:var(--green);box-shadow:0 3px 10px -3px rgba(5,150,105,.55)">首发价</span>
         <div class="plan-name">年卡会员</div>
-        <div class="plan-price">¥299<small> / 年</small></div>
-        <div class="plan-desc">相当于每月 ¥24.9，省 2 个月</div>
+        <div class="plan-price">¥199<small> / 年</small></div>
+        <div class="plan-desc"><s style="color:var(--ink-4)">¥299</s> 首发价 · 折合每月 ¥16.6</div>
         <ul>
           <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>月卡全部权益</li>
           <li><svg viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></svg>每日 200,000 Token</li>
@@ -844,6 +1101,18 @@ html.menu-open,html.menu-open body{overflow:hidden}
         </button>
         <div class="faq-a"><p>有，而且是为手机重新设计的一套：底部 Tab 导航、横滑书架、全屏沉浸正文、AI 助手改成上滑抽屉。通勤路上灵感来了，掏手机就能接着写。</p></div>
       </div>
+      <div class="faq-item">
+        <button class="faq-q">写几十万字，AI 会不会越写越偏？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>墨灵写作不靠"把全部历史塞进去"。它用分层上下文装配：作品定位与全书大纲、故事时间线、前情章节摘要、其余设定库、当前章节正文，按 token 预算分层裁剪——该带的永远带上，带不下的先压成摘要再取舍。长篇写到 50 万字，设定依然是那套设定。</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">能投稿到番茄、起点这些平台吗？
+          <span class="mk"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        </button>
+        <div class="faq-a"><p>可以。导出 TXT / Markdown，或导出按卷分文件夹的全书 ZIP，再按目标平台的格式要求投稿即可。<b>注意按平台要求勾选 AI 内容声明</b>——番茄等平台对 AI 生成内容有明确的标识与质量治理，机械扩写、套话堆砌的作品很容易被判为低质而下架。把 AI 当草稿工，人工过一遍再用，是最稳的做法。</p></div>
+      </div>
     </div>
   </div>
 </section>
@@ -852,6 +1121,7 @@ html.menu-open,html.menu-open body{overflow:hidden}
 <section class="sec" id="cta" style="padding-top:72px">
   <div class="wrap">
     <div class="cta rv">
+      <span class="cta-kicker">1.0 现已开放注册</span>
       <h2>你的下一个故事，已经在等你</h2>
       <p>注册即送 10,000 Token，够写两万字。从一句话开始，十分钟后你会有一个完整的作品。</p>
       <div class="cta-btns">
@@ -859,6 +1129,10 @@ html.menu-open,html.menu-open body{overflow:hidden}
           <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/></svg>
         </a>
         <a class="btn btn-o btn-l" href="#showcase">先看看界面</a>
+        <a class="btn btn-o btn-l" href="#pricing">查看定价</a>
+      </div>
+      <div class="cta-trust">
+        <span>无需信用卡</span><i>·</i><span>作品默认私有</span><i>·</i><span>随时导出 TXT / Markdown / ZIP</span><i>·</i><span>可接入自有 API Key</span>
       </div>
     </div>
   </div>
@@ -883,6 +1157,8 @@ html.menu-open,html.menu-open body{overflow:hidden}
         <h4>产品</h4>
         <ul>
           <li><a href="#features">核心功能</a></li>
+          <li><a href="#humanize">去 AI 味</a></li>
+          <li><a href="#compare">横向对比</a></li>
           <li><a href="#showcase">界面预览</a></li>
           <li><a href="#mobile">手机版</a></li>
           <li><a href="#pricing">定价</a></li>

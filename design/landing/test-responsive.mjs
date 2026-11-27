@@ -127,7 +127,7 @@ await withPage(URL_, { width: 1440, height: 900, dsf: 1, mobile: false }, async 
   `)
   ok(opened.disp === 'flex' && opened.h > 100, '菜单面板展开', `h=${opened.h}`)
   ok(opened.left === 0 && opened.right === 390, '面板左右对齐视口', `${opened.left}→${opened.right}`)
-  ok(opened.links === 8, '菜单链接数 = 8', String(opened.links))
+  ok(opened.links === 9, '菜单链接数 = 9', String(opened.links))
   ok(opened.cta === 'flex', '面板内 CTA 显示')
   ok(parseFloat(opened.scrim) > 0.9, '遮罩层显示', `opacity=${opened.scrim}`)
   ok(opened.lock === 'hidden', '展开时锁定页面滚动', opened.lock)
