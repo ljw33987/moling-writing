@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createAlipayClient } from '@/lib/payment'
+import { sendAdminOrderNotification } from '@/lib/email'
 
 // POST /api/payment/alipay/notify - 支付宝异步回调通知
 export async function POST(req: NextRequest) {
@@ -86,6 +87,18 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Alipay Notify] 支付成功: 订单 ${out_trade_no}, 支付宝交易号 ${trade_no}, 金额 ¥${total_amount}, Token +${order.tokens}`)
+    const payer = await db.user.findUnique({ where: { id: order.userId }, select: { email: true, penName: true, name: true } })
+    if (payer) {
+      void sendAdminOrderNotification({
+        type: 'paid',
+        orderId: order.id,
+        amount: order.amount,
+        tokens: order.tokens,
+        method: order.method,
+        userEmail: payer.email,
+        userName: payer.penName || payer.name,
+      })
+    }
 
     return new NextResponse('success')
   } catch (e: any) {

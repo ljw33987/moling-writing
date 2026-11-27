@@ -411,10 +411,17 @@ export function UserCenter() {
               取消
             </Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
+                const oid = payDialog?.orderId
                 setPayDialog(null)
                 loadOrders()
-                toast.success('订单已提交！管理员确认收款后字数将自动到账')
+                if (oid) {
+                  api('/api/orders/notify', {
+                    method: 'POST',
+                    body: JSON.stringify({ orderId: oid }),
+                  }).catch(() => {})
+                }
+                toast.success('订单已提交并通知管理员！确认收款后字数将自动到账')
               }}
               className="gap-1.5"
             >

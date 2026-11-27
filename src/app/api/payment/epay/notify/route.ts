@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getEpayConfig, verifyEpaySign } from '@/lib/epay'
+import { sendAdminOrderNotification } from '@/lib/email'
 
 async function handleEpayNotify(params: Record<string, string>) {
   const epayConfig = getEpayConfig()
@@ -59,6 +60,18 @@ async function handleEpayNotify(params: Record<string, string>) {
   }
 
   console.log(`[Epay Notify] 支付成功: 订单 ${outTradeNo}, 金额 ¥${money}, Token +${order.tokens}`)
+  const payer = await db.user.findUnique({ where: { id: order.userId }, select: { email: true, penName: true, name: true } })
+  if (payer) {
+    void sendAdminOrderNotification({
+      type: 'paid',
+      orderId: order.id,
+      amount: order.amount,
+      tokens: order.tokens,
+      method: order.method,
+      userEmail: payer.email,
+      userName: payer.penName || payer.name,
+    })
+  }
   return new NextResponse('success')
 }
 
