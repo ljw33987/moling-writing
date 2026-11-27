@@ -234,6 +234,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId, modelId } = body
 
+    if (modelId) {
+      const platformCfg = await getPlatformConfig()
+      const mappings = parseModelMappings((platformCfg as any)?.modelMappings)
+      const matched = mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
+      const isProReq = !!matched?.isPro || modelId === 'baogeng_v4_pro' || modelId === 'moling_v4_pro'
+      if (isProReq && user.plan !== 'pro' && user.plan !== 'year') {
+        return NextResponse.json(
+          { error: '免费版仅可使用 v4 标准模型，升级月卡或年卡会员后方可使用 Pro 模型', reply: '免费版仅支持 v4 标准模型，升级月卡或年卡会员即可解锁 Pro 模型。' },
+          { status: 403 }
+        )
+      }
+    }
+
     if (novelId && !await getOwnedNovel(user.id, novelId)) {
       return NextResponse.json({ error: '未找到作品' }, { status: 404 })
     }

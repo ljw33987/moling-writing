@@ -119,6 +119,14 @@ export async function POST(req: NextRequest) {
     : mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
 
   if (matchedMapping?.isPro || modelId === 'baogeng_v4_pro' || modelId === 'moling_v4_pro') {
+    const isPaidMember = user.plan === 'pro' || user.plan === 'year'
+    if (!isPaidMember) {
+      await releaseAll(0)
+      return NextResponse.json(
+        { error: '免费版仅可使用 v4 标准模型，升级月卡或年卡会员后方可使用 Pro 模型' },
+        { status: 403 }
+      )
+    }
     systemPrompt += '\n\n【深度分析与精修模式】请对引用材料与上下文进行结构化、深层次的推演、拆解与高质量输出。'
   }
 

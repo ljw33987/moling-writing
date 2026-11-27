@@ -8,9 +8,14 @@ export async function GET() {
   const session = await requireSessionOr401()
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
 
+  const userPlan = session.user.plan || 'free'
+  const isPaidMember = userPlan === 'pro' || userPlan === 'year'
   const config = await db.platformConfig.findUnique({ where: { id: 'default' } })
   const mappings = parseModelMappings((config as any)?.modelMappings)
-  const models = toPublicModels(mappings)
+  const models = toPublicModels(mappings).map((m) => ({
+    ...m,
+    locked: !!m.isPro && !isPaidMember,
+  }))
 
-  return NextResponse.json({ models })
+  return NextResponse.json({ models, userPlan })
 }

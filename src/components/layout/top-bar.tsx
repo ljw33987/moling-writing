@@ -153,8 +153,8 @@ export function TopBar() {
     return (
       <header className="topbar-shell flex items-center px-4 sm:px-6 z-30 sticky top-0 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
-            墨
+          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
+            BG
           </div>
           <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
         </div>
@@ -168,8 +168,8 @@ export function TopBar() {
     return (
       <header className="topbar-shell flex items-center px-4 sm:px-6 z-30 sticky top-0 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
-            墨
+          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
+            BG
           </div>
           <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
         </div>
@@ -189,8 +189,8 @@ export function TopBar() {
   return (
     <header className="topbar-shell flex items-center px-3 sm:px-6 gap-3 sm:gap-5 z-30 sticky top-0 shrink-0">
       <button onClick={backToWorkspace} className="flex items-center gap-2.5 hover:opacity-85 transition shrink-0">
-        <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-sm">
-          墨
+        <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
+          BG
         </div>
         <span className="font-semibold text-[15px] tracking-tight text-foreground hidden sm:block">爆更猫AI写作</span>
       </button>

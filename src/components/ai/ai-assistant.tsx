@@ -454,8 +454,9 @@ export function AiAssistant({
   const [branchLoading, setBranchLoading] = useState(false)
 
   // 模型选择（仅展示自定义脱敏名称，如 baogeng_v4 / baogeng_v4_pro）
-  const [models, setModels] = useState<PublicAiModel[]>(PLATFORM_MODEL_ALIASES)
+  const [models, setModels] = useState<(PublicAiModel & { locked?: boolean })[]>(PLATFORM_MODEL_ALIASES)
   const [selectedModel, setSelectedModel] = useState<string>('baogeng_v4')
+  const [userPlan, setUserPlan] = useState<string>('free')
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
   // 个人写作风格
@@ -495,10 +496,14 @@ export function AiAssistant({
       .then((r) => setPresets(r.presets))
       .catch(() => { })
 
-    api<{ models: PublicAiModel[] }>('/api/ai/models')
+    api<{ models: (PublicAiModel & { locked?: boolean })[]; userPlan?: string }>('/api/ai/models')
       .then((r) => {
+        if (r.userPlan) setUserPlan(r.userPlan)
         if (r.models?.length) {
           setModels(r.models)
+          const unlocked = r.models.filter((m) => !m.locked)
+          const def = unlocked.find((m) => m.isDefault) || unlocked[0] || r.models[0]
+          if (def) setSelectedModel(def.id)
         }
       })
       .catch(() => { })
@@ -1908,21 +1913,24 @@ export function AiAssistant({
                       <SelectValue placeholder="选择模型" />
                     </SelectTrigger>
                     <SelectContent align="start">
-                      {models.map((m) => (
-                        <SelectItem key={m.id} value={m.id} className="text-xs">
-                          <div className="flex flex-col gap-0.5 py-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-medium">{m.label}</span>
-                              <Badge variant="outline" className="text-[9px] px-1 py-0">
-                                {m.badge}
-                              </Badge>
+                      {models.map((m) => {
+                        const locked = !!m.locked || (!!m.isPro && userPlan === 'free')
+                        return (
+                          <SelectItem key={m.id} value={m.id} disabled={locked} className="text-xs">
+                            <div className="flex flex-col gap-0.5 py-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-medium">{m.label}</span>
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                  {locked ? '月卡/年卡可用' : m.badge}
+                                </Badge>
+                              </div>
+                              {m.description && (
+                                <span className="text-[10px] text-muted-foreground">{m.description}</span>
+                              )}
                             </div>
-                            {m.description && (
-                              <span className="text-[10px] text-muted-foreground">{m.description}</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
