@@ -927,7 +927,8 @@ function OrdersTab() {
                         <div className="inline-flex items-center gap-1.5">
                           <Button
                             size="sm"
-                            className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            style={{ backgroundColor: '#059669', color: '#ffffff' }}
+                            className="h-7 px-2.5 text-xs hover:opacity-90"
                             disabled={actionOrderId === o.id}
                             onClick={() => handleOrderAction(o.id, 'confirm')}
                           >

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     delete verifyParams.sign_type
 
     const signVerified = alipayClient.checkNotifySign(params)
-    
+
     if (!signVerified) {
       console.error('[Alipay Notify] 验签失败', { out_trade_no, trade_no })
       return new NextResponse('fail', { status: 400 })
