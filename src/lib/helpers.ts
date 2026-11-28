@@ -110,3 +110,19 @@ export const CHAPTER_STATUS: Record<string, { label: string; color: string; dot:
 
 // 小说类型
 export const GENRES = ['玄幻', '言情', '科幻', '悬疑', '历史', '都市', '武侠', '游戏', '奇幻', '军事']
+
+export function stripHtml(html: string): string {
+  if (!html) return ''
+  if (!html.includes('<')) return html
+  return html
+    .replace(/<div[^>]*data-ai-draft[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}

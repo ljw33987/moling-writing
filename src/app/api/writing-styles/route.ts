@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSessionOr401 } from '@/lib/auth'
 import {
   createWritingStyle,
-  DEFAULT_AI_AVOID_PHRASES,
   deleteWritingStyle,
   listWritingStyles,
   updateWritingStyle,
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
       description = '',
       stylePrompt = '',
       sampleText = '',
-      avoidPhrases = DEFAULT_AI_AVOID_PHRASES,
+      avoidPhrases = '',
       isDefault = false,
     } = body
 

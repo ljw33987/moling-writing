@@ -2,7 +2,7 @@
   "name": "moling-writing-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "墨灵写作 Android 壳工程（Capacitor）",
+  "description": "爆更猫AI写作 Android 壳工程（Capacitor）",
   "scripts": {
     "cap:sync": "npx cap sync android"
   },

@@ -1,6 +1,6 @@
 # 贡献指南 | Contributing Guide
 
-感谢你对墨灵写作项目的兴趣！欢迎提交 Issue 和 Pull Request。
+感谢你对爆更猫AI写作项目的兴趣！欢迎提交 Issue 和 Pull Request。
 
 ## 🐛 提交 Bug 报告
 

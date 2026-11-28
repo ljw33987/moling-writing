@@ -2,7 +2,7 @@
   "name": "moling-writing",
   "version": "1.0.4",
   "private": true,
-  "description": "墨灵写作 - AI 驱动的网文创作平台",
+  "description": "爆更猫AI写作 - AI 驱动的网文创作平台",
   "author": "YinjiangCN",
   "license": "MIT",
   "repository": {
@@ -15,6 +15,7 @@
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
+    "test": "bun test tests/guard.test.ts && bun test tests/context-assembler.test.ts && bun test tests/auto-serial-runner.test.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

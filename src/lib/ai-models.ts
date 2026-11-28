@@ -71,6 +71,22 @@ export function parseModelMappings(raw: string | null | undefined): AdminModelMa
   return DEFAULT_MODEL_MAPPINGS
 }
 
+export function resolveAiModelMapping(mappings: AdminModelMapping[], modelId?: string) {
+  const enabled = mappings.filter((mapping) => mapping.enabled !== false)
+  return modelId
+    ? enabled.find((mapping) => mapping.aliasId === modelId)
+    : enabled.find((mapping) => mapping.isDefault) ?? enabled[0]
+}
+
+export function requiresProAiModel(modelId?: string, mapping?: AdminModelMapping) {
+  const alias = modelId || mapping?.aliasId
+  return !!mapping?.isPro || alias === 'baogeng_v4_pro' || alias === 'moling_v4_pro'
+}
+
+export function hasProAiAccess(plan?: string | null) {
+  return plan === 'pro' || plan === 'year'
+}
+
 export function toPublicModels(mappings: AdminModelMapping[]): PublicAiModel[] {
   return mappings
     .filter((m) => m.enabled !== false && m.aliasId?.trim())
@@ -80,7 +96,7 @@ export function toPublicModels(mappings: AdminModelMapping[]): PublicAiModel[] {
       label: (m.displayName || m.aliasId).trim(),
       badge: m.badge || '标准',
       description: m.description || '',
-      isPro: !!m.isPro,
+      isPro: requiresProAiModel(m.aliasId, m),
       isDefault: !!m.isDefault,
     }))
 }

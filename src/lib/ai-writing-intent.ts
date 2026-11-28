@@ -1,7 +1,14 @@
+export const MAX_CHAPTER_DRAFT_LENGTH = 24000
+export const CONTINUATION_CONTEXT_LENGTH = 6000
+
 const readOnlyRequest = /审稿|审校|审读|校对|点评|评分|评估|分析|解读|诊断|查错|找错|核对|检查|逻辑漏洞|一致性|只读|不要改|不要续写|不续写|不改写|不写入|\b(?:review|audit|analy[sz]e|critique|proofread)\b/i
-const proseRequest = /写一|写第|帮我写|生成.{0,8}(正文|章节|前三章|开篇)|续写|扩写|改写|重写|润色|缩写|去AI味|改得|对白|对话|\b(?:rewrite|continue|draft|revise)\b/i
+const proseRequest = /写一|写第|帮我写|生成.{0,8}(正文|章节|前三章|开篇)|续写|扩写|改写|重写|润色|缩写|去\s*AI\s*味|改得|对白|对话|\b(?:rewrite|continue|draft|revise)\b/i
+
+const prosePresets = new Set(['chapter_gen', 'golden_three', 'polish', 'expand', 'shorten', 'style_change', 'continue', 'char_dialogue', 'xuanhuan', 'yanqing', 'system_panel'])
+const readonlyPresets = new Set(['poison_check', 'editor_review', 'deconstruct', 'break_block', 'name_gen'])
 
 export function allowsAiProseWriteback(message: string, preset?: string): boolean {
-  if (preset === 'poison_check' || readOnlyRequest.test(message)) return false
-  return preset === 'golden_three' || preset === 'char_dialogue' || proseRequest.test(message)
+  if (preset && readonlyPresets.has(preset)) return false
+  if (preset && prosePresets.has(preset)) return true
+  return !readOnlyRequest.test(message) && proseRequest.test(message)
 }

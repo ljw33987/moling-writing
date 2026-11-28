@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ChapterTree } from './chapter-tree'
-import type { NovelDetail } from './editor-view'
+import type { Chapter, NovelDetail } from './editor-view'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
 import {
@@ -43,6 +43,143 @@ import {
 import { buildInitialMindmapDoc } from './markdown-mindmap'
 import type { MindmapFile } from './mindmap-main-panel'
 import { WritingStyleDialog, type WritingStyleItem } from '@/components/ai/writing-style-dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const BRANCH_PLAN_HEADING = '## 支线出现计划'
+
+interface BranchPlanItem {
+  id: string
+  name: string
+  purpose: string
+  status: string
+  characters: string
+  restriction: string
+  notes: string
+  beats: BranchBeatItem[]
+}
+
+interface BranchBeatItem {
+  id: string
+  chapter: string
+  type: string
+  characters: string
+  event: string
+  result: string
+}
+
+const EMPTY_BRANCH_FIELDS: Omit<BranchPlanItem, 'id'> = {
+  name: '',
+  purpose: '',
+  status: '规划中',
+  characters: '',
+  restriction: '',
+  notes: '',
+  beats: [],
+}
+
+function splitOutlinePlan(value: string) {
+  const markerIndex = value.indexOf(BRANCH_PLAN_HEADING)
+  if (markerIndex < 0) return { mainOutline: value, branchPlan: '' }
+  return {
+    mainOutline: value.slice(0, markerIndex).trim(),
+    branchPlan: value.slice(markerIndex + BRANCH_PLAN_HEADING.length).trim(),
+  }
+}
+
+function joinOutlinePlan(mainOutline: string, branchPlan: string) {
+  return [
+    mainOutline.trim(),
+    branchPlan.trim() ? `${BRANCH_PLAN_HEADING}\n${branchPlan.trim()}` : '',
+  ].filter(Boolean).join('\n\n')
+}
+
+function readBranchField(block: string, label: string) {
+  return block.match(new RegExp(`^- ${label}[：:]\\s*(.*)$`, 'm'))?.[1]?.trim() || ''
+}
+
+function inlinePlanText(value: string) {
+  return value.trim().replace(/\s*\n+\s*/g, '；')
+}
+
+function parseBranchPlans(value: string): BranchPlanItem[] {
+  if (!value.trim()) return []
+  const blocks = value.split(/^### 支线[：:]\s*/m).filter((block) => block.trim())
+  if (!/^### 支线[：:]/m.test(value)) {
+    return [{ ...EMPTY_BRANCH_FIELDS, id: 'legacy-0', name: '旧支线计划', notes: value.trim() }]
+  }
+  return blocks.map((block, index) => {
+    const [nameLine = '', ...rest] = block.trim().split('\n')
+    const body = rest.join('\n')
+    const beatBlocks = body.split(/^#### 节点(?:\s+\d+)?\s*$/m).slice(1)
+    const storedBeats = beatBlocks.map((beat, beatIndex) => ({
+      id: `stored-${index}-beat-${beatIndex}`,
+      chapter: readBranchField(beat, '章节位置'),
+      type: readBranchField(beat, '节点类型') || '推进',
+      characters: readBranchField(beat, '出场人物'),
+      event: readBranchField(beat, '发生事件'),
+      result: readBranchField(beat, '推进结果'),
+    }))
+    const legacyStage = readBranchField(body, '出现阶段')
+    const legacyTrigger = readBranchField(body, '触发条件')
+    const legacyIntersection = readBranchField(body, '主线交汇')
+    const legacyCharacters = readBranchField(body, '涉及人物')
+    const legacyBeat = [legacyStage, legacyTrigger, legacyIntersection].some(Boolean)
+      ? [{
+          id: `stored-${index}-beat-legacy`,
+          chapter: legacyStage,
+          type: legacyTrigger ? '触发' : '推进',
+          characters: legacyCharacters,
+          event: legacyTrigger,
+          result: legacyIntersection,
+        }]
+      : []
+    return {
+      id: `stored-${index}`,
+      name: nameLine.trim(),
+      purpose: readBranchField(body, '支线作用'),
+      status: readBranchField(body, '当前状态') || '规划中',
+      characters: legacyCharacters || readBranchField(body, '核心人物'),
+      restriction: readBranchField(body, '信息禁区') || readBranchField(body, '提前禁区'),
+      notes: readBranchField(body, '补充约束'),
+      beats: storedBeats.length ? storedBeats : legacyBeat,
+    }
+  })
+}
+
+function serializeBranchPlans(items: BranchPlanItem[]) {
+  return items
+    .filter((item) => [
+      item.name,
+      item.purpose,
+      item.characters,
+      item.restriction,
+      item.notes,
+    ].some((value) => value.trim()) || (item.beats || []).length > 0)
+    .map((item, index) => [
+      `### 支线：${item.name.trim() || `未命名支线 ${index + 1}`}`,
+      `- 支线作用：${inlinePlanText(item.purpose) || '待定'}`,
+      `- 当前状态：${item.status.trim() || '规划中'}`,
+      `- 核心人物：${item.characters.trim() || '待定'}`,
+      `- 信息禁区：${inlinePlanText(item.restriction) || '无'}`,
+      item.notes.trim() ? `- 补充约束：${inlinePlanText(item.notes)}` : '',
+      ...(item.beats || []).flatMap((beat, beatIndex) => [
+        '',
+        `#### 节点 ${beatIndex + 1}`,
+        `- 章节位置：${beat.chapter.trim() || '待定'}`,
+        `- 节点类型：${beat.type.trim() || '推进'}`,
+        `- 出场人物：${beat.characters.trim() || item.characters.trim() || '待定'}`,
+        `- 发生事件：${inlinePlanText(beat.event) || '待定'}`,
+        `- 推进结果：${inlinePlanText(beat.result) || '待定'}`,
+      ]),
+    ].filter(Boolean).join('\n'))
+    .join('\n\n')
+}
+
+function appendListValue(current: string, value: string) {
+  const entries = current.split(/[、,，]/).map((entry) => entry.trim()).filter(Boolean)
+  if (!entries.includes(value)) entries.push(value)
+  return entries.join('、')
+}
 
 interface Props {
   novel: NovelDetail
@@ -55,6 +192,7 @@ interface Props {
   onCreateMindmap: (file: MindmapFile) => void
   onDeleteMindmap: (id: string) => void
   onTreeChange: (chapterId?: string) => void
+  onExtractChapter: (chapter: Chapter) => void
   onWritingStyleChange?: (styleId: string | null) => void
   onInsertCodexRef?: (id: string) => void
 }
@@ -70,6 +208,7 @@ export function LeftSidebarPanel({
   onCreateMindmap,
   onDeleteMindmap,
   onTreeChange,
+  onExtractChapter,
   onWritingStyleChange,
   onInsertCodexRef,
 }: Props) {
@@ -133,6 +272,7 @@ export function LeftSidebarPanel({
   const allChapters = novel.volumes.flatMap((v) =>
     v.chapters.map((c) => ({ ...c, volumeTitle: v.title }))
   )
+  const currentChapter = allChapters.find((chapter) => chapter.id === currentChapterId)
 
   const toggleSourceId = (id: string) => {
     setSelectedSourceIds((prev) =>
@@ -210,15 +350,83 @@ export function LeftSidebarPanel({
   }
 
   // 简介与大纲编辑状态
+  const initialOutlinePlan = splitOutlinePlan(novel.outline || '')
   const [synopsis, setSynopsis] = useState(novel.synopsis || '')
-  const [outline, setOutline] = useState(novel.outline || '')
+  const [outline, setOutline] = useState(initialOutlinePlan.mainOutline)
+  const [branchPlans, setBranchPlans] = useState<BranchPlanItem[]>(
+    parseBranchPlans(initialOutlinePlan.branchPlan)
+  )
+  const [chapterOutline, setChapterOutline] = useState(currentChapter?.summary || '')
   const [savingOutline, setSavingOutline] = useState(false)
   const [generatingOutline, setGeneratingOutline] = useState(false)
+  const [savingChapterOutline, setSavingChapterOutline] = useState(false)
+  const [generatingChapterOutline, setGeneratingChapterOutline] = useState(false)
 
   useEffect(() => {
+    const nextOutline = splitOutlinePlan(novel.outline || '')
     setSynopsis(novel.synopsis || '')
-    setOutline(novel.outline || '')
+    setOutline(nextOutline.mainOutline)
+    setBranchPlans(parseBranchPlans(nextOutline.branchPlan))
   }, [novel.id, novel.synopsis, novel.outline])
+
+  useEffect(() => {
+    setChapterOutline(currentChapter?.summary || '')
+  }, [currentChapter?.id, currentChapter?.summary])
+
+  const branchPlan = serializeBranchPlans(branchPlans)
+
+  const addBranchPlan = () => {
+    setBranchPlans((previous) => [
+      ...previous,
+      { ...EMPTY_BRANCH_FIELDS, id: crypto.randomUUID() },
+    ])
+  }
+
+  const updateBranchPlan = (id: string, patch: Partial<Omit<BranchPlanItem, 'id'>>) => {
+    setBranchPlans((previous) => previous.map((item) => item.id === id ? { ...item, ...patch } : item))
+  }
+
+  const removeBranchPlan = (id: string) => {
+    setBranchPlans((previous) => previous.filter((item) => item.id !== id))
+  }
+
+  const addBranchBeat = (branchId: string) => {
+    setBranchPlans((previous) => previous.map((branch) => branch.id === branchId
+      ? {
+          ...branch,
+          beats: [
+            ...(branch.beats || []),
+            {
+              id: crypto.randomUUID(),
+              chapter: '',
+              type: '推进',
+              characters: '',
+              event: '',
+              result: '',
+            },
+          ],
+        }
+      : branch))
+  }
+
+  const updateBranchBeat = (
+    branchId: string,
+    beatId: string,
+    patch: Partial<Omit<BranchBeatItem, 'id'>>,
+  ) => {
+    setBranchPlans((previous) => previous.map((branch) => branch.id === branchId
+      ? {
+          ...branch,
+          beats: (branch.beats || []).map((beat) => beat.id === beatId ? { ...beat, ...patch } : beat),
+        }
+      : branch))
+  }
+
+  const removeBranchBeat = (branchId: string, beatId: string) => {
+    setBranchPlans((previous) => previous.map((branch) => branch.id === branchId
+      ? { ...branch, beats: (branch.beats || []).filter((beat) => beat.id !== beatId) }
+      : branch))
+  }
 
   // 设定速查与快捷新建/编辑状态
   const [codexQuery, setCodexQuery] = useState('')
@@ -318,12 +526,14 @@ export function LeftSidebarPanel({
   }, [novel.id])
 
   useEffect(() => {
-    if (tab !== 'codex') return
+    if (tab !== 'codex' && tab !== 'outline') return
     const timer = setTimeout(() => {
       void loadCodex()
     }, 0)
     return () => clearTimeout(timer)
   }, [tab, loadCodex])
+
+  const branchCharacterOptions = codexItems.filter((item) => item.type === 'character')
 
   const handleGenerateDetailedOutline = async () => {
     setGeneratingOutline(true)
@@ -333,11 +543,13 @@ export function LeftSidebarPanel({
         body: JSON.stringify({
           action: 'chat',
           novelId: novel.id,
-          message: `请为小说《${novel.title}》（类型：${novel.genre}）生成专业长篇创作大纲与细纲规划，包含以下 4 个部分（使用 Markdown 标题）：
+          message: `请为小说《${novel.title}》（类型：${novel.genre}）生成专业长篇创作大纲与阶段细纲，包含以下 3 个部分（使用 Markdown 标题）：
 # 核心主线与阶段目标
-# 关键支线、伏笔与主线交汇点
 # 核心人物关系与立场冲突
-# 分章细纲规划（列出接下来 5~8 章的每章核心事件、冲突与结尾钩子）
+# 分章细纲规划（列出接下来 5~8 章的每章目标、核心事件、冲突升级、人物变化、支线触发及结尾钩子）
+
+必须遵守以下支线节点计划。每条支线只在对应章节节点执行指定的铺垫、触发、推进、交汇或回收；没有节点的章节不得擅自推进，信息禁区不得提前揭露：
+${branchPlan || '（暂未设置支线出现计划）'}
 
 参考简介：${synopsis || '无'}
 参考已有大纲：${outline || '无'}`,
@@ -355,7 +567,8 @@ export function LeftSidebarPanel({
   }
 
   const handleOutlineToMindmap = () => {
-    const baseContent = outline.trim() || `# ${novel.title}\n## 核心主线\n- ${synopsis || '待补充'}`
+    const storedOutline = joinOutlinePlan(outline, branchPlan)
+    const baseContent = storedOutline || `# ${novel.title}\n## 核心主线\n- ${synopsis || '待补充'}`
     const newFile: MindmapFile = {
       id: `mm-outline-${Date.now()}`,
       title: `${novel.title} · 主支线细纲导图`,
@@ -372,7 +585,7 @@ export function LeftSidebarPanel({
     try {
       await api('/api/novels', {
         method: 'PATCH',
-        body: JSON.stringify({ id: novel.id, synopsis, outline }),
+        body: JSON.stringify({ id: novel.id, synopsis, outline: joinOutlinePlan(outline, branchPlan) }),
       })
       toast.success('简介与总大纲已保存')
       onTreeChange()
@@ -380,6 +593,67 @@ export function LeftSidebarPanel({
       toast.error(e.message || '保存失败')
     } finally {
       setSavingOutline(false)
+    }
+  }
+
+  const handleGenerateChapterOutline = async () => {
+    if (!currentChapter) {
+      toast.error('请先选择一个章节')
+      return
+    }
+    setGeneratingChapterOutline(true)
+    try {
+      const result = await api<{ reply: string }>('/api/ai', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'chat',
+          novelId: novel.id,
+          chapterId: currentChapter.id,
+          message: `请为「${currentChapter.title}」生成可直接用于写正文的单章细纲。严格按照以下字段输出，不要添加解释：
+【本章目标】
+【承接前文】
+【场景与人物】
+【分场推进】按顺序列出 3~6 个场景，每场写清行动、阻碍、信息变化和结果
+【人物变化】
+【支线安排】说明本章触发、铺垫或暂不出现的支线
+【章末钩子】
+【禁止提前揭露】
+
+本书主线与阶段大纲：
+${outline || '（未填写）'}
+
+支线及章节节点计划：
+${branchPlan || '（未设置）'}
+
+当前已有细纲：
+${chapterOutline || '（无）'}`,
+        }),
+      })
+      if (result.reply?.trim()) {
+        setChapterOutline(result.reply.trim())
+        toast.success('当前章细纲已生成，确认后请保存')
+      }
+    } catch (error: any) {
+      toast.error(error.message || '生成当前章细纲失败')
+    } finally {
+      setGeneratingChapterOutline(false)
+    }
+  }
+
+  const handleSaveChapterOutline = async () => {
+    if (!currentChapter) return
+    setSavingChapterOutline(true)
+    try {
+      await api('/api/chapters', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: currentChapter.id, summary: chapterOutline.trim() }),
+      })
+      toast.success('当前章细纲已保存，后续 AI 生成会自动读取')
+      onTreeChange(currentChapter.id)
+    } catch (error: any) {
+      toast.error(error.message || '保存当前章细纲失败')
+    } finally {
+      setSavingChapterOutline(false)
     }
   }
 
@@ -433,6 +707,7 @@ export function LeftSidebarPanel({
             currentChapterId={currentChapterId}
             onSelect={onSelectChapter}
             onChange={onTreeChange}
+            onExtractChapter={onExtractChapter}
           />
         </TabsContent>
 
@@ -470,7 +745,7 @@ export function LeftSidebarPanel({
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-1">
-              <span className="text-xs font-medium text-muted-foreground">总大纲 / 主支线与细纲</span>
+              <span className="text-xs font-medium text-muted-foreground">总大纲 / 阶段细纲</span>
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -479,7 +754,7 @@ export function LeftSidebarPanel({
                   className="h-6 px-2 text-[11px] gap-1"
                   disabled={generatingOutline}
                   onClick={handleGenerateDetailedOutline}
-                  title="AI 生成主线、支线关系与分章细纲"
+                  title="根据总大纲和支线出现计划，生成接下来 5~8 章的阶段细纲"
                 >
                   {generatingOutline ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-primary" />}
                   {generatingOutline ? '推演中...' : 'AI 生成细纲'}
@@ -502,8 +777,281 @@ export function LeftSidebarPanel({
               onChange={(e) => setOutline(e.target.value)}
               rows={9}
               className="text-xs resize-y"
-              placeholder="输入全书核心主线、支线伏笔、人物关系与分章细纲..."
+              placeholder="输入全书核心主线、阶段目标、人物关系与分章规划..."
             />
+          </div>
+
+          <div className="space-y-1.5 rounded-md border border-border bg-muted/15 p-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-xs font-medium">支线计划（{branchPlans.length}）</div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  每条支线独立设置。保存后，写初稿、续写和深度成章都会读取。
+                </p>
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[11px] gap-1 shrink-0"
+                    onClick={addBranchPlan}
+                  >
+                    <Plus className="h-3 w-3" />
+                    新增支线
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-72 leading-relaxed">
+                  新增一条独立剧情线。每条支线可以继续添加多个章节节点，并分别绑定节点类型、出场人物和推进结果。
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {branchPlans.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border px-3 py-5 text-center text-[11px] text-muted-foreground">
+                暂无支线。点击“新增支线”逐条设置，主线内容继续写在上方总大纲中。
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {branchPlans.map((branch, index) => (
+                  <div key={branch.id} className="space-y-2 rounded-md border border-border bg-card p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium">支线 {index + 1}</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeBranchPlan(branch.id)}
+                            aria-label={`删除支线 ${index + 1}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">删除这条支线计划，不影响其他支线和主线。</TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="block space-y-1 text-[11px]" title="用于在大纲、章节节点和 AI 生成结果中识别这条支线">
+                        <span className="font-medium">支线名称</span>
+                        <Input
+                          value={branch.name}
+                          onChange={(event) => updateBranchPlan(branch.id, { name: event.target.value })}
+                          className="h-8 text-xs"
+                          placeholder="例如：失踪账本"
+                        />
+                      </label>
+                      <label className="block space-y-1 text-[11px]" title="标记这条支线目前处于规划、推进、暂停还是回收状态">
+                        <span className="font-medium">当前状态</span>
+                        <Select value={branch.status || '规划中'} onValueChange={(status) => updateBranchPlan(branch.id, { status })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="规划中">规划中</SelectItem>
+                            <SelectItem value="推进中">推进中</SelectItem>
+                            <SelectItem value="暂缓">暂缓</SelectItem>
+                            <SelectItem value="已回收">已回收</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </label>
+                    </div>
+
+                    <label className="block space-y-1 text-[11px]" title="说明这条支线为什么存在，以及它最终怎样服务人物成长或核心主线">
+                      <span className="font-medium">支线作用</span>
+                      <Textarea
+                        value={branch.purpose}
+                        onChange={(event) => updateBranchPlan(branch.id, { purpose: event.target.value })}
+                        rows={2}
+                        className="text-xs resize-y"
+                        placeholder="例如：通过账本调查让主角发现宗门财务黑洞，并推动他与师父产生第一次立场分歧"
+                      />
+                    </label>
+
+                    <label className="block space-y-1 text-[11px]" title="这条支线长期涉及的核心人物；每个具体节点还可以单独指定当章出场人物">
+                      <span className="font-medium">核心人物</span>
+                      <Input
+                        value={branch.characters}
+                        onChange={(event) => updateBranchPlan(branch.id, { characters: event.target.value })}
+                        className="h-8 text-xs"
+                        placeholder="例如：林渊、账房先生、周执事"
+                      />
+                      {branchCharacterOptions.length > 0 && (
+                        <Select value="" onValueChange={(characterId) => {
+                          const character = branchCharacterOptions.find((item) => item.id === characterId)
+                          if (character) updateBranchPlan(branch.id, {
+                            characters: appendListValue(branch.characters, character.name),
+                          })
+                        }}>
+                          <SelectTrigger className="h-7 text-[11px]">
+                            <SelectValue placeholder="从角色库添加核心人物" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branchCharacterOptions.map((character) => (
+                              <SelectItem key={character.id} value={character.id}>{character.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </label>
+
+                    <label className="block space-y-1 text-[11px]" title="记录人物身份、真相或线索的知情边界，防止 AI 提前揭露">
+                      <span className="font-medium">信息禁区</span>
+                      <Input
+                        value={branch.restriction}
+                        onChange={(event) => updateBranchPlan(branch.id, { restriction: event.target.value })}
+                        className="h-8 text-xs"
+                        placeholder="例如：节点 3 前不得点明账房先生就是内鬼"
+                      />
+                    </label>
+
+                    <div className="space-y-2 rounded-md border border-border/70 bg-muted/15 p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="text-[11px] font-medium">章节节点（{(branch.beats || []).length}）</div>
+                          <div className="text-[10px] text-muted-foreground">一个节点代表这条支线在某章发生的一次铺垫、推进、转折、交汇或回收。</div>
+                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px] gap-1" onClick={() => addBranchBeat(branch.id)}>
+                              <Plus className="h-3 w-3" /> 新增节点
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-72 leading-relaxed">
+                            给这条支线增加一个具体剧情节点，并绑定章节位置、节点类型和出场人物。AI 会按节点顺序推进支线。
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      {(branch.beats || []).length === 0 ? (
+                        <div className="rounded border border-dashed border-border px-2 py-3 text-center text-[10px] text-muted-foreground">
+                          暂无章节节点。增加节点后，AI 才知道这条支线在哪些章节铺垫、推进或回收。
+                        </div>
+                      ) : (branch.beats || []).map((beat, beatIndex) => (
+                        <div key={beat.id} className="space-y-2 rounded border border-border bg-background p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium">节点 {beatIndex + 1}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button type="button" size="icon" variant="ghost" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => removeBranchBeat(branch.id, beat.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">删除这个章节节点，不删除整条支线。</TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <label className="space-y-1 text-[10px]" title="节点发生在哪一章或哪个故事阶段，可以填写章节名、章节范围或阶段名称">
+                              <span>章节位置</span>
+                              <Input value={beat.chapter} onChange={(event) => updateBranchBeat(branch.id, beat.id, { chapter: event.target.value })} className="h-7 text-[11px]" placeholder="例如：第 8 章" />
+                            </label>
+                            <label className="space-y-1 text-[10px]" title="铺垫只留下线索；触发正式开启；交汇影响主线；回收完成支线">
+                              <span>节点类型</span>
+                              <Select value={beat.type || '推进'} onValueChange={(type) => updateBranchBeat(branch.id, beat.id, { type })}>
+                                <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="铺垫">铺垫</SelectItem>
+                                  <SelectItem value="触发">触发</SelectItem>
+                                  <SelectItem value="推进">推进</SelectItem>
+                                  <SelectItem value="转折">转折</SelectItem>
+                                  <SelectItem value="主线交汇">主线交汇</SelectItem>
+                                  <SelectItem value="回收">回收</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </label>
+                          </div>
+                          <label className="block space-y-1 text-[10px]" title="这个节点实际出场并参与事件的人物，可以少于支线核心人物">
+                            <span>出场人物</span>
+                            <Input value={beat.characters} onChange={(event) => updateBranchBeat(branch.id, beat.id, { characters: event.target.value })} className="h-7 text-[11px]" placeholder={branch.characters || '例如：林渊、账房先生'} />
+                            {branchCharacterOptions.length > 0 && (
+                              <Select value="" onValueChange={(characterId) => {
+                                const character = branchCharacterOptions.find((item) => item.id === characterId)
+                                if (character) updateBranchBeat(branch.id, beat.id, {
+                                  characters: appendListValue(beat.characters, character.name),
+                                })
+                              }}>
+                                <SelectTrigger className="h-7 text-[11px]">
+                                  <SelectValue placeholder="从角色库添加出场人物" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {branchCharacterOptions.map((character) => (
+                                    <SelectItem key={character.id} value={character.id}>{character.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </label>
+                          <label className="block space-y-1 text-[10px]" title="写清本章发生的具体行动、阻碍或信息变化">
+                            <span>发生事件</span>
+                            <Textarea value={beat.event} onChange={(event) => updateBranchBeat(branch.id, beat.id, { event: event.target.value })} rows={2} className="text-[11px] resize-y" placeholder="例如：主角发现账本缺失两页，并注意到封蜡来自周执事房间" />
+                          </label>
+                          <label className="block space-y-1 text-[10px]" title="记录节点结束后人物关系、线索状态或主线局势发生了什么变化">
+                            <span>推进结果</span>
+                            <Textarea value={beat.result} onChange={(event) => updateBranchBeat(branch.id, beat.id, { result: event.target.value })} rows={2} className="text-[11px] resize-y" placeholder="例如：主角开始怀疑周执事，但暂时没有证据" />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <label className="block space-y-1 text-[11px]" title="补充整条支线的节奏、回收方式或其他全局限制">
+                      <span className="font-medium">补充约束（选填）</span>
+                      <Textarea
+                        value={branch.notes}
+                        onChange={(event) => updateBranchPlan(branch.id, { notes: event.target.value })}
+                        rows={2}
+                        className="text-xs resize-y"
+                        placeholder="例如：支线最多连续推进两章，之后至少间隔一章回到主线"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5 rounded-md border border-border bg-muted/15 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-medium">当前章细纲</div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {currentChapter ? `当前：${currentChapter.title}。保存后 AI 写本章时会优先读取。` : '请先在章节目录选择一个章节。'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[11px] gap-1 shrink-0"
+                disabled={!currentChapter || generatingChapterOutline}
+                onClick={handleGenerateChapterOutline}
+                title="结合总大纲、支线出现计划和前文生成当前章细纲"
+              >
+                {generatingChapterOutline ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {generatingChapterOutline ? '生成中...' : '生成当前章细纲'}
+              </Button>
+            </div>
+            <Textarea
+              value={chapterOutline}
+              onChange={(event) => setChapterOutline(event.target.value)}
+              rows={8}
+              disabled={!currentChapter}
+              className="text-xs resize-y"
+              placeholder="本章目标、承接前文、分场推进、人物变化、支线安排、章末钩子..."
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 w-full text-xs gap-1"
+              disabled={!currentChapter || savingChapterOutline}
+              onClick={handleSaveChapterOutline}
+              title="把当前内容保存为本章细纲，后续 AI 写作会自动读取"
+            >
+              <Save className="h-3 w-3" />
+              {savingChapterOutline ? '保存中...' : '保存当前章细纲'}
+            </Button>
           </div>
           <Button
             size="sm"

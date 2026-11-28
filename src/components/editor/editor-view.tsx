@@ -5,11 +5,12 @@ import { useAppStore } from '@/lib/store'
 import { api, countWords, formatWords } from '@/lib/helpers'
 import { LeftSidebarPanel } from './left-sidebar-panel'
 import { EditorPanel } from './editor-panel'
-import type { NovelTiptapHandle } from './novel-tiptap-editor'
+import { formatPlainToNovelHtml, type NovelTiptapHandle } from './novel-tiptap-editor'
 import { useAutosave } from '@/hooks/use-autosave'
 import { AiAssistant } from '@/components/ai/ai-assistant'
 import { AutoSerialPanel } from './auto-serial-panel'
 import { LongNovelTools } from './long-novel-tools'
+import { ChapterMemoryDialog } from './chapter-memory-dialog'
 import { EditorToolbar, HistoryTool, WordGoalTool } from './editor-toolbar'
 import { MindmapMainPanel, type MindmapFile } from './mindmap-main-panel'
 import { Button } from '@/components/ui/button'
@@ -75,6 +76,7 @@ export function EditorView() {
 
   const [novel, setNovel] = useState<NovelDetail | null>(null)
   const [chapterState, setCurrentChapterState] = useState<Chapter | null>(null)
+  const previousServerChapter = useRef<Chapter | null>(null)
   const currentChapter = chapterState?.id === currentChapterId ? chapterState : null
   const novelLoadId = useRef(0)
   const [loading, setLoading] = useState(true)
@@ -82,6 +84,7 @@ export function EditorView() {
   const [activeMindmapId, setActiveMindmapId] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [mobileDrawer, setMobileDrawer] = useState<'chapters' | 'assistant' | null>(null)
+  const [memoryTarget, setMemoryTarget] = useState<{ novelId: string; chapter: Chapter } | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1023px)')
@@ -192,22 +195,25 @@ export function EditorView() {
 
   // 当 currentChapterId 变化时，从 novel 中找到当前章节
   useEffect(() => {
-    if (!novel) {
-      setCurrentChapterState(null)
-      return
-    }
-    if (currentChapterId) {
+    if (novel && novel.id === currentNovelId && currentChapterId) {
       for (const v of novel.volumes) {
         const c = v.chapters.find((c) => c.id === currentChapterId)
         if (c) {
-          setCurrentChapterState(c)
-          void checkRecovery(c.id, c.content)
+          const previous = previousServerChapter.current
+          previousServerChapter.current = c
+          if (previous?.id === c.id && previous.content === c.content) {
+            setCurrentChapterState((draft) => draft?.id === c.id ? { ...c, content: draft.content, words: draft.words } : c)
+          } else {
+            setCurrentChapterState(c)
+            void checkRecovery(c.id, c.content)
+          }
           return
         }
       }
     }
+    previousServerChapter.current = null
     setCurrentChapterState(null)
-  }, [novel, currentChapterId, checkRecovery])
+  }, [novel, currentNovelId, currentChapterId, checkRecovery])
 
   // 三层防丢稿自动保存（IndexedDB + 节流上传）
   const handleContentChange = (content: string) => {
@@ -342,6 +348,47 @@ export function EditorView() {
     toast.success('已替换整章正文')
   }
 
+  const applyAssistantChapterText = (action: 'append' | 'replace', text: string, targetChapterId: string, original?: string) => {
+    const editor = useAppStore.getState()
+    const chapter = chapterStateRef.current
+    if (editor.currentNovelId !== currentNovelId || editor.currentChapterId !== targetChapterId ||
+        chapter?.id !== targetChapterId || currentChapter?.id !== targetChapterId || activeMindmapId) {
+      toast.error('请回到原章节再写入。')
+      return false
+    }
+    if (original !== undefined && chapter.content !== original) {
+      toast.error('章节正文已变化，请重新预览后再写入。')
+      return false
+    }
+    if (!text.trim()) return false
+
+    if (action === 'replace') handleReplaceChapterText(formatPlainToNovelHtml(text))
+    else handleInsertText(text)
+    setMobileDrawer(null)
+    return true
+  }
+
+  const openChapterMemory = (chapter: Chapter) => {
+    if (!novel) return
+    const liveChapter = chapterStateRef.current
+    setMobileDrawer(null)
+    setMemoryTarget({ novelId: novel.id, chapter: liveChapter?.id === chapter.id ? liveChapter : chapter })
+  }
+
+  const updateChapterSummary = (novelId: string, chapterId: string, summary?: string) => {
+    if (summary === undefined || useAppStore.getState().currentNovelId !== novelId) return
+    setNovel((previous) => {
+      if (!previous || previous.id !== novelId) return previous
+      return {
+        ...previous,
+        volumes: previous.volumes.map((volume) => ({
+          ...volume,
+          chapters: volume.chapters.map((chapter) => chapter.id === chapterId ? { ...chapter, summary } : chapter),
+        })),
+      }
+    })
+  }
+
   // 替换选中文字
   const handleReplaceSelection = (text: string) => {
     if (!currentChapter) return
@@ -349,7 +396,7 @@ export function EditorView() {
     handleInsertText(text)
   }
 
-  if (loading || !novel) {
+  if (loading || !novel || novel.id !== currentNovelId) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-muted-foreground">加载中...</div>
@@ -521,6 +568,7 @@ export function EditorView() {
                   onCreateMindmap={handleCreateMindmap}
                   onDeleteMindmap={handleDeleteMindmap}
                   onTreeChange={handleTreeChange}
+              onExtractChapter={openChapterMemory}
                   onWritingStyleChange={(styleId) =>
                     setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
                   }
@@ -565,16 +613,17 @@ export function EditorView() {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={28} minSize={22} maxSize={40} className="studio-ai-column h-full min-h-0 min-w-0 overflow-hidden">
                 <AiAssistant
-                  novelId={currentNovelId!}
-                  chapterId={currentChapterId}
+                  key={novel.id}
+              novelId={novel.id}
+                  chapterId={currentChapter?.id ?? null}
+                  chapterContent={currentChapter?.content || ''}
                   writingStyleId={novel.writingStyleId ?? null}
                   chapters={novel.volumes.flatMap((v) => v.chapters.map((c) => ({ id: c.id, title: c.title, words: c.words })))}
                   onWritingStyleChange={(styleId) =>
                     setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
                   }
                   onChaptersUpdated={() => void loadNovel()}
-                  onInsertText={handleInsertText}
-                  onReplaceChapterText={handleReplaceChapterText}
+                  onApplyChapterText={applyAssistantChapterText}
                 />
               </ResizablePanel>
             </>
@@ -634,6 +683,7 @@ export function EditorView() {
               onCreateMindmap={handleCreateMindmap}
               onDeleteMindmap={handleDeleteMindmap}
               onTreeChange={handleTreeChange}
+              onExtractChapter={openChapterMemory}
               onWritingStyleChange={(styleId) =>
                 setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
               }
@@ -653,26 +703,30 @@ export function EditorView() {
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-hidden">
             <AiAssistant
-              novelId={currentNovelId!}
-              chapterId={currentChapterId}
+              key={novel.id}
+              novelId={novel.id}
+              chapterId={currentChapter?.id ?? null}
+              chapterContent={currentChapter?.content || ''}
               writingStyleId={novel.writingStyleId ?? null}
               chapters={novel.volumes.flatMap((v) => v.chapters.map((c) => ({ id: c.id, title: c.title, words: c.words })))}
               onWritingStyleChange={(styleId) =>
                 setNovel((prev) => (prev ? { ...prev, writingStyleId: styleId } : prev))
               }
               onChaptersUpdated={() => void loadNovel()}
-              onInsertText={(text) => {
-                setMobileDrawer(null)
-                handleInsertText(text)
-              }}
-              onReplaceChapterText={(text) => {
-                setMobileDrawer(null)
-                handleReplaceChapterText(text)
-              }}
+              onApplyChapterText={applyAssistantChapterText}
             />
           </div>
         </SheetContent>
       </Sheet>
+      {memoryTarget?.novelId === novel.id && (
+        <ChapterMemoryDialog
+          key={memoryTarget.chapter.id}
+          novelId={memoryTarget.novelId}
+          chapter={memoryTarget.chapter}
+          onClose={() => setMemoryTarget(null)}
+          onSaved={(summary) => updateChapterSummary(memoryTarget.novelId, memoryTarget.chapter.id, summary)}
+        />
+      )}
     </div>
   )
 }

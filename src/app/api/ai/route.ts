@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { callThirdPartyAI, stripThinkTags } from '@/lib/ai-providers'
-import { getPlatformAiCandidates, callThirdPartyAIWithFallback, getPlatformConfig, type AiEndpointConfig } from '@/lib/platform-ai'
-import { parseModelMappings } from '@/lib/ai-models'
-import { assembleNovelContext } from '@/lib/context-assembler'
+import { getWritingAiCandidates, callThirdPartyAIWithFallback, getPlatformConfig } from '@/lib/platform-ai'
+import { hasProAiAccess, parseModelMappings, requiresProAiModel, resolveAiModelMapping } from '@/lib/ai-models'
+import { assembleNovelContext, stripHtml } from '@/lib/context-assembler'
 import { getOwnedChapter, getOwnedNovel } from '@/lib/ownership'
-import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, PROSE_FINAL_AUDIT_RULES, PROSE_REFINEMENT_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { formatScanForPrompt, scanAiTells } from '@/lib/ai-tells-scan'
 import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
+import { CHAPTER_REVIEW_DIMENSIONS } from '@/lib/writing-skills'
 import { acquireUserAiSlot, checkRateLimit, reserveUserTokens, settleUserTokens } from '@/lib/concurrency'
 import ZAI from 'z-ai-web-dev-sdk'
 
@@ -56,13 +58,13 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
     name: '玄幻打斗描写',
     category: '类型',
     description: '热血燃向的打斗场景',
-    system: '你是玄幻打斗描写专家。注重招式画面感、力量层次、节奏推进。使用短句、动作动词、拟声词增强冲击力。',
+    system: '写一场有攻防变化的打斗。交代双方目标、招式的作用和代价，突出行动与后果，句长和修辞按本次文风执行。',
   },
   yanqing: {
     name: '言情心理描写',
     category: '类型',
     description: '细腻的心理活动',
-    system: '你是言情心理描写大师。注重内心独白、微妙情绪变化、眼神与小动作的暗示。多用比喻，氛围感强。',
+    system: '呈现关系中的情绪变化。交代角色为何动摇，以及它怎样改变角色的行动。心理描写、动作和修辞的密度按本次文风执行。',
   },
   system_panel: {
     name: '系统流面板生成',
@@ -73,8 +75,8 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
   polish: {
     name: '润色',
     category: '编辑',
-    description: '提升文笔与流畅度',
-    system: '你是文字润色专家。在保持原意和人物声音的前提下，提升用词精准度、句式节奏、画面感。直接输出润色后的文本，不加任何解释。',
+    description: '去AI味精修：改善用词、节奏与画面感',
+    system: `你是文字润色专家，负责改善用词、节奏和画面感，重点压住 AI 味。\n${HUMAN_VOICE_SYSTEM_RULES}\n\n${PROSE_REFINEMENT_RULES}\n\n${PROSE_FINAL_AUDIT_RULES}`,
   },
   expand: {
     name: '扩写',
@@ -89,10 +91,10 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
     system: '你是文本压缩专家。在保留核心信息、关键对话和情感的前提下，将用户文本压缩到约一半篇幅。直接输出缩写后的文本。',
   },
   style_change: {
-    name: '转换文风',
+    name: '片段换文风',
     category: '编辑',
-    description: '改写为指定文风',
-    system: '你是文风转换专家。根据用户指定的目标文风（如：古风/科幻/二次元/严肃文学），重写用户文本。保持原意但彻底转换语言风格。直接输出。',
+    description: '按指定口吻改写片段，例如把一段对话改得更冷峻',
+    system: '按用户为本次任务指定的目标口吻改写片段，保留原意、人物和剧情事实。直接输出改写后的文本。',
   },
   continue: {
     name: '续写',
@@ -122,7 +124,7 @@ export const PRESETS: Record<string, { name: string; category: string; system: s
     name: '网文编辑审稿',
     category: '辅助',
     description: '从逻辑/人设/节奏/爽点多维度打分',
-    system: '你是起点/番茄资深签约编辑。请对用户提供的正文进行客观审稿：1) 分别对【开篇吸引力】【节奏推进】【人物塑造】【爽点/冲突】【文笔流畅度】打分（满分10分）；2) 指出3个最影响留存的问题；3) 给出可直接动手的修改建议。',
+    system: `以网文编辑的视角审稿。按 ${CHAPTER_REVIEW_DIMENSIONS} 逐项评分（每项 10 分），给出最多 3 个最影响阅读的问题及修改建议。检查逻辑漏洞、人设断点、节奏拖沓和明显的情节雷点；每条引用或定位正文证据。未发现明显问题时如实说明。`,
   },
   char_backstory: {
     name: '设定扩写',
@@ -234,17 +236,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { action, preset, message, context, novelId, chapterId, targetStyle, writingStyleId, modelId } = body
 
-    if (modelId) {
-      const platformCfg = await getPlatformConfig()
-      const mappings = parseModelMappings((platformCfg as any)?.modelMappings)
-      const matched = mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
-      const isProReq = !!matched?.isPro || modelId === 'baogeng_v4_pro' || modelId === 'moling_v4_pro'
-      if (isProReq && user.plan !== 'pro' && user.plan !== 'year') {
-        return NextResponse.json(
-          { error: '免费版仅可使用 v4 标准模型，升级月卡或年卡会员后方可使用 Pro 模型', reply: '免费版仅支持 v4 标准模型，升级月卡或年卡会员即可解锁 Pro 模型。' },
-          { status: 403 }
-        )
-      }
+    const platformConfig = await getPlatformConfig()
+    const mappings = parseModelMappings(platformConfig?.modelMappings)
+    const matchedMapping = resolveAiModelMapping(mappings, modelId)
+    const isProModel = requiresProAiModel(modelId, matchedMapping)
+    if (isProModel && !hasProAiAccess(user.plan)) {
+      return NextResponse.json(
+        { error: '免费版仅可使用 v4 标准模型，升级月卡或年卡会员后方可使用 Pro 模型', reply: '免费版仅支持 v4 标准模型，升级月卡或年卡会员即可解锁 Pro 模型。' },
+        { status: 403 }
+      )
     }
 
     if (novelId && !await getOwnedNovel(user.id, novelId)) {
@@ -284,20 +284,22 @@ export async function POST(req: NextRequest) {
       userPrompt = `${editPrompt[preset] || '请处理以下文本：'}\n\n${message || ''}`
     }
 
-    const activeStyle = await resolveWritingStyleForNovel(user.id, novelId, writingStyleId)
-    if (activeStyle) {
-      systemPrompt += `\n\n${buildWritingStyleInstruction(activeStyle)}`
+    // 润色升级为「体检 → 定点修 → 自检」闭环：把确定性体检结果注入 system，让模型不再靠猜
+    if (preset === 'polish' && action === 'edit' && message?.trim()) {
+      const scanBlock = formatScanForPrompt(scanAiTells(stripHtml(message)))
+      systemPrompt += `\n\n${scanBlock}`
     }
 
-    // 只读分析 vs 正文回写：只读时不注入"去 AI 味"改写铁律（避免把审稿请求变成改写指令），
-    // 回写类请求（行内润色/扩写/缩写/续写/转文风）必须强制注入，否则输出会带满 AI 套话。
     const isEditWriteback = action === 'edit'
     const readOnlyChat = !isEditWriteback && action === 'chat' &&
       preset !== 'chapter_gen' && !allowsAiProseWriteback(message || '', preset)
     if (readOnlyChat) {
       systemPrompt += '\n\n【只读分析】回答用户的问题。审稿或查错时，只报告问题、证据和建议，不改写或重发整章正文。'
-    } else {
-      systemPrompt += `\n\n${HUMAN_VOICE_SYSTEM_RULES}`
+    }
+    if (preset !== 'style_change' && (!readOnlyChat || preset === 'editor_review')) {
+      const activeStyle = await resolveWritingStyleForNovel(user.id, novelId, writingStyleId)
+      const style = buildWritingStyleInstruction(activeStyle, readOnlyChat ? 'review' : 'prose')
+      if (style) systemPrompt += `\n\n${style}`
     }
 
     const messages = [
@@ -305,38 +307,7 @@ export async function POST(req: NextRequest) {
       { role: 'user' as const, content: userPrompt || '请帮我继续创作。' },
     ]
 
-    // 模型选择：与流式接口保持一致，支持按后台别名切到指定模型
-    const platformConfig = await getPlatformConfig()
-    const mappings = parseModelMappings((platformConfig as any).modelMappings)
-    const matchedMapping = modelId
-      ? mappings.find((m) => m.enabled !== false && m.aliasId === modelId)
-      : mappings.find((m) => m.enabled !== false && m.isDefault) || mappings[0]
-
-    let preferredConfig: AiEndpointConfig | null = null
-    if (matchedMapping?.configId) {
-      const bound = await db.userAiConfig.findFirst({
-        where: { id: matchedMapping.configId, enabled: true },
-      })
-      if (bound) {
-        preferredConfig = {
-          id: bound.id,
-          name: bound.name,
-          baseUrl: bound.baseUrl,
-          apiKey: bound.apiKey,
-          model: bound.model,
-        }
-      }
-    }
-    if (!preferredConfig && matchedMapping && (matchedMapping.realModel || matchedMapping.baseUrl || matchedMapping.apiKey)) {
-      const baseUrl = matchedMapping.baseUrl || platformConfig.defaultAiBaseUrl
-      const apiKey = matchedMapping.apiKey || platformConfig.defaultAiApiKey
-      const model = matchedMapping.realModel || platformConfig.defaultAiModel
-      if (baseUrl && apiKey && model) {
-        preferredConfig = { baseUrl, apiKey, model }
-      }
-    }
-
-    const aiCandidates = await getPlatformAiCandidates(preferredConfig)
+    const aiCandidates = await getWritingAiCandidates(platformConfig, mappings, matchedMapping, isProModel, user.plan)
     let reply = ''
 
     if (aiCandidates.length > 0) {
@@ -407,11 +378,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/ai/presets - 获取预设列表（需要登录）
-export async function GET() {
+const ASSISTANT_PRESET_IDS = new Set([
+  'break_block', 'xuanhuan', 'yanqing', 'system_panel', 'expand', 'shorten', 'style_change',
+])
+
+// GET /api/ai - 获取预设列表
+export async function GET(req: NextRequest) {
   const session = await requireSessionOr401()
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: 401 })
-  return NextResponse.json({
-    presets: Object.entries(PRESETS).map(([id, p]) => ({ id, ...p })),
-  })
+
+  const presets = Object.entries(PRESETS)
+  if (req.nextUrl.searchParams.get('scope') === 'assistant') {
+    return NextResponse.json({
+      presets: presets
+        .filter(([id]) => ASSISTANT_PRESET_IDS.has(id))
+        .map(([id, { name, category, description }]) => ({ id, name, category, description })),
+    })
+  }
+  return NextResponse.json({ presets: presets.map(([id, preset]) => ({ id, ...preset })) })
 }

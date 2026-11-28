@@ -1,4 +1,7 @@
 import { db } from '@/lib/db'
+import { stripHtml } from '@/lib/helpers'
+
+export { stripHtml } from '@/lib/helpers'
 
 export interface ContextLayerInfo {
   key: string
@@ -22,22 +25,6 @@ export interface ContextAssemblyResult {
     status: 'ready' | 'attention'
     warnings: string[]
   }
-}
-
-export function stripHtml(html: string): string {
-  if (!html) return ''
-  if (!html.includes('<')) return html
-  return html
-    .replace(/<div[^>]*data-ai-draft[^>]*>[\s\S]*?<\/div>/gi, '')
-    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
 }
 
 export function extractCodexRefIds(html: string): string[] {
@@ -77,33 +64,46 @@ function fitToBudget(text: string, budgetTokens: number, fromTail = false): { te
 
 /**
  * 分层上下文装配引擎（移植自墨枢 Moshu）：
- * 按优先级装配：大纲定位 → 本章 @ 引用设定 → 时间线 → 前情摘要 → 其余设定 → 近文正文
+ * 按优先级装配：大纲定位 → 本章 @ 引用设定 → 时间线 → 活跃伏笔 → 前情摘要 → 其余设定 → 近文正文
  */
 export async function assembleNovelContext(params: {
   novelId: string
   chapterId?: string | null
   budgetTokens?: number
+  /** 全新续写模式（自动连载）：无当前章，取全书最后几章做前情摘要与末尾原文衔接 */
+  asNextChapter?: boolean
 }): Promise<ContextAssemblyResult> {
   const budgetTokens = params.budgetTokens ?? 14000
   const layers: ContextLayerInfo[] = []
   const trimmedLayers: string[] = []
   const warnings: string[] = []
 
-  const [novel, characters, worldviews, items, currentChapter, allChapters] =
-    await Promise.all([
-      db.novel.findUnique({ where: { id: params.novelId } }),
-      db.character.findMany({ where: { novelId: params.novelId } }),
-      db.worldview.findMany({ where: { novelId: params.novelId } }),
-      db.item.findMany({ where: { novelId: params.novelId } }),
-      params.chapterId
-        ? db.chapter.findUnique({ where: { id: params.chapterId } })
-        : Promise.resolve(null),
-      db.chapter.findMany({
-        where: { novelId: params.novelId },
-        orderBy: [{ volume: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
-        select: { id: true, title: true, summary: true, sortOrder: true, volumeId: true },
-      }),
-    ])
+  const [novel, currentChapter, allChapters] = await Promise.all([
+    db.novel.findUnique({ where: { id: params.novelId } }),
+    params.chapterId
+      ? db.chapter.findUnique({ where: { id: params.chapterId } })
+      : Promise.resolve(null),
+    db.chapter.findMany({
+      where: { novelId: params.novelId },
+      orderBy: [{ volume: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+      select: { id: true, title: true, summary: true, sortOrder: true, volumeId: true },
+    }),
+  ])
+
+  // 设定池对齐：本书设定 + 同作者的全局跨书设定（novelId 为空的条目），与自动连载行为一致
+  const [characters, worldviews, items] = novel
+    ? await Promise.all([
+        db.character.findMany({
+          where: { userId: novel.userId, OR: [{ novelId: params.novelId }, { novelId: null }] },
+        }),
+        db.worldview.findMany({
+          where: { userId: novel.userId, OR: [{ novelId: params.novelId }, { novelId: null }] },
+        }),
+        db.item.findMany({
+          where: { userId: novel.userId, OR: [{ novelId: params.novelId }, { novelId: null }] },
+        }),
+      ])
+    : [[], [], []]
 
   let timelineEvents: Array<{ timeLabel: string; title: string; description: string | null }> = []
   try {
@@ -116,10 +116,34 @@ export async function assembleNovelContext(params: {
     timelineEvents = []
   }
 
+  // 活跃伏笔（埋设/推进中，按注入权重优先），供 AI 有意识地推进或回收
+  let foreshadowings: Array<{
+    id: string
+    title: string
+    description: string | null
+    status: string
+    plantedChapter: number | null
+  }> = []
+  try {
+    foreshadowings = await db.foreshadowing.findMany({
+      where: { novelId: params.novelId, status: { in: ['planted', 'advanced'] } },
+      orderBy: [{ hintWeight: 'desc' }, { updatedAt: 'desc' }],
+      take: 12,
+    })
+  } catch {
+    foreshadowings = []
+  }
+
   let remaining = budgetTokens
 
   // 1. 作品定位与大纲（附带已有章节目录，防止 AI 重复章名或重复已写剧情）
   if (novel) {
+    const outlineValue = novel.outline || ''
+    const branchMarker = '## 支线出现计划'
+    const branchIndex = outlineValue.indexOf(branchMarker)
+    const prioritizedOutline = branchIndex >= 0
+      ? `${outlineValue.slice(branchIndex).trim()}\n\n${outlineValue.slice(0, branchIndex).trim()}`
+      : outlineValue
     const existingList = allChapters.slice(-30).map((c) =>
       c.id === currentChapter?.id ? `${c.title}（当前所在章）` : c.title
     )
@@ -127,7 +151,7 @@ export async function assembleNovelContext(params: {
       existingList.length > 0
         ? `\n已有章节目录（严禁重复使用已有章节标题或重写已写剧情）：${existingList.join(' / ')}`
         : ''
-    const raw = `【当前小说】\n书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || '（未设定）'}\n大纲：${novel.outline || '（未设定）'}${chapterIndexText}`
+    const raw = `【当前小说】\n书名：${novel.title}\n类型：${novel.genre}\n简介：${novel.synopsis || '（未设定）'}\n大纲：${prioritizedOutline || '（未设定）'}${chapterIndexText}`
     const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.22))
     const fitted = fitToBudget(raw, layerBudget)
     const tokens = estimateTokens(fitted.text)
@@ -217,10 +241,45 @@ export async function assembleNovelContext(params: {
     })
   }
 
-  // 4. 前情摘要（取当前章之前的最多 4 章摘要）
-  if (currentChapter && remaining > 0) {
-    const idx = allChapters.findIndex((c) => c.id === currentChapter.id)
-    const prevChapters = idx > 0 ? allChapters.slice(Math.max(0, idx - 4), idx) : []
+  // 3.5 活跃伏笔追踪（提示 AI 在合适节点自然推进或回收，严禁无视或提前揭穿）
+  if (foreshadowings.length > 0 && remaining > 0) {
+    const lines = foreshadowings.map(
+      (f) =>
+        `- [${f.status === 'planted' ? '已埋设·待推进' : '推进中'}] ${f.title}${
+          f.description ? `：${f.description}` : ''
+        }${f.plantedChapter ? `（第 ${f.plantedChapter} 章埋设）` : ''}`
+    )
+    const raw =
+      `【当前活跃伏笔（请在本章及后续章节中寻找合适的剧情节点自然推进或回收；` +
+      `严禁无视这些伏笔，也严禁与伏笔无关地提前揭穿它们）】\n${lines.join('\n')}`
+    const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.08))
+    const fitted = fitToBudget(raw, layerBudget)
+    const tokens = estimateTokens(fitted.text)
+    remaining = Math.max(0, remaining - tokens)
+    if (fitted.trimmed) trimmedLayers.push('foreshadowing')
+    layers.push({
+      key: 'foreshadowing',
+      label: '活跃伏笔追踪',
+      tokens,
+      budgetTokens: layerBudget,
+      trimmed: fitted.trimmed,
+      itemCount: foreshadowings.length,
+      preview: fitted.text,
+    })
+  }
+
+  // 4. 前情摘要（编辑模式取当前章之前 4 章；续写模式取全书最后 4 章）
+  const idx = currentChapter
+    ? allChapters.findIndex((c) => c.id === currentChapter.id)
+    : -1
+  const prevChapters = currentChapter
+    ? idx > 0
+      ? allChapters.slice(Math.max(0, idx - 4), idx)
+      : []
+    : params.asNextChapter
+      ? allChapters.slice(Math.max(0, allChapters.length - 4))
+      : []
+  if (remaining > 0) {
     const withSummary = prevChapters.filter((c) => c.summary?.trim())
     if (withSummary.length > 0) {
       const raw = `【前情章节摘要】\n${withSummary
@@ -242,15 +301,19 @@ export async function assembleNovelContext(params: {
       })
     }
 
-    // 4.5 上一章最后 3 段原文（仅取上一章末尾，保证语感与场景无缝衔接）
-    if (idx > 0 && remaining > 0) {
-      const prevChapMeta = allChapters[idx - 1]
-      const prevChap = prevChapMeta
-        ? await db.chapter.findUnique({
-            where: { id: prevChapMeta.id },
-            select: { title: true, content: true },
-          })
+    // 4.5 末尾衔接章最后 3 段原文（编辑模式=上一章；续写模式=全书最后一章，保证语感与场景无缝衔接）
+    const tailChapMeta = currentChapter
+      ? idx > 0
+        ? allChapters[idx - 1]
         : null
+      : params.asNextChapter
+        ? allChapters[allChapters.length - 1] || null
+        : null
+    if (tailChapMeta && remaining > 0) {
+      const prevChap = await db.chapter.findUnique({
+        where: { id: tailChapMeta.id },
+        select: { title: true, content: true },
+      })
       const prevPlain = prevChap ? stripHtml(prevChap.content || '') : ''
       const paragraphs = prevPlain
         .split(/\n+/)
@@ -258,7 +321,7 @@ export async function assembleNovelContext(params: {
         .filter(Boolean)
       const tailParas = paragraphs.slice(-3).join('\n\n')
       if (tailParas) {
-        const raw = `【上一章（${prevChap!.title}）末尾原文（用于衔接语感与场景）】\n${tailParas}`
+        const raw = `【上一章（${prevChap!.title}）末尾原文（用于衔接语感与场景，新章节应自然承接其后）】\n${tailParas}`
         const layerBudget = Math.min(remaining, Math.floor(budgetTokens * 0.14))
         const fitted = fitToBudget(raw, layerBudget, true)
         const tokens = estimateTokens(fitted.text)

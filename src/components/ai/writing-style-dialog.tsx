@@ -35,9 +35,6 @@ export interface WritingStyleItem {
   isDefault: boolean
 }
 
-const DEFAULT_AVOID =
-  '不禁、仿佛、然而、嘴角微微上扬、一抹、眼神微眯、空气仿佛凝固、深吸一口气、心中五味杂陈、宛如、不由自主'
-
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -62,7 +59,7 @@ export function WritingStyleDialog({
   const [description, setDescription] = useState('')
   const [stylePrompt, setStylePrompt] = useState('')
   const [sampleText, setSampleText] = useState('')
-  const [avoidPhrases, setAvoidPhrases] = useState(DEFAULT_AVOID)
+  const [avoidPhrases, setAvoidPhrases] = useState('')
   const [saving, setSaving] = useState(false)
   const [extracting, setExtracting] = useState(false)
 
@@ -73,7 +70,7 @@ export function WritingStyleDialog({
       setDescription('')
       setStylePrompt('')
       setSampleText('')
-      setAvoidPhrases(DEFAULT_AVOID)
+      setAvoidPhrases('')
       return
     }
     setSelectedId(s.id)
@@ -81,7 +78,7 @@ export function WritingStyleDialog({
     setDescription(s.description || '')
     setStylePrompt(s.stylePrompt || '')
     setSampleText(s.sampleText || '')
-    setAvoidPhrases(s.avoidPhrases || DEFAULT_AVOID)
+    setAvoidPhrases(s.avoidPhrases ?? '')
   }
 
   useEffect(() => {
@@ -200,10 +197,10 @@ export function WritingStyleDialog({
         <DialogHeader className="px-5 py-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Feather className="w-4 h-4 text-primary" />
-            我的专属写作风格（去 AI 味）
+            作者文风
           </DialogTitle>
           <DialogDescription className="text-xs">
-            粘贴你自己的正文样文让 AI 提炼并模仿你的句式与用词节奏，再配合禁用 AI 套话，彻底告别千篇一律的“AI 味”。
+            指定作品的叙述视角、句段节奏和用词习惯，也可以从正文样文中提炼。已选文风优先于通用写作技能。
           </DialogDescription>
         </DialogHeader>
 
@@ -338,13 +335,13 @@ export function WritingStyleDialog({
 
             <div className="space-y-1">
               <label className="text-xs font-medium">
-                禁用 AI 套话黑名单 <span className="text-muted-foreground font-normal">（逗号或顿号分隔）</span>
+                自定义禁用词 <span className="text-muted-foreground font-normal">（选填，以逗号或顿号分隔）</span>
               </label>
               <Input
                 value={avoidPhrases}
                 onChange={(e) => setAvoidPhrases(e.target.value)}
                 className="h-8 text-xs"
-                placeholder={DEFAULT_AVOID}
+                placeholder="例如：命运的齿轮开始转动"
               />
             </div>
 

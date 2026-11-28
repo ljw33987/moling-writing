@@ -1,4 +1,4 @@
-# 墨灵写作 | MoLing Writing
+# 爆更猫AI写作 | Baogeng Cat AI Writing
 
 [English](./README_EN.md) | [简体中文](./README.md) | [日本語](./README_JA.md) | [한국어](./README_KO.md) | [Español](./README_ES.md) | [Français](./README_FR.md) | [Deutsch](./README_DE.md) | [Português](./README_PT.md) | [Русский](./README_RU.md) | [العربية](./README_AR.md)
 
@@ -83,7 +83,7 @@
 | AI | z-ai-web-dev-sdk + 用户自定义第三方 API |
 | 支付 | 支付宝 alipay-sdk |
 | 邮件 | Nodemailer (SMTP) |
-| 后端服务 | Bun 进程（auto-serial mini-service）|
+| 后端服务 | 主应用内嵌自动连载 runner（Next.js 进程） |
 | 状态管理 | Zustand + TanStack Query |
 
 ## 📁 项目结构
@@ -121,8 +121,6 @@ moling-writing/
 │       ├── email.ts               # 邮件系统
 │       ├── redeem.ts              # 兑换码
 │       └── store.ts               # Zustand 状态
-├── mini-services/
-│   └── auto-serial/               # 自动连载独立服务
 ├── .github/
 │   ├── ISSUE_TEMPLATE/            # Issue 模板
 │   └── workflows/ci.yml           # GitHub Actions CI
@@ -152,8 +150,7 @@ bun run db:push
 # 5. 启动开发服务器
 bun run dev
 
-# 6.（可选）启动自动连载服务
-cd mini-services/auto-serial && bun run dev
+# 6. 自动连载由主应用内嵌 runner 自动执行，无需额外服务
 ```
 
 打开 `http://localhost:3000`，系统自动创建管理员账号：
@@ -169,7 +166,7 @@ cd mini-services/auto-serial && bun run dev
 ### ✅ 已完成
 - [x] 三栏沉浸式编辑器 + 4 种模式
 - [x] AI 助手 18 预设 + 流式输出
-- [x] 自动连载 mini-service
+- [x] 自动连载（内嵌 runner + 分层上下文装配 + 守卫校验 + 记忆沉淀）
 - [x] 设定库 + AI 自动生成
 - [x] 作品广场 + 读者阅读页
 - [x] 支付宝支付接入
@@ -189,10 +186,15 @@ cd mini-services/auto-serial && bun run dev
 - [ ] 富文本编辑器
 - [ ] 人物关系图谱可视化
 - [ ] 时间线/事件线管理
-- [ ] 伏笔追踪系统
+- [x] 伏笔追踪系统（登记→推进→回收状态机，自动注入上下文 + 生成后自动登记/回收）
 - [ ] 创作模板库
 - [ ] 多端同步
 - [ ] 2FA 二次验证
+
+## 🙏 致谢
+
+- [oh-story](https://github.com/zenstory-ai/oh-story-claudecode)（MIT）— 章后记忆提取与去AI味指令的设计思路参考改编
+- [webnovel-writer](https://github.com/lingfengQAQ/webnovel-writer)（GPL-3.0）— 伏笔「登记→推进→回收」状态机概念启发（仅思想借鉴，未复制任何代码）
 
 ## 🤝 贡献
 

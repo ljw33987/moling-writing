@@ -42,6 +42,8 @@ export interface NovelTiptapHandle {
   toggleBulletList: () => void
   autoFormat: () => void
   replaceSelection: (text: string) => void
+  /** 在文档指定位置插入内容（按换行分段）：内联续写用——保留选区原文，把新增内容插到选区末尾 */
+  insertContentAt: (pos: number, text: string) => void
   appendContent: (text: string) => void
   replaceAllContent: (text: string) => void
   getSelectionRect: () => { left: number; top: number; bottom: number; right: number } | null
@@ -380,6 +382,17 @@ export const NovelTiptapEditor = forwardRef<NovelTiptapHandle, Props>(
               ...(line ? { content: [{ type: 'text', text: line }] } : {}),
             }))
           editor.chain().focus().insertContent(paragraphs).run()
+        },
+        insertContentAt: (pos: number, text: string) => {
+          if (!editor) return
+          const paragraphs = text
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => ({
+              type: 'paragraph',
+              ...(line ? { content: [{ type: 'text', text: line }] } : {}),
+            }))
+          editor.chain().focus().insertContentAt(pos, paragraphs).run()
         },
         appendContent: (text: string) => {
           if (!editor) return

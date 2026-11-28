@@ -27,6 +27,7 @@ import {
   Redo2,
 } from 'lucide-react'
 import { CHAPTER_STATUS } from '@/lib/helpers'
+import { getStoredSkillIds } from '@/lib/writing-skills'
 import type { Chapter, NovelDetail } from './editor-view'
 import { toast } from 'sonner'
 import {
@@ -118,6 +119,37 @@ export function EditorPanel({
     if (!selectedText || !editor || aiLoading) return
     setAiLoading(true)
     setAiPreview('')
+    // 记录选区位置：续写要保留原文、把新增内容追加到选区之后，其余操作替换选区
+    const rawEditor = editor.getEditor()
+    if (!rawEditor) {
+      toast.error('编辑器尚未就绪，请稍后再试')
+      return
+    }
+    const selFrom = rawEditor.state.selection.from
+    const selTo = rawEditor.state.selection.to
+    // 选区前后文（参考 Sudowrite/NovelAI 的通行做法）：
+    // 扩写带「前文 + 片段 + 后文」三段，保证扩写结果与上下文无缝衔接；
+    // 续写带「上文」承接、带「后文」参考走向，避免新增剧情与后文打架。
+    const docSize = rawEditor.state.doc.content.size
+    const textBefore = rawEditor.state.doc.textBetween(0, selFrom, '\n\n').slice(-800)
+    const textAfter = rawEditor.state.doc.textBetween(selTo, docSize, '\n\n').slice(0, 400)
+    const selLen = selectedText.replace(/\s/g, '').length
+    let inlineMessage = selectedText
+    if (preset === 'expand') {
+      inlineMessage =
+        (textBefore ? `【前文（仅用于衔接口吻与事实，不要改写、不要复述）】\n${textBefore}\n\n` : '') +
+        `【待扩写片段】\n${selectedText}\n\n` +
+        (textAfter ? `【后文（扩写结果要能自然接到它上面，不要与其重复剧情）】\n${textAfter}\n\n` : '') +
+        `请扩写【待扩写片段】。硬性要求：扩写后篇幅为原文的 1.5—2.5 倍（原文约 ${selLen} 字，控制在 ${Math.round(selLen * 2)} 字上下）；保留原句核心信息、人物口吻与既有事实，不新增剧情事件，不写成整段场景描写；只输出扩写后的文本，不要解释。`
+    } else if (preset === 'continue') {
+      const carry = ((textBefore ? textBefore + '\n\n' : '') + selectedText).slice(-1000)
+      inlineMessage =
+        `【上文（续写要紧接它的末尾自然承接）】\n${carry}\n\n` +
+        (textAfter ? `【后文（仅用于参考剧情走向，续写内容不要与其重复或矛盾）】\n${textAfter}\n\n` : '') +
+        `请续写 2—4 句（约 80—200 字）：只输出新增内容，不要重复或改写上文，不要总结收尾，人称、时态与文风和上文保持一致。`
+    } else if (preset === 'shorten') {
+      inlineMessage = `请缩写以下文本，只保留核心信息，篇幅不超过原文一半；只输出缩写后的文本，不要解释。\n\n${selectedText}`
+    }
     try {
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
@@ -125,10 +157,11 @@ export function EditorPanel({
         body: JSON.stringify({
           action: 'edit',
           preset,
-          message: selectedText,
+          message: inlineMessage,
           targetStyle,
           novelId: novel.id,
           chapterId: chapter?.id,
+          skillIds: getStoredSkillIds(novel.id),
         }),
       })
       if (!res.ok || !res.body) {
@@ -169,7 +202,18 @@ export function EditorPanel({
         toast.error('AI 未返回内容')
         return
       }
-      editor.replaceSelection(reply)
+      let output = reply.trim()
+      // 去掉模型自加的引导语（「好的，以下是…」「以下是扩写后的文本：」之类）
+      output = output
+        .replace(/^好的[，,。!！]?\s*/, '')
+        .replace(/^(?:以下|下面)[是为][^\n]{0,24}[：:]\s*/, '')
+        .trim()
+      if (preset === 'continue') {
+        // 续写：保留选中的原文，把新增内容追加到选区末尾
+        editor.insertContentAt(selTo, output)
+      } else {
+        editor.replaceSelection(output)
+      }
       toast.success('已应用 AI 修改（Ctrl+Z 可整段撤销）')
     } catch (e: any) {
       toast.error(e.message || 'AI 修改失败')
@@ -185,6 +229,23 @@ export function EditorPanel({
       toast.error('请填写核心事件')
       return
     }
+    // 发稿前自动巡检：确定性规则（失效引用/重名设定/缺失摘要），零 AI 成本，只提示不阻断
+    try {
+      const gres = await fetch('/api/guard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novelId: novel.id, withAi: false }),
+      })
+      if (gres.ok) {
+        const g = await gres.json()
+        if (g.scannedCount > 0) {
+          toast.warning(
+            `一致性巡检发现 ${g.scannedCount} 项待处理问题，可在「长篇工具 → 一致性守卫」查看与一键修复`,
+            { duration: 6000 }
+          )
+        }
+      }
+    } catch { }
     const editor = tiptapRef.current
     if (!editor || generation.current || aiLoading) return
     const request = new AbortController()
@@ -218,6 +279,7 @@ export function EditorPanel({
             `${modeInstruction}`,
           novelId: novel.id,
           chapterId: chapter.id,
+          skillIds: getStoredSkillIds(novel.id),
         }),
       })
 

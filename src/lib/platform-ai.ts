@@ -1,5 +1,6 @@
 import { db } from './db'
 import { callThirdPartyAI } from './ai-providers'
+import { getPlatformProAiFromEnv, hasProAiAccess, requiresProAiModel, type AdminModelMapping } from './ai-models'
 
 export interface AiEndpointConfig {
   id?: string
@@ -122,16 +123,67 @@ export async function getPlatformAiCandidates(
   return candidates
 }
 
+export async function getWritingAiCandidates(
+  platform: Awaited<ReturnType<typeof getPlatformConfig>>,
+  mappings: AdminModelMapping[],
+  mapping: AdminModelMapping | undefined,
+  isProModel: boolean,
+  plan: string | null | undefined,
+) {
+  const paid = hasProAiAccess(plan)
+  const proMappings = paid ? [] : mappings.filter((entry) =>
+    entry.enabled !== false && requiresProAiModel(entry.aliasId, entry),
+  )
+  const proConfigIds = new Set(proMappings.flatMap((entry) => entry.configId ? [entry.configId] : []))
+  const configIds = new Set(proConfigIds)
+  if (mapping?.configId) configIds.add(mapping.configId)
+  const bound = configIds.size
+    ? await db.userAiConfig.findMany({
+        where: { id: { in: [...configIds] }, enabled: true },
+        select: { id: true, name: true, baseUrl: true, apiKey: true, model: true },
+      })
+    : []
+
+  function mappedEndpoint(entry: AdminModelMapping | undefined): AiEndpointConfig | null {
+    if (!entry) return null
+    const endpoint = bound.find((candidate) => candidate.id === entry.configId)
+    if (endpoint) return endpoint
+    if (!entry.baseUrl && !entry.apiKey && !entry.realModel) return null
+
+    const baseUrl = entry.baseUrl || platform.defaultAiBaseUrl
+    const apiKey = entry.apiKey || platform.defaultAiApiKey
+    const model = entry.realModel || platform.defaultAiModel
+    return baseUrl && apiKey && model ? { baseUrl, apiKey, model } : null
+  }
+
+  const proEnv = getPlatformProAiFromEnv()
+  const preferred = mappedEndpoint(mapping) ?? (isProModel ? proEnv : null)
+  const candidates = await getPlatformAiCandidates(preferred)
+  if (paid) return candidates
+
+  const isSameEndpoint = (left: AiEndpointConfig, right: AiEndpointConfig) =>
+    left.baseUrl.trim().replace(/\/+$/, '') === right.baseUrl.trim().replace(/\/+$/, '') &&
+    left.apiKey.trim() === right.apiKey.trim() && left.model.trim() === right.model.trim()
+
+  const proEndpoints = [...proMappings.map(mappedEndpoint), proEnv]
+    .filter((endpoint): endpoint is AiEndpointConfig => endpoint !== null)
+  return candidates.filter((candidate) =>
+    !(candidate.id && proConfigIds.has(candidate.id)) &&
+    !proEndpoints.some((endpoint) => isSameEndpoint(candidate, endpoint)),
+  )
+}
+
 // 按优先级依次尝试候选接口，遇到 429/5xx/连接异常自动降级到下一顺位备选接口
 export async function callThirdPartyAIWithFallback(
   candidates: AiEndpointConfig[],
   messages: { role: string; content: string }[],
-  options?: { stream?: boolean; temperature?: number }
+  options?: { stream?: boolean; temperature?: number; signal?: AbortSignal }
 ): Promise<{
   ok: boolean
   reply?: string
   error?: string
   stream?: ReadableStream<Uint8Array>
+  totalTokens?: number
   usedConfig?: AiEndpointConfig
 }> {
   if (!candidates || candidates.length === 0) {
@@ -140,6 +192,7 @@ export async function callThirdPartyAIWithFallback(
 
   let lastError = 'AI 调用失败'
   for (let i = 0; i < candidates.length; i++) {
+    if (options?.signal?.aborted) return { ok: false, error: '请求已暂停' }
     const cand = candidates[i]
     const res = await callThirdPartyAI(cand, messages, options)
     if (res.ok) {

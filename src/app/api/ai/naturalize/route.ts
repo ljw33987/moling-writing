@@ -3,7 +3,10 @@ import { db } from '@/lib/db'
 import { requireSessionOr401 } from '@/lib/auth'
 import { stripHtml } from '@/lib/context-assembler'
 import { callThirdPartyAIWithFallback, getPlatformAiCandidates } from '@/lib/platform-ai'
-import { HUMAN_VOICE_SYSTEM_RULES } from '@/lib/writing-style'
+import { getOwnedNovel } from '@/lib/ownership'
+import { AI_BANNED_PHRASES } from '@/lib/ai-tells'
+import { buildWritingStyleInstruction, HUMAN_VOICE_SYSTEM_RULES, PROSE_FINAL_AUDIT_RULES, PROSE_REFINEMENT_RULES, resolveWritingStyleForNovel } from '@/lib/writing-style'
+import { formatScanForPrompt, scanAiTells } from '@/lib/ai-tells-scan'
 import { acquireUserAiSlot, checkRateLimit, reserveUserTokens, settleUserTokens } from '@/lib/concurrency'
 
 /**
@@ -82,9 +85,13 @@ export async function POST(req: NextRequest) {
   let settled = false
   try {
     const body = await req.json()
-    const { text, mode = 'review' } = body // mode: 'review' | 'rewrite'
+    const { text, mode = 'review', novelId } = body
     if (!text?.trim()) {
       return NextResponse.json({ error: '请提供待审查文本' }, { status: 400 })
+    }
+
+    if (novelId != null && (typeof novelId !== 'string' || !await getOwnedNovel(user.id, novelId))) {
+      return NextResponse.json({ error: '未找到作品' }, { status: 404 })
     }
 
     const plain = stripHtml(text).slice(0, 4000)
@@ -100,20 +107,50 @@ export async function POST(req: NextRequest) {
     }
     reserved = reserve.reserved
 
-    const systemPrompt =
+    const activeStyle = await resolveWritingStyleForNovel(user.id, novelId)
+    const style = buildWritingStyleInstruction(activeStyle, mode === 'rewrite' ? 'prose' : 'review')
+    // 确定性体检：把「句长方差 / 连接词密度 / 短语重复 / 套话命中」算成证据，
+    // 改写时才有据可依，不再靠模型自己猜哪里像 AI。
+    const scan = scanAiTells(plain)
+    const scanBlock = formatScanForPrompt(scan)
+    const taskPrompt =
       mode === 'rewrite'
-        ? `你是资深中文小说主编，最擅长把有“AI 味”的段落洗成活生生的人类作家手写质感。
+        ? `你是资深网文编辑，执行「整章去 AI 味定点修改」。正文以 AI 初稿为主。你只负责输出「病灶句修改清单」，绝不输出整章正文——未列入清单的句子将由系统逐字保留。
+${scanBlock}
+【输出格式（严格遵守，违反即失败）】
+只输出一个 JSON 数组，禁止输出整章正文、解释或 Markdown 代码块：
+[{"original":"从原文逐字复制的原句，含原有标点","rewritten":"修改后的句子"}]
+- original 必须从原文逐字复制（包括全角半角、破折号、省略号、奇怪的断句习惯），否则系统无法定位替换。
+- rewritten 只改病灶：重组句式、删套话、换成具体表达；禁止顺手统一标点，禁止改动原句中与病灶无关的任何部分。
+- 只列病灶句，没有问题的句子绝不列出；最多 20 条，按严重程度排序。若全文没有病灶，输出 []。
+【体检使用方式】
+- 体检点名的位置优先处理；破折号密度超标时，只削「解释补充类」用法（——也就是说），「打断、顿挫类」（压到——半）保留，那是节奏不是病。
+${PROSE_REFINEMENT_RULES}
+【文风基线（与「润色」预设同源）】
 ${HUMAN_VOICE_SYSTEM_RULES}
-改写规则：
-- 严格保留原情节、人物设定与关键信息点，不得删减剧情。
-- 彻底重写所有翻译腔、总结腔、播音腔对白和模板化衔接词（如“然而、不禁、仿佛、一抹、眼神微眯、深吸一口气”），换成更接地气、有呼吸感的人类正常说话与叙事口吻。
-- 直接输出改写后的干净正文（不要任何解释、标题或前后缀）。`
-        : `你是资深中文网文主编，请对以下正文做深度“AI 味指纹诊断”。
+【润色成果保护（决定哪些句子不算病灶）】
+- 已经口语化、具体化、没有套话的表达是此前润色的成果，视为作者选择，不要列入清单。
+【比喻分级（决定哪些句子算病灶）】
+- 带具体信息、有画面的比喻是正样本，不许列入：「像谁把生锈的针管泡在福尔马林里晃了三天」这类必须保留。
+- 只有空装饰类比（「X般的Y」「像裹了蜜的刀」）和命中禁语的句子才列。
+【禁语清单（rewritten 中不得出现任何一个；原句命中的必须列入清单改掉）】
+${AI_BANNED_PHRASES.join('、')}
+【rewritten 硬性底线】
+- 剧情事实、规则条目、数字、人物称呼不变；篇幅与信息量接近原句。
+- 删修饰后变没脾气就把情绪搬到动作上，不要造比喻顶包。`
+        : `你是资深中文网文主编，请对以下正文做“表达模式诊断”。目标是找到影响阅读的机械表达，不根据单个词语或句子长短武断判断作者身份。
+${scanBlock}
 请按以下结构输出：
-1. **AI 味指数**：0~100 分（越高越像 AI 生成）及一句话总评。
-2. **命中问题点**：逐条指出文中的模板化衔接、形容词堆叠、句式过于工整、播音腔对话或说教式结尾。
-3. **人类口吻改写示范**：挑出 2~3 句最明显的 AI 味原句，给出「原句 → 人类自然口吻改写」对照示范。`
+1. **诊断结论**：低 / 中 / 高风险，并说明主要依据。不要使用伪精确百分制。
+2. **作者文风基线**：概括本文稳定存在的视角、句段节奏、对白密度与修辞习惯，后续判断必须以此为基线。
+3. **证据清单**：最多列 6 项。每项引用原句，标明问题类型、阅读影响和判断置信度。重点检查机械复述、无依据总结、连续同构句、生硬转折、播音腔对白、人物反应跳步与因果断层。
+4. **保留项**：指出哪些重复、短句、修辞或口头表达属于有功能的作者选择，不建议改动。
+5. **最小改写示范**：只改 2~3 个最确定的问题，给出“原句 → 建议”，保持人物口吻和原文信息量。
 
+必须优先引用机器体检给出的统计证据，再补充体检没覆盖到的口语与对白问题。
+禁止因为出现“仿佛、然而、深吸一口气”等单个词就判定有问题；必须结合频率、上下文功能和作者文风判断。`
+
+    const systemPrompt = style ? `${taskPrompt}\n\n${style}` : taskPrompt
     const res = await callThirdPartyAIWithFallback(
       aiCandidates,
       [

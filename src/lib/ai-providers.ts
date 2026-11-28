@@ -126,13 +126,14 @@ export async function callThirdPartyAI(
     model: string
   },
   messages: { role: string; content: string }[],
-  options?: { stream?: boolean; temperature?: number }
+  options?: { stream?: boolean; temperature?: number; signal?: AbortSignal }
 ): Promise<{ ok: boolean; reply?: string; error?: string; stream?: ReadableStream<Uint8Array>; totalTokens?: number }> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`
 
   try {
     const res = await fetch(url, {
       method: 'POST',
+      signal: options?.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,

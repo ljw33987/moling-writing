@@ -2,7 +2,7 @@
 
 ## 1. 仓库描述
 ```
-墨灵写作 — AI 驱动的网文创作平台 | AI-Powered Novel Writing Platform
+爆更猫AI写作 — AI 驱动的网文创作平台 | AI-Powered Novel Writing Platform
 ```
 
 ## 2. Topics（标签）

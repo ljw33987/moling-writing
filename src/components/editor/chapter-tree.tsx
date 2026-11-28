@@ -73,6 +73,7 @@ interface Props {
   currentChapterId: string | null
   onSelect: (id: string) => void
   onChange: (chapterId?: string) => void
+  onExtractChapter: (chapter: Chapter) => void
 }
 
 // 所有章节的扁平列表（带 volumeId），用于跨卷拖拽
@@ -80,7 +81,7 @@ interface FlatChapter extends Chapter {
   volumeId: string
 }
 
-export function ChapterTree({ novel, currentChapterId, onSelect, onChange }: Props) {
+export function ChapterTree({ novel, currentChapterId, onSelect, onChange, onExtractChapter }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(novel.volumes.map((v) => v.id))
   )
@@ -729,7 +730,12 @@ ${parseTarget.text.slice(0, 7000)}`,
                             onSelect={onSelect}
                             onRename={() => handleRename(c, 'chapter')}
                             onDelete={() => handleDelete(c.id, 'chapter', c.title)}
+                            isOutline={vol.isOutline}
                             onParse={() => {
+                              if (!vol.isOutline) {
+                                onExtractChapter(c)
+                                return
+                              }
                               const plain = (c.content || '').replace(/<[^>]+>/g, '\n').trim()
                               if (!plain) {
                                 toast.error('该文档暂无内容可解析')
@@ -817,7 +823,14 @@ ${parseTarget.text.slice(0, 7000)}`,
 
       {/* 首次删除确认弹窗（确认一次后不再提醒） */}
       <Dialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent
+          className="sm:max-w-[400px]"
+          onKeyDown={(event) => {
+            if (event.key !== 'Delete' || event.repeat) return
+            event.preventDefault()
+            void confirmDelete()
+          }}
+        >
           <DialogHeader>
             <DialogTitle>确认删除</DialogTitle>
           </DialogHeader>
@@ -840,7 +853,7 @@ ${parseTarget.text.slice(0, 7000)}`,
               取消
             </Button>
             <Button variant="destructive" size="sm" onClick={confirmDelete}>
-              确认删除
+              确认删除（Delete）
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -944,10 +957,22 @@ function DroppableVolumeRow({
     <div>
       <div
         ref={setNodeRef}
+        tabIndex={0}
+        aria-label={`${vol.title}，按 Delete 可删除卷`}
+        title="点击选中卷；按 Delete 删除该卷"
         className={`group flex items-center px-2 py-1 rounded-sm cursor-pointer transition-colors ${
           isOver ? 'bg-[var(--brand-soft)] ring-1 ring-primary' : 'hover:bg-muted/50'
         }`}
-        onClick={onToggle}
+        onClick={(event) => {
+          event.currentTarget.focus()
+          onToggle()
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Delete') return
+          event.preventDefault()
+          event.stopPropagation()
+          onDelete()
+        }}
       >
         {selectMode && (
           <input
@@ -1042,6 +1067,7 @@ function SortableChapter({
   onSelect,
   onRename,
   onDelete,
+  isOutline,
   onParse,
   onMoveUp,
   onMoveDown,
@@ -1059,6 +1085,7 @@ function SortableChapter({
   onSelect: (id: string) => void
   onRename: () => void
   onDelete: () => void
+  isOutline: boolean
   onParse: () => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -1124,7 +1151,7 @@ function SortableChapter({
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onParse}>
             <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
-            AI 解析角色/卷纲
+            {isOutline ? 'AI 解析角色/卷纲' : '从本章提取设定'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={isFirst} onClick={onMoveUp}>

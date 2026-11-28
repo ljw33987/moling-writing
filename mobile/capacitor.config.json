@@ -1,6 +1,6 @@
 {
   "appId": "com.bifeng.writing",
-  "appName": "笔锋写作",
+  "appName": "爆更猫AI写作",
   "webDir": "www",
   "server": {
     "url": "http://192.168.10.203:3100",

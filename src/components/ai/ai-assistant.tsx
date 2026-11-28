@@ -42,6 +42,8 @@ import {
 } from '@/components/ui/tooltip'
 import {
   Send,
+  Square,
+  SlidersHorizontal,
   Sparkles,
   Loader2,
   Wand2,
@@ -70,22 +72,58 @@ import {
   GitBranch,
   ArrowDownToLine,
 } from 'lucide-react'
-import { api, countWords } from '@/lib/helpers'
-import { allowsAiProseWriteback } from '@/lib/ai-writing-intent'
+import { api, countWords, stripHtml } from '@/lib/helpers'
+import { allowsAiProseWriteback, CONTINUATION_CONTEXT_LENGTH, MAX_CHAPTER_DRAFT_LENGTH } from '@/lib/ai-writing-intent'
+import { getStoredSkillIds, saveStoredSkillIds, WRITING_SKILLS } from '@/lib/writing-skills'
 import { getSavedPrompts, SAVED_PROMPTS_EVENT, type SavedPromptItem } from '@/lib/saved-prompts'
 import { toast } from 'sonner'
-import { PLATFORM_MODEL_ALIASES, type PublicAiModel } from '@/lib/ai-models'
+import { hasProAiAccess, PLATFORM_MODEL_ALIASES, type PublicAiModel } from '@/lib/ai-models'
 import type { AiReferenceOption } from '@/app/api/ai/references/route'
 import { MarkdownRenderer, markdownToPlainText } from './markdown-renderer'
 import { WritingStyleDialog, type WritingStyleItem } from './writing-style-dialog'
+import { DeepChapterDialog } from '@/components/editor/multi-agent-studio'
+import { Checkbox } from '@/components/ui/checkbox'
+
+const DAILY_TASKS = [
+  {
+    id: 'chapter_gen',
+    label: '写初稿',
+    description: '填写本章要发生的核心事件，直接生成一篇完整初稿。生成后先预览，再确认写入当前章节。',
+  },
+  {
+    id: 'continue',
+    label: '续写',
+    description: '读取当前章节末尾并接着往下写，只生成新增内容，适合正文还没写完时使用。',
+    instruction: '接续当前章的末尾，直接输出新增正文。',
+  },
+  {
+    id: 'polish',
+    label: '润色',
+    description: '保留当前章节的剧情和人物，只调整表达、节奏与流畅度。生成后可预览并替换整章。',
+    instruction: '润色当前章节的完整正文，保留剧情、人物和细节，直接输出润色后的完整正文。',
+  },
+  {
+    id: 'editor_review',
+    label: '审稿',
+    description: '只检查当前章节的节奏、人物、冲突和逻辑问题，给出建议，不会改写或写入正文。',
+    instruction: '审稿当前章节，指出影响节奏、人物口吻和追读的具体问题，并给出改法。',
+  },
+] as const
+
+interface ChapterReplacement {
+  chapterId: string
+  original: string
+  text: string
+}
 
 interface Preset {
   id: string
   name: string
   category: string
   description: string
-  system: string
 }
+
+type PendingPreset = Pick<Preset, 'id' | 'name' | 'description'> & { targetChapterId?: string }
 
 interface ReferencedItem {
   type: AiReferenceOption['type']
@@ -100,6 +138,9 @@ interface Message {
   modelLabel?: string
   references?: ReferencedItem[]
   isError?: boolean
+  chapterId?: string | null
+  usesChapterDraft?: boolean
+  appliedSkills?: string[]
 }
 
 interface PromptTag {
@@ -129,6 +170,20 @@ const BUILTIN_PROMPT_TAGS: PromptTag[] = [
     prompt: '减少抽象心理总结与说教句，多用具体动作、眼神与环境细节推进场景。',
     builtin: true,
   },
+  {
+    id: 'semantic_audit',
+    label: '语义终审（去AI味兜底）',
+    prompt:
+      '【语义终审】以下自检不看任何禁词表，只凭语感判断：1. 逐段自问这句话是不是只有 AI 会这么写——判断依据是句子的功能，不是词：这句在报账情绪吗？在替作者解释吗？在给普通事贴标签吗？是在换说法复读上一句吗？2. 挑出读起来「太顺、太齐、太懂事」的三处（句式太规整、语气太中立、反应太得体），各改一处：打断它、说半截、让它失态。3. 检查有没有为了「像人」而硬加的毛边（硬塞的语气词、硬凑的琐碎细节），有就删掉——刻意的不完美也是 AI 味。4. 剧情事实、数字与人物称呼一个字不动。不要输出自检过程。',
+    builtin: true,
+  },
+  {
+    id: 'deai_rewrite_rules',
+    label: '去AI味改写规则（对话修改用）',
+    prompt:
+      '【去AI味改写规则】本次修改必须遵守：1. 情绪不报账：删掉直接命名情绪的句子（心中一紧、感到一阵寒意），改成动作、身体反应或现场声响；删掉的位置不要造比喻顶上。2. 打散模板感：不连续三句长度接近；删三连排比与对仗；删只承上启下的过渡句（与此同时、就这样）；同一角色受挫时的身体反应不要复读同一套（同一个人「抖」了五回那种）。3. 冲突解法不能靠现场冒出的新规则/新批注，关键规则生效前至少埋一次线索。4. 弹幕、围观人群不替读者总结或夸主角，只写具体行为。5. 环境三问：行动条件/可交互物件/生理感受，三样都不沾就删；比喻分两级——带具体信息的保留（像谁把生锈的针管泡在福尔马林里），空装饰类比（X般的Y）删。6. 禁语，改后文本不得出现：不禁、仿佛、宛如、一抹、深吸一口气、嘴角微微上扬、眼神微眯、眼底闪过、命运的齿轮、空气仿佛凝固、心中五味杂陈、下意识。7. 只改病灶句，其余内容逐字保留；剧情事实、规则条目、数字、人物称呼一个字不动。',
+    builtin: true,
+  },
 ]
 
 interface MarketPromptItem {
@@ -148,6 +203,7 @@ interface AiActionHistoryItem {
   words: number
   createdAt: string
   allowWriteback?: boolean
+  chapterId?: string | null
 }
 
 interface ChapterBrief {
@@ -225,10 +281,7 @@ function parseMultiChapterSections(
   const refChapterIds = new Set(
     (messageRefs || []).filter((r) => r.type === 'chapter').map((r) => r.id)
   )
-  const candidates =
-    refChapterIds.size >= 2
-      ? allChapters.filter((c) => refChapterIds.has(c.id))
-      : allChapters
+  const candidates = allChapters.filter((chapter) => refChapterIds.has(chapter.id))
 
   if (candidates.length < 2 || !content?.trim()) {
     return { preamble: '', sections: [], postscript: '' }
@@ -390,12 +443,12 @@ function splitSingleChapterAndNotes(content: string): {
 interface Props {
   novelId: string
   chapterId: string | null
+  chapterContent: string
   writingStyleId?: string | null
   chapters?: ChapterBrief[]
   onWritingStyleChange?: (styleId: string | null) => void
   onChaptersUpdated?: () => void
-  onInsertText: (text: string) => void
-  onReplaceChapterText?: (text: string) => void
+  onApplyChapterText: (action: 'append' | 'replace', text: string, targetChapterId: string, original?: string) => boolean
 }
 
 const REF_TYPE_META: Record<
@@ -429,29 +482,298 @@ const REF_TYPE_META: Record<
   },
 }
 
+type ChapterDiffCharSeg = { text: string; changed: boolean }
+
+type ChapterDiffRow = {
+  status: 'same' | 'removed' | 'added' | 'changed'
+  left?: string
+  right?: string
+  leftSegs?: ChapterDiffCharSeg[]
+  rightSegs?: ChapterDiffCharSeg[]
+}
+
+const CHAPTER_SENTENCE_END_RE = /[。！？!?…；;”’"』」～~〕）)】]$/
+
+// 对比前统一格式：去掉首尾空格/缩进，把被硬换行拆断的句子合并回完整段落
+function normalizeChapterParagraphs(raw: string): string[] {
+  const lines = raw
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/^[ \t\u3000]+/, '').replace(/[ \t\u3000]+$/, ''))
+    .filter((line) => line.length > 0)
+  const paragraphs: string[] = []
+  let buffer = ''
+  for (const line of lines) {
+    buffer += line
+    if (CHAPTER_SENTENCE_END_RE.test(line)) {
+      paragraphs.push(buffer)
+      buffer = ''
+    }
+  }
+  if (buffer) paragraphs.push(buffer)
+  return paragraphs
+}
+
+// 比较键：忽略所有空白字符，避免空格/换行差异造成误判
+function chapterParagraphKey(para: string): string {
+  return para.replace(/[\s\u3000]+/g, '')
+}
+
+function splitParagraphsForDiff(text: string): string[] {
+  return normalizeChapterParagraphs(text)
+}
+
+// 字符级 diff：找出两段文字中真正变化的字符
+function diffChapterChars(a: string, b: string): { left: ChapterDiffCharSeg[]; right: ChapterDiffCharSeg[] } {
+  const n = a.length
+  const m = b.length
+  if (n === 0 || m === 0 || n * m > 1_000_000) {
+    return { left: [{ text: a, changed: true }], right: [{ text: b, changed: true }] }
+  }
+  const width = m + 1
+  const dp = new Uint32Array((n + 1) * width)
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i * width + j] =
+        a[i] === b[j] ? dp[(i + 1) * width + j + 1] + 1 : Math.max(dp[(i + 1) * width + j], dp[i * width + j + 1])
+    }
+  }
+  const pushSeg = (arr: ChapterDiffCharSeg[], text: string, changed: boolean) => {
+    const last = arr[arr.length - 1]
+    if (last && last.changed === changed) last.text += text
+    else arr.push({ text, changed })
+  }
+  const left: ChapterDiffCharSeg[] = []
+  const right: ChapterDiffCharSeg[] = []
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      pushSeg(left, a[i], false)
+      pushSeg(right, b[j], false)
+      i++
+      j++
+    } else if (dp[(i + 1) * width + j] >= dp[i * width + j + 1]) {
+      pushSeg(left, a[i], true)
+      i++
+    } else {
+      pushSeg(right, b[j], true)
+      j++
+    }
+  }
+  while (i < n) {
+    pushSeg(left, a[i], true)
+    i++
+  }
+  while (j < m) {
+    pushSeg(right, b[j], true)
+    j++
+  }
+  return { left, right }
+}
+
+function diffChapterParagraphs(a: string[], b: string[]): ChapterDiffRow[] {
+  const n = a.length
+  const m = b.length
+  const keysA = a.map(chapterParagraphKey)
+  const keysB = b.map(chapterParagraphKey)
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0))
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = keysA[i] === keysB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+    }
+  }
+  const rows: ChapterDiffRow[] = []
+  let pendingR: string[] = []
+  let pendingA: string[] = []
+  // 相邻的删除段/新增段两两配对成「修改行」，做段内字符级 diff
+  const flushPending = () => {
+    const k = Math.min(pendingR.length, pendingA.length)
+    for (let t = 0; t < k; t++) {
+      const l = pendingR[t]
+      const r = pendingA[t]
+      const segs = diffChapterChars(l, r)
+      rows.push({ status: 'changed', left: l, right: r, leftSegs: segs.left, rightSegs: segs.right })
+    }
+    for (let t = k; t < pendingR.length; t++) rows.push({ status: 'removed', left: pendingR[t] })
+    for (let t = k; t < pendingA.length; t++) rows.push({ status: 'added', right: pendingA[t] })
+    pendingR = []
+    pendingA = []
+  }
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (keysA[i] === keysB[j]) {
+      flushPending()
+      rows.push({ status: 'same', left: a[i], right: b[j] })
+      i++
+      j++
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      pendingR.push(a[i])
+      i++
+    } else {
+      pendingA.push(b[j])
+      j++
+    }
+  }
+  while (i < n) {
+    pendingR.push(a[i])
+    i++
+  }
+  while (j < m) {
+    pendingA.push(b[j])
+    j++
+  }
+  flushPending()
+  return rows
+}
+
+function ChapterDiffCell({ side, row }: { side: 'old' | 'new'; row: ChapterDiffRow }) {
+  const isOld = side === 'old'
+  const text = isOld ? row.left : row.right
+  const isDiff = row.status !== 'same'
+  const diffClass = isOld
+    ? 'border-l-2 border-red-400 bg-red-500/10'
+    : 'border-l-2 border-emerald-400 bg-emerald-500/10'
+  if (text == null) {
+    return (
+      <div className="h-full rounded-md border-l-2 border-dashed border-muted-foreground/30 bg-muted/20 px-2 py-1">
+        <p className="select-none text-[13px] italic tracking-normal text-muted-foreground/60">
+          （{isOld ? '此段已删除' : '此段为新增'}）
+        </p>
+      </div>
+    )
+  }
+  const segs = isOld ? row.leftSegs : row.rightSegs
+  return (
+    <div className={`h-full rounded-md px-2 py-1 indent-[2em] ${isDiff ? diffClass : ''}`}>
+      {row.status === 'changed' && segs
+        ? segs.map((seg, segIndex) => (
+            <span
+              key={segIndex}
+              className={
+                seg.changed
+                  ? isOld
+                    ? 'rounded-[2px] bg-red-400/50 text-red-950'
+                    : 'rounded-[2px] bg-emerald-400/50 text-emerald-950'
+                  : undefined
+              }
+            >
+              {seg.text}
+            </span>
+          ))
+        : text}
+    </div>
+  )
+}
+
+function ChapterReplacementDiffPreview({ original, next }: { original: string; next: string }) {
+  const rows = useMemo(
+    () => diffChapterParagraphs(splitParagraphsForDiff(original), splitParagraphsForDiff(next)),
+    [original, next]
+  )
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [markers, setMarkers] = useState<{ top: number; height: number }[]>([])
+
+  // 差异行位置标记（滚动条色条）
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const raw: { top: number; height: number }[] = []
+    el.querySelectorAll<HTMLElement>('[data-diff-row="1"]').forEach((node) => {
+      raw.push({
+        top: (node.offsetTop / el.scrollHeight) * 100,
+        height: Math.max((node.offsetHeight / el.scrollHeight) * 100, 0.8),
+      })
+    })
+    const merged: { top: number; height: number }[] = []
+    for (const seg of raw) {
+      const prev = merged[merged.length - 1]
+      if (prev && seg.top <= prev.top + prev.height + 0.5) {
+        prev.height = Math.max(prev.height, seg.top + seg.height - prev.top)
+      } else {
+        merged.push({ ...seg })
+      }
+    }
+    setMarkers(merged)
+  }, [rows])
+
+  return (
+    <div className="min-w-0 rounded-md border p-4">
+      <div className="mb-2 grid grid-cols-2 gap-x-3">
+        <p className="font-medium">现有正文</p>
+        <p className="font-medium">待写入正文</p>
+      </div>
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          className="relative max-h-[56dvh] overflow-y-auto break-words pr-3 text-[16px] leading-[1.95] tracking-[0.015em] text-foreground"
+        >
+          {rows.length === 0 && <p className="text-sm text-muted-foreground">暂无正文</p>}
+          {rows.map((row, index) => (
+            <div
+              key={index}
+              data-diff-row={row.status !== 'same' ? '1' : undefined}
+              className={`grid grid-cols-2 gap-x-3 ${index > 0 ? 'mt-[1.05em]' : ''}`}
+            >
+              <ChapterDiffCell side="old" row={row} />
+              <ChapterDiffCell side="new" row={row} />
+            </div>
+          ))}
+        </div>
+        {markers.length > 0 && (
+          <div aria-hidden className="pointer-events-none absolute right-0 top-0 h-full w-1.5 rounded-full bg-muted/60">
+            {markers.map((seg, index) => (
+              <span
+                key={index}
+                className="absolute right-0 w-full rounded-full bg-amber-500/80"
+                style={{ top: `${Math.min(seg.top, 100 - seg.height)}%`, height: `${seg.height}%` }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function AiAssistant({
   novelId,
   chapterId,
+  chapterContent,
   writingStyleId,
   chapters = [],
   onWritingStyleChange,
   onChaptersUpdated,
-  onInsertText,
-  onReplaceChapterText,
+  onApplyChapterText,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [presets, setPresets] = useState<Preset[]>([])
   const [presetOpen, setPresetOpen] = useState(false)
-  const [pendingPreset, setPendingPreset] = useState<Preset | null>(null)
+  const [pendingPreset, setPendingPreset] = useState<PendingPreset | null>(null)
   const [presetPromptInput, setPresetPromptInput] = useState('')
-  const [confirmReplaceText, setConfirmReplaceText] = useState<string | null>(null)
+  const [replacement, setReplacement] = useState<ChapterReplacement | null>(null)
+  const [deepChapter, setDeepChapter] = useState<{ chapterId: string; goal: string } | null>(null)
   // 分支讨论窗口（类似 ChatGPT Branch：引用消息到独立窗口讨论，完成后合并回主会话）
   const [branchSeed, setBranchSeed] = useState<string | null>(null)
   const [branchMessages, setBranchMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
   const [branchInput, setBranchInput] = useState('')
   const [branchLoading, setBranchLoading] = useState(false)
+  const [activeSkillIds, setActiveSkillIds] = useState<string[] | undefined>()
+
+  useEffect(() => {
+    const syncSkills = () => setActiveSkillIds(getStoredSkillIds(novelId))
+    syncSkills()
+    window.addEventListener('storage', syncSkills)
+    return () => window.removeEventListener('storage', syncSkills)
+  }, [novelId])
+
+  const updateSkills = (ids: string[] | undefined) => {
+    setActiveSkillIds(ids)
+    saveStoredSkillIds(novelId, ids)
+  }
 
   // 模型选择（仅展示自定义脱敏名称，如 baogeng_v4 / baogeng_v4_pro）
   const [models, setModels] = useState<(PublicAiModel & { locked?: boolean })[]>(PLATFORM_MODEL_ALIASES)
@@ -489,10 +811,23 @@ export function AiAssistant({
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const lastRequestRef = useRef<{ text: string; preset?: string; refs?: ReferencedItem[] } | null>(null)
+  const generationAbortRef = useRef<AbortController | null>(null)
+  const lastRequestRef = useRef<{ text: string; preset?: string; refs?: ReferencedItem[]; chapterId: string | null; usesChapterDraft: boolean } | null>(null)
+  const currentChapterTitle = chapters.find((chapter) => chapter.id === chapterId)?.title
+
+  const previewReplacement = (text: string, targetChapterId: string, original = chapterContent) => {
+    if (targetChapterId !== chapterId || original !== chapterContent) {
+      toast.error('原章节已切换或正文已更新，请回到原章重新生成。')
+      return false
+    }
+    const body = markdownToPlainText(splitSingleChapterAndNotes(text).bodyMarkdown).trim()
+    if (!body) return false
+    setReplacement({ chapterId: targetChapterId, original, text: body })
+    return true
+  }
 
   useEffect(() => {
-    api<{ presets: Preset[] }>('/api/ai')
+    api<{ presets: Preset[] }>('/api/ai?scope=assistant')
       .then((r) => setPresets(r.presets))
       .catch(() => { })
 
@@ -529,7 +864,13 @@ export function AiAssistant({
       if (savedV2) {
         const parsed = JSON.parse(savedV2)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setPromptTags(parsed)
+          // 内置标签始终保留（代码新增的内置标签能出现在面板上）；
+          // 用户改过的内置标签以本地缓存为准；自定义标签从缓存恢复
+          const merged = [
+            ...BUILTIN_PROMPT_TAGS.map((b) => parsed.find((t: PromptTag) => t.id === b.id) || b),
+            ...parsed.filter((t: PromptTag) => !t.builtin),
+          ]
+          setPromptTags(merged)
         }
       } else {
         const legacy = localStorage.getItem('moling_ai_prompt_tags')
@@ -668,7 +1009,7 @@ export function AiAssistant({
       } else {
         setActionHistory([])
       }
-    } catch {}
+    } catch { }
     historyHydratedRef.current = novelId
   }, [novelId])
 
@@ -677,7 +1018,7 @@ export function AiAssistant({
     try {
       const cleanMsgs = messages.filter((m) => m.content?.trim()).slice(-40)
       localStorage.setItem(`moling_ai_chat_history_${novelId}`, JSON.stringify(cleanMsgs))
-    } catch {}
+    } catch { }
   }, [messages, novelId, loading])
 
   const appendActionHistory = useCallback(
@@ -692,7 +1033,7 @@ export function AiAssistant({
         const next = [item, ...prev].slice(0, 50)
         try {
           localStorage.setItem(`moling_ai_action_history_${novelId}`, JSON.stringify(next))
-        } catch {}
+        } catch { }
         return next
       })
     },
@@ -708,7 +1049,9 @@ export function AiAssistant({
   }
 
   const handleApplyChapterSections = async (msgIdx: number, sections: ParsedChapterSection[]) => {
-    if (!canWriteReply(msgIdx) || sections.length === 0) return
+    const targetIds = new Set(messages[msgIdx]?.references?.filter((ref) => ref.type === 'chapter').map((ref) => ref.id))
+    if (messages[msgIdx]?.usesChapterDraft || !canWriteReply(msgIdx) ||
+        sections.length === 0 || sections.some((section) => !targetIds.has(section.chapterId))) return
     const key = sections.length === 1 ? `${msgIdx}-${sections[0].chapterId}` : `${msgIdx}-all`
     setApplyingKey(key)
     try {
@@ -733,6 +1076,7 @@ export function AiAssistant({
           preview: sec.content.slice(0, 100),
           fullText: sec.content,
           words: sec.nextWords,
+          chapterId: sec.chapterId,
         })
       }
       setAppliedChapters((prev) => ({
@@ -839,16 +1183,34 @@ export function AiAssistant({
   const sendMessage = async (
     content: string,
     preset?: string,
-    overrideRefs?: ReferencedItem[]
+    overrideRefs?: ReferencedItem[],
+    usesChapterDraft = false,
   ) => {
     if (!content.trim() || loading) return
+    const requestChapterId = chapterId
+    const isInitialDraft = usesChapterDraft && preset === 'chapter_gen'
+    const chapterDraft = usesChapterDraft && !isInitialDraft ? stripHtml(chapterContent) : ''
+    if (usesChapterDraft && !requestChapterId) {
+      toast.error('请先选择章节。')
+      return
+    }
+    if (usesChapterDraft && !isInitialDraft && !chapterDraft && preset !== 'continue') {
+      toast.error('请先打开有正文的章节。')
+      return
+    }
+    if (chapterDraft.length > MAX_CHAPTER_DRAFT_LENGTH && preset !== 'continue') {
+      toast.error('正文超出单次处理范围，请分段处理。')
+      return
+    }
     const refsToUse = overrideRefs ?? referencedItems
-    lastRequestRef.current = { text: content, preset, refs: refsToUse }
+    lastRequestRef.current = { text: content, preset, refs: refsToUse, chapterId: requestChapterId, usesChapterDraft }
     const currentModelObj = models.find((m) => m.id === selectedModel)
     const userMsg: Message = {
       role: 'user',
       content,
       preset,
+      chapterId: requestChapterId,
+      usesChapterDraft,
       modelLabel: currentModelObj?.label || selectedModel,
       references: refsToUse.length > 0 ? [...refsToUse] : undefined,
     }
@@ -860,12 +1222,17 @@ export function AiAssistant({
     setMentionOpen(false)
     setLoading(true)
 
+    const controller = new AbortController()
+    generationAbortRef.current = controller
+    let fullContent = ''
+
     setMessages((prev) => [
       ...prev,
       {
         role: 'assistant',
         content: '',
         preset,
+        chapterId: requestChapterId,
         modelLabel: currentModelObj?.label || selectedModel,
       },
     ])
@@ -873,6 +1240,7 @@ export function AiAssistant({
     try {
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({
@@ -880,10 +1248,14 @@ export function AiAssistant({
           preset: preset || undefined,
           message: content,
           novelId,
-          chapterId,
+          chapterId: requestChapterId,
+          chapterDraft: usesChapterDraft
+            ? preset === 'continue' ? chapterDraft.slice(-CONTINUATION_CONTEXT_LENGTH) : chapterDraft
+            : undefined,
           modelId: selectedModel,
           referencedItems: refsToUse,
           writingStyleId: activeStyleId || 'none',
+          skillIds: activeSkillIds,
           promptTags: allPromptTags
             .filter((t) => activeTagIds.includes(t.id))
             .map((t) => t.prompt),
@@ -896,6 +1268,7 @@ export function AiAssistant({
           copy[copy.length - 1] = {
             role: 'assistant',
             content: '登录已过期，请重新登录后继续使用 AI。',
+            isError: true,
           }
           return copy
         })
@@ -908,6 +1281,7 @@ export function AiAssistant({
           copy[copy.length - 1] = {
             role: 'assistant',
             content: err.error || 'Token 余额不足，请前往用户中心充值。',
+            isError: true,
           }
           return copy
         })
@@ -921,7 +1295,9 @@ export function AiAssistant({
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let fullContent = ''
+      let appliedSkills: string[] = []
+      let streamError = ''
+      let streamFinished = false
       let lastUpdateTime = 0
       const UPDATE_INTERVAL = 50
 
@@ -936,7 +1312,10 @@ export function AiAssistant({
               content: fullContent,
               preset,
               modelLabel: currentModelObj?.label || selectedModel,
-          references: userMsg.references,
+              references: userMsg.references,
+              chapterId: requestChapterId,
+              usesChapterDraft,
+              appliedSkills,
             }
             return copy
           })
@@ -961,22 +1340,16 @@ export function AiAssistant({
                 fullContent += parsed.delta
                 updateUI()
               }
-              if (parsed.error) {
-                setMessages((prev) => {
-                  const copy = [...prev]
-                  copy[copy.length - 1] = {
-                    role: 'assistant',
-                    content: `出错了：${parsed.error}`,
-                    isError: true,
-                  }
-                  return copy
-                })
-              }
+              if (parsed.error) streamError = String(parsed.error)
+              if (parsed.done === true) streamFinished = true
+              if (Array.isArray(parsed.appliedSkills)) appliedSkills = parsed.appliedSkills
             } catch { }
           }
         }
       }
 
+      if (streamError) throw new Error(streamError)
+      if (!streamFinished || !fullContent.trim()) throw new Error('回复未完整生成，请重试。')
       updateUI(true)
       if (fullContent.trim()) {
         appendActionHistory({
@@ -986,30 +1359,43 @@ export function AiAssistant({
           preview: markdownToPlainText(fullContent).slice(0, 100),
           fullText: fullContent,
           words: countWords(markdownToPlainText(fullContent)),
+          chapterId: requestChapterId,
         })
       }
     } catch (e: any) {
+      if (e?.name === 'AbortError') {
+        setMessages((prev) => {
+          const copy = [...prev]
+          const last = copy[copy.length - 1]
+          if (!last || last.role !== 'assistant') return prev
+          if (!last.content.trim() && !fullContent.trim()) return copy.slice(0, -1)
+          copy[copy.length - 1] = {
+            ...last,
+            content: fullContent || last.content,
+          }
+          return copy
+        })
+        return
+      }
       setMessages((prev) => {
         const copy = [...prev]
-        const last = copy[copy.length - 1]
-        if (last && last.role === 'assistant' && !last.content) {
-          copy[copy.length - 1] = {
-            role: 'assistant',
-            content: `抱歉，生成失败：${e.message || '网络异常，请重试'}`,
-            isError: true,
-          }
-        } else {
-          copy.push({
-            role: 'assistant',
-            content: `抱歉，生成失败：${e.message || '网络异常，请重试'}`,
-            isError: true,
-          })
+        copy[copy.length - 1] = {
+          role: 'assistant',
+          content: `生成失败：${e.message || '网络异常，请重试'}`,
+          isError: true,
         }
         return copy
       })
     } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null
       setLoading(false)
     }
+  }
+
+  const pauseGeneration = () => {
+    if (!generationAbortRef.current) return
+    generationAbortRef.current.abort()
+    toast.info('已暂停生成，已生成的内容会保留。')
   }
 
   const handleSend = () => {
@@ -1034,23 +1420,46 @@ export function AiAssistant({
     const textToUse = userContent || lastRequestRef.current?.text || ''
     const refsToUse = userRefs || lastRequestRef.current?.refs
     if (!textToUse.trim()) return
+    const previous = messages[userMsgIndex] ?? lastRequestRef.current
+    if (previous?.chapterId !== undefined && previous.chapterId !== chapterId) {
+      toast.error('请回到原章节再重新生成。')
+      return
+    }
 
     if (userMsgIndex >= 0) {
       setMessages((prev) => prev.slice(0, userMsgIndex))
     }
-    void sendMessage(textToUse, presetToUse, refsToUse)
+    void sendMessage(textToUse, presetToUse, refsToUse, previous?.usesChapterDraft)
+  }
+
+  const openInitialDraft = () => {
+    if (!chapterId || loading) return
+    setPresetPromptInput(input.trim())
+    setPendingPreset({
+      id: 'chapter_gen',
+      name: '写初稿',
+      description: currentChapterTitle ? `为「${currentChapterTitle}」生成整章初稿。` : '为当前章节生成整章初稿。',
+      targetChapterId: chapterId,
+    })
+  }
+
+  const isInitialDraftPreset = pendingPreset?.id === 'chapter_gen'
+
+  const submitPendingPreset = () => {
+    const goal = presetPromptInput.trim()
+    if (!pendingPreset || !goal || loading) return
+    if (isInitialDraftPreset && pendingPreset.targetChapterId !== chapterId) {
+      toast.error('请回到原章节，或重新打开「写初稿」。')
+      return
+    }
+    setPendingPreset(null)
+    void sendMessage(isInitialDraftPreset ? `本章核心事件：\n${goal}` : goal, pendingPreset.id, undefined, isInitialDraftPreset)
   }
 
   const handlePreset = (p: Preset) => {
     setPresetOpen(false)
-    if (p.id === 'poison_check' || p.id === 'break_block') {
-      sendMessage(`请基于当前章节及引用的内容，执行「${p.name}」任务。`, p.id)
-    } else if (p.id === 'name_gen') {
-      sendMessage('请生成 10 个有特色的招式名，附带风格说明。', p.id)
-    } else if (p.id === 'golden_three') {
-      sendMessage('请基于当前小说设定，生成抓人的前三章。', p.id)
-    } else if (p.id === 'char_dialogue') {
-      sendMessage('请模拟当前小说中两个核心角色的对话，5-8 轮。', p.id)
+    if (p.id === 'break_block') {
+      void sendMessage('请基于当前章节及引用的内容，给出不同的剧情破局方向。', p.id)
     } else {
       setPresetPromptInput('')
       setPendingPreset(p)
@@ -1076,9 +1485,8 @@ export function AiAssistant({
         .slice(0, -1)
         .map((m) => `${m.role === 'user' ? '作者' : 'AI'}: ${m.content}`)
         .join('\n')
-      const compiledPrompt = `【引用片段/原讨论起点】\n"""\n${branchSeed.slice(0, 2500)}\n"""\n${
-        historyText ? `\n【分支讨论记录】\n${historyText}\n` : ''
-      }\n【作者最新问题/要求】\n${text}`
+      const compiledPrompt = `【引用片段/原讨论起点】\n"""\n${branchSeed.slice(0, 2500)}\n"""\n${historyText ? `\n【分支讨论记录】\n${historyText}\n` : ''
+        }\n【作者最新问题/要求】\n${text}`
 
       const res = await fetch('/api/ai/stream', {
         method: 'POST',
@@ -1090,6 +1498,7 @@ export function AiAssistant({
           message: compiledPrompt,
           modelId: selectedModel,
           writingStyleId: activeStyleId || 'none',
+          skillIds: activeSkillIds,
         }),
       })
       if (!res.ok || !res.body) {
@@ -1175,7 +1584,7 @@ export function AiAssistant({
     if (novelId) {
       try {
         localStorage.removeItem(`moling_ai_chat_history_${novelId}`)
-      } catch {}
+      } catch { }
     }
   }
 
@@ -1195,7 +1604,7 @@ export function AiAssistant({
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-[13.5px] leading-tight truncate">写作 AI 助手</div>
           <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-            @多文件分析 · 已注入世界观/大纲/前情
+            {currentChapterTitle || '支持引用多个章节与设定'}
           </div>
         </div>
         <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
@@ -1221,7 +1630,7 @@ export function AiAssistant({
                     if (novelId) {
                       try {
                         localStorage.removeItem(`moling_ai_action_history_${novelId}`)
-                      } catch {}
+                      } catch { }
                     }
                     toast.success('已清空历史记录')
                   }}
@@ -1241,11 +1650,10 @@ export function AiAssistant({
                   key={tab.id}
                   type="button"
                   onClick={() => setHistoryFilter(tab.id)}
-                  className={`px-2 py-0.5 rounded text-[11px] transition ${
-                    historyFilter === tab.id
+                  className={`px-2 py-0.5 rounded text-[11px] transition ${historyFilter === tab.id
                       ? 'bg-primary text-primary-foreground font-medium'
                       : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -1281,7 +1689,7 @@ export function AiAssistant({
                       {item.preview}
                     </div>
                     <div className="flex items-center gap-1.5 pt-0.5">
-                      {item.allowWriteback && <Button
+                      {item.allowWriteback && chapterId && item.chapterId === chapterId && <Button
                         type="button"
                         size="sm"
                         variant="secondary"
@@ -1290,7 +1698,7 @@ export function AiAssistant({
                           const plain = item.kind === 'reply'
                             ? markdownToPlainText(splitSingleChapterAndNotes(item.fullText).bodyMarkdown)
                             : item.fullText
-                          onInsertText(plain)
+                          if (!onApplyChapterText('append', plain, item.chapterId!)) return
                           appendActionHistory({
                             kind: 'replace',
                             allowWriteback: true,
@@ -1298,6 +1706,7 @@ export function AiAssistant({
                             preview: plain.slice(0, 100),
                             fullText: plain,
                             words: countWords(plain),
+                            chapterId: item.chapterId,
                           })
                           setHistoryOpen(false)
                         }}
@@ -1357,8 +1766,43 @@ export function AiAssistant({
             </div>
           </PopoverContent>
         </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" title="写作技能设置" aria-label="写作技能设置">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 space-y-3">
+            <div>
+              <div className="text-sm font-medium">写作技能</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">技能补充写作方法，句式和口吻跟随本次文风。</p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant={activeSkillIds === undefined ? 'default' : 'outline'} onClick={() => updateSkills(undefined)}>
+                按任务自动
+              </Button>
+              <Button size="sm" variant={activeSkillIds?.length === 0 ? 'default' : 'outline'} onClick={() => updateSkills([])}>
+                清空并关闭
+              </Button>
+            </div>
+            <details className="text-sm">
+              <summary className="cursor-pointer">{activeSkillIds?.length ? `自选技能（${activeSkillIds.length}）` : '自选技能'}</summary>
+              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto">
+                {WRITING_SKILLS.map((skill) => (
+                  <label key={skill.id} className="flex items-start gap-2 text-xs" title={skill.summary}>
+                    <Checkbox checked={activeSkillIds?.includes(skill.id) ?? false} onCheckedChange={(checked) => {
+                      const current = activeSkillIds ?? []
+                      updateSkills(checked === true ? [...current, skill.id] : current.filter((id) => id !== skill.id))
+                    }} />
+                    <span>{skill.name}</span>
+                  </label>
+                ))}
+              </div>
+            </details>
+          </PopoverContent>
+        </Popover>
         {messages.length > 0 && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px] text-muted-foreground hover:text-cinnabar" onClick={handleClear} title="清空对话">
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 rounded-[7px] text-muted-foreground hover:text-cinnabar" disabled={loading} onClick={handleClear} title="清空对话">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
@@ -1469,7 +1913,7 @@ export function AiAssistant({
                     )
                   }
                   const refChapCount = (m.references || []).filter((r) => r.type === 'chapter').length
-                  const parsed = !m.isError
+                  const parsed = !m.isError && !m.usesChapterDraft
                     ? parseMultiChapterSections(m.content, m.references, chapters)
                     : { preamble: '', sections: [], postscript: '' }
                   const isMultiCardMode =
@@ -1623,54 +2067,59 @@ export function AiAssistant({
                 })()}
                 {m.role === 'assistant' && (() => {
                   const allowWriteback = canWriteReply(i)
-                  const multiSections = !m.isError && allowWriteback
-                    ? parseMultiChapterSections(m.content, m.references, chapters).sections
-                    : []
-                  const hasMultiSections = multiSections.length >= 2
+                  const hasMultiSections = !m.usesChapterDraft && (m.references || []).filter((ref) => ref.type === 'chapter').length >= 2
+                  const canApplyHere = allowWriteback && !!m.chapterId && m.chapterId === chapterId && !loading
 
                   return (
                     <div className="mt-1.5 space-y-2">
+                      {!!m.appliedSkills?.length && (
+                        <p className="text-[10px] text-muted-foreground">已用技能 · {m.appliedSkills.join('、')}</p>
+                      )}
+                      {!m.isError && allowWriteback && m.chapterId && m.chapterId !== chapterId && !hasMultiSections && (
+                        <p className="text-[10px] text-muted-foreground">回到「{chapters.find((chapter) => chapter.id === m.chapterId)?.title || '原章节'}」可写回</p>
+                      )}
                       <div className="flex flex-wrap items-center gap-1.5">
                         {!m.isError && !hasMultiSections && (
                           <>
-                            {allowWriteback && (
+                            {canApplyHere && (
                               <>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
-                                  title="安全追加到当前章节末尾（不覆盖原稿）"
-                                  onClick={() => {
-                                    const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
-                                    const plain = markdownToPlainText(cleanBody)
-                                    onInsertText(plain)
-                                    const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
-                                    appendActionHistory({
-                                      kind: 'replace',
-                                      allowWriteback: true,
-                                      title: `追加写入「${targetTitle}」`,
-                                      preview: plain.slice(0, 100),
-                                      fullText: plain,
-                                      words: countWords(plain),
-                                    })
-                                  }}
-                                >
-                                  <Send className="w-3 h-3" />
-                                  追加到正文
-                                </Button>
-                                {onReplaceChapterText && (
+                                {(!m.usesChapterDraft || (m.preset !== 'polish' && m.preset !== 'chapter_gen')) && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="h-6 px-2.5 text-[11px] gap-1 rounded-[7px]"
+                                    title="安全追加到当前章节末尾（不覆盖原稿）"
+                                    onClick={() => {
+                                      const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
+                                      const plain = markdownToPlainText(cleanBody)
+                                      if (!m.chapterId || !onApplyChapterText('append', plain, m.chapterId)) return
+                                      const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
+                                      appendActionHistory({
+                                        kind: 'replace',
+                                        allowWriteback: true,
+                                        title: `追加写入「${targetTitle}」`,
+                                        preview: plain.slice(0, 100),
+                                        fullText: plain,
+                                        words: countWords(plain),
+                                        chapterId: m.chapterId,
+                                      })
+                                    }}
+                                  >
+                                    <Send className="w-3 h-3" />
+                                    追加到正文
+                                  </Button>
+                                )}
+                                {m.preset !== 'continue' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     className="h-6 px-2 text-[11px] gap-1 rounded-[7px] text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
                                     title="清空原章节内容并整章替换（会弹窗确认）"
                                     onClick={() => {
-                                      const cleanBody = splitSingleChapterAndNotes(m.content).bodyMarkdown
-                                      const plain = markdownToPlainText(cleanBody)
-                                      setConfirmReplaceText(plain)
+                                      if (m.chapterId) previewReplacement(m.content, m.chapterId)
                                     }}
                                   >
-                                    替换整章
+                                    {m.usesChapterDraft && m.preset === 'chapter_gen' ? '预览并写入' : '替换整章'}
                                   </Button>
                                 )}
                               </>
@@ -1863,6 +2312,46 @@ export function AiAssistant({
           </button>
         </div>
 
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {DAILY_TASKS.map((task) => (
+            <Tooltip key={task.id}>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs"
+                    disabled={loading || !chapterId} onClick={() => {
+                      if (task.id === 'chapter_gen') {
+                        openInitialDraft()
+                        return
+                      }
+                      const message = [task.instruction, input.trim()].filter(Boolean).join('\n\n')
+                      void sendMessage(message, task.id, undefined, true)
+                    }}>
+                    {task.label}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-72 leading-relaxed">
+                {task.description}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button type="button" variant="secondary" size="sm" className="h-7 px-2 text-xs gap-1"
+                  disabled={loading || !chapterId} onClick={() => {
+                    if (chapterId) setDeepChapter({ chapterId, goal: input.trim() })
+                  }}>
+                  <Wand2 className="h-3.5 w-3.5" /> 深度成章
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-72 leading-relaxed">
+              适合关键转折、高潮或容易出现设定冲突的章节。先生成章纲并检查设定、动机和时间线，通过后再生成正文，可选精修。
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
         {/* 一体化 AI 输入框 */}
         <div className="rounded-[12px] border border-[var(--line-2)] bg-[var(--surface-2)] focus-within:border-primary focus-within:bg-card transition-colors p-2.5">
           <Textarea
@@ -1914,7 +2403,7 @@ export function AiAssistant({
                     </SelectTrigger>
                     <SelectContent align="start">
                       {models.map((m) => {
-                        const locked = !!m.locked || (!!m.isPro && userPlan === 'free')
+                        const locked = !!m.locked || (!!m.isPro && !hasProAiAccess(userPlan))
                         return (
                           <SelectItem key={m.id} value={m.id} disabled={locked} className="text-xs">
                             <div className="flex flex-col gap-0.5 py-0.5">
@@ -1951,7 +2440,7 @@ export function AiAssistant({
                 ? 'bg-primary/10 text-primary border border-primary/25 font-medium'
                 : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
                 }`}
-              title="设置或提炼我的专属写作风格（去 AI 味）"
+              title="设置或从样文提炼作者文风"
             >
               <Feather className="w-3 h-3 shrink-0" />
               <span className="truncate">
@@ -1964,8 +2453,8 @@ export function AiAssistant({
                 <button
                   type="button"
                   className={`h-6 px-2 rounded-[6px] text-[11px] inline-flex items-center gap-1 transition-colors shrink-0 ${activeTagIds.length > 0
-                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-3)]'
                     }`}
                   title="添加附加提示词标签（如：简要说明修改点）"
                 >
@@ -2001,11 +2490,10 @@ export function AiAssistant({
                       return (
                         <div
                           key={tag.id}
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${
-                            isEditingThis
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition ${isEditingThis
                               ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium'
                               : 'border-border bg-card hover:bg-muted text-foreground'
-                          }`}
+                            }`}
                         >
                           <button
                             type="button"
@@ -2157,28 +2645,50 @@ export function AiAssistant({
               </PopoverContent>
             </Popover>
 
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!input.trim() || loading}
-              className="ml-auto w-7 h-7 rounded-[8px] ai-brand-mark text-white inline-flex items-center justify-center disabled:opacity-45 hover:opacity-95 transition-opacity shrink-0"
-              title="发送"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </button>
+            {loading ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={pauseGeneration}
+                    className="ml-auto h-7 px-2 rounded-[8px] bg-destructive text-destructive-foreground inline-flex items-center gap-1 text-[11px] hover:opacity-90 transition-opacity shrink-0"
+                  >
+                    <Square className="w-3 h-3 fill-current" />
+                    暂停生成
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-64 leading-relaxed">
+                  中断当前模型请求并保留已经生成的内容，不会自动写入正文。
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="ml-auto w-7 h-7 rounded-[8px] ai-brand-mark text-white inline-flex items-center justify-center disabled:opacity-45 hover:opacity-95 transition-opacity shrink-0"
+                title="发送"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         {/* 底部快捷分析标签 */}
         <div className="flex flex-wrap gap-1.5 mt-2">
           {[
-            { label: '深度解读分析', prompt: '请深度解读并分析当前章节及关联材料的核心剧情与亮点' },
-            { label: '对比检查逻辑漏洞', prompt: '请对比检查当前章节与已有设定中的逻辑漏洞与人设冲突' },
+            {
+              label: '深度解读分析',
+              desc: '一键发送：解读当前章节及关联设定材料的核心剧情与亮点（只读分析，不改稿）',
+              prompt: '请深度解读并分析当前章节及关联材料的核心剧情与亮点',
+            },
           ].map((quick) => (
             <button
               key={quick.label}
               type="button"
               disabled={loading}
+              title={quick.desc}
               onClick={() => sendMessage(input.trim() ? `${quick.prompt}\n\n${input.trim()}` : quick.prompt)}
               className="text-[11px] px-2.5 py-1 rounded-[7px] border border-border bg-card hover:bg-[var(--surface-3)] text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -2204,7 +2714,7 @@ export function AiAssistant({
           <DialogHeader>
             <DialogTitle className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              使用预设：{pendingPreset?.name}
+              {isInitialDraftPreset ? '写初稿' : `使用预设：${pendingPreset?.name ?? ''}`}
             </DialogTitle>
             {pendingPreset?.description && (
               <DialogDescription className="text-xs">
@@ -2215,17 +2725,15 @@ export function AiAssistant({
           <Textarea
             value={presetPromptInput}
             onChange={(e) => setPresetPromptInput(e.target.value)}
-            placeholder="请输入你的具体要求、剧情片段或参考信息（支持多行）..."
+            aria-label={isInitialDraftPreset ? '本章要写什么' : '预设指令'}
+            placeholder={isInitialDraftPreset ? '本章要发生什么？例如：主角发现账本被换，追到码头时发现船已开走。' : '输入具体要求、剧情片段或参考信息…'}
             rows={4}
             className="text-xs"
             autoFocus
             onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && presetPromptInput.trim() && pendingPreset) {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault()
-                const p = pendingPreset
-                const text = presetPromptInput.trim()
-                setPendingPreset(null)
-                void sendMessage(text, p.id)
+                submitPendingPreset()
               }
             }}
           />
@@ -2235,47 +2743,66 @@ export function AiAssistant({
             </Button>
             <Button
               size="sm"
-              disabled={!presetPromptInput.trim()}
-              onClick={() => {
-                if (!pendingPreset || !presetPromptInput.trim()) return
-                const p = pendingPreset
-                const text = presetPromptInput.trim()
-                setPendingPreset(null)
-                void sendMessage(text, p.id)
-              }}
+              disabled={!presetPromptInput.trim() || loading}
+              onClick={submitPendingPreset}
             >
-              发送指令
+              {isInitialDraftPreset ? '生成初稿' : '发送指令'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 替换整章二次确认弹窗 */}
-      <AlertDialog open={confirmReplaceText !== null} onOpenChange={(open) => !open && setConfirmReplaceText(null)}>
-        <AlertDialogContent>
+      {deepChapter && deepChapter.chapterId === chapterId && (
+        <DeepChapterDialog
+          key={deepChapter.chapterId}
+          open={replacement === null}
+          novelId={novelId}
+          chapterId={deepChapter.chapterId}
+          chapterTitle={currentChapterTitle || '当前章节'}
+          chapterContent={chapterContent}
+          initialGoal={deepChapter.goal}
+          modelId={selectedModel}
+          writingStyleId={activeStyleId || 'none'}
+          skillIds={activeSkillIds}
+          onClose={() => setDeepChapter(null)}
+          onPreview={previewReplacement}
+        />
+      )}
+
+      <AlertDialog open={replacement !== null} onOpenChange={(open) => !open && setReplacement(null)}>
+        <AlertDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-4xl lg:max-w-6xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>确认替换整章正文？</AlertDialogTitle>
+            <AlertDialogTitle>预览整章替换</AlertDialogTitle>
             <AlertDialogDescription>
-              此操作会清空当前章节已有正文，并用 AI 回复内容全部替换写入（若只需要接续剧情，建议点击「追加到正文」）。
+              目标章节「{chapters.find((chapter) => chapter.id === replacement?.chapterId)?.title || '原章节'}」。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {replacement && (
+            <ChapterReplacementDiffPreview
+              original={stripHtml(replacement.original)}
+              next={replacement.text}
+            />
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
+              disabled={!replacement || replacement.chapterId !== chapterId}
               onClick={() => {
-                if (confirmReplaceText === null || !onReplaceChapterText) return
-                const plain = confirmReplaceText
-                setConfirmReplaceText(null)
-                onReplaceChapterText(plain)
-                const targetTitle = chapters.find((c) => c.id === chapterId)?.title || '当前章节'
+                if (!replacement) return
+                const { chapterId: targetChapterId, original, text } = replacement
+                if (!onApplyChapterText('replace', text, targetChapterId, original)) return
+                const title = chapters.find((chapter) => chapter.id === targetChapterId)?.title || '原章节'
                 appendActionHistory({
                   kind: 'replace',
                   allowWriteback: true,
-                  title: `替换写入「${targetTitle}」`,
-                  preview: plain.slice(0, 100),
-                  fullText: plain,
-                  words: countWords(plain),
+                  title: `替换写入「${title}」`,
+                  preview: text.slice(0, 100),
+                  fullText: text,
+                  words: countWords(text),
+                  chapterId: targetChapterId,
                 })
+                setDeepChapter(null)
+                setReplacement(null)
               }}
             >
               确认替换整章
@@ -2313,11 +2840,10 @@ export function AiAssistant({
               branchMessages.map((bm, idx) => (
                 <div
                   key={idx}
-                  className={`rounded-lg px-3.5 py-2.5 text-xs ${
-                    bm.role === 'user'
+                  className={`rounded-lg px-3.5 py-2.5 text-xs ${bm.role === 'user'
                       ? 'bg-primary text-primary-foreground ml-10'
                       : 'bg-muted/60 border border-border mr-6'
-                  }`}
+                    }`}
                 >
                   {bm.role === 'user' ? (
                     <div className="whitespace-pre-wrap">{bm.content}</div>

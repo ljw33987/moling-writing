@@ -149,7 +149,7 @@ function OverviewDoc() {
           <div className="flex items-center gap-2"><Tag color="violet">AI</Tag> z-ai-web-dev-sdk（内置）+ 用户自定义第三方 API（DeepSeek/OpenAI/Claude/Gemini/Grok/MiniMax）</div>
           <div className="flex items-center gap-2"><Tag color="amber">支付</Tag> 支付宝电脑网站支付（alipay-sdk）</div>
           <div className="flex items-center gap-2"><Tag color="blue">邮件</Tag> Nodemailer（SMTP，支持 163/QQ/Gmail 等）</div>
-          <div className="flex items-center gap-2"><Tag color="violet">后端服务</Tag> Bun 进程（auto-serial mini-service 独立运行）</div>
+          <div className="flex items-center gap-2"><Tag color="violet">后端服务</Tag> 内嵌自动连载 runner（主应用内随 Next.js 服务运行）</div>
         </div>
       </DocSection>
 
@@ -162,7 +162,7 @@ function OverviewDoc() {
             '✅ 章节/卷/大纲卷树 + 拖拽排序 + 跨卷移动',
             '✅ AI 助手 18 个预设指令 + 流式输出（SSE）',
             '✅ 内联 AI 菜单（润色/扩写/缩写/续写/转文风）',
-            '✅ 一键生成整章 + 自动连载（mini-service）',
+            '✅ 一键生成整章 + 自动连载（分层上下文装配 + 守卫校验 + 记忆沉淀）',
             '✅ 设定库（角色/世界观/道具）+ AI 自动生成',
             '✅ @ 设定引用 + 长文本记忆引擎',
             '✅ 全文搜索 + 版本历史 + 回滚',
@@ -218,8 +218,7 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000`}</Pre>
           <Pre>{`bun run db:push`}</Pre>
           <p>4. 启动开发服务器：</p>
           <Pre>{`bun run dev`}</Pre>
-          <p>5. 启动自动连载服务（可选）：</p>
-          <Pre>{`cd mini-services/auto-serial && bun run dev`}</Pre>
+          <p>5. 自动连载无需额外启动服务（由主应用内嵌 runner 执行）。</p>
         </div>
       </DocSection>
 
@@ -307,9 +306,10 @@ function WritingDoc() {
 
       <DocSection title="自动连载">
         <div className="space-y-2 text-sm">
-          <p>独立 Bun 进程（<Code2>mini-services/auto-serial</Code2>），每 30 秒扫描数据库，到时间自动调用 AI 生成下一章。</p>
+          <p>主应用内嵌 runner（<Code2>src/lib/auto-serial-runner.ts</Code2>），任务到期后自动调用 AI 生成下一章。</p>
           <div><b>配置选项</b>：生成间隔（最小 5 分钟）/ 每章字数目标 / 剧情走向提示</div>
-          <div><b>上下文注入</b>：小说简介 + 大纲 + 最近 3 章末尾 + 核心角色设定</div>
+          <div><b>上下文注入</b>：分层上下文装配引擎（大纲 + 设定库 + 时间线 + 活跃伏笔 + 前情摘要 + 上一章末尾原文，带 token 预算）</div>
+          <div><b>质量保障</b>：字数不达标自动重试 1 次 / 一致性守卫告警落库 / 章后自动沉淀摘要与伏笔 / 去AI味精修</div>
           <div><b>自动管理</b>：Token 不足自动暂停 / 失败 5 分钟后重试 / 达到最大次数标记完成</div>
           <div><b>状态</b>：空闲 / 生成中 / 已暂停 / 错误（含错误信息）</div>
           <div><b>手动操作</b>：开启/暂停 / 立即生成下一章</div>
@@ -611,8 +611,7 @@ bun run build
 # 3. 启动生产服务器
 bun run start
 
-# 4. 启动自动连载服务
-cd mini-services/auto-serial && bun run dev`}</Pre>
+# 4. 自动连载由主应用内嵌 runner 自动执行，无需额外服务`}</Pre>
       </DocSection>
 
       <DocSection title="数据库管理">
@@ -637,13 +636,12 @@ fetch('/api/test?XTransformPort=3030')  # 转发到 3030 端口
 io('/?XTransformPort=3003')              # WebSocket 连接`}</Pre>
       </DocSection>
 
-      <DocSection title="mini-service 管理">
+      <DocSection title="自动连载任务管理">
         <div className="space-y-2 text-sm">
-          <p><b>auto-serial 服务</b>（独立 Bun 进程）：</p>
-          <Pre>{`cd mini-services/auto-serial
-bun run dev    # 开发模式（热重载）
+          <p><b>auto-serial runner</b>（主应用内嵌，随 Next.js 服务运行）：</p>
+          <Pre>{`bun run dev    # 开发模式（含自动连载能力）
 bun run start  # 生产模式`}</Pre>
-          <p className="text-xs">每 30 秒扫描数据库，发现到期的自动连载任务自动执行。</p>
+          <p className="text-xs">任务到期后自动执行：装配上下文 → 生成正文 → 去AI味精修 → 守卫校验 → 记忆沉淀。</p>
         </div>
       </DocSection>
     </>
@@ -722,7 +720,7 @@ function FaqDoc() {
           </div>
           <div>
             <b>Q: 自动连载不工作？</b>
-            <p>检查：1. mini-service 是否在运行（<Code2>cd mini-services/auto-serial && bun run dev</Code2>）；2. Token 余额是否充足；3. 任务状态是否为 idle/error。</p>
+            <p>检查：1. 任务是否已开启且 Token 余额充足（内嵌 runner 随主应用运行，无需额外启动服务）；2. 查看 AI 日志是否有接口报错；3. 任务状态是否为 idle/error。</p>
           </div>
         </div>
       </DocSection>

@@ -1,4 +1,4 @@
-# MoLing Writing | 墨灵写作
+# Baogeng Cat AI Writing | 爆更猫AI写作
 
 [简体中文](./README.md) | [English](./README_EN.md) | [日本語](./README_JA.md) | [한국어](./README_KO.md) | [Español](./README_ES.md) | [Français](./README_FR.md) | [Deutsch](./README_DE.md) | [Português](./README_PT.md) | [Русский](./README_RU.md) | [العربية](./README_AR.md)
 
@@ -82,7 +82,7 @@
 | AI | z-ai-web-dev-sdk + User-configured third-party APIs |
 | Payment | Alipay alipay-sdk |
 | Email | Nodemailer (SMTP) |
-| Backend Service | Bun process (auto-serial mini-service) |
+| Backend Service | Embedded auto-serial runner (Next.js process) |
 | State | Zustand + TanStack Query |
 
 ## 🚀 Quick Start
@@ -104,8 +104,7 @@ bun run db:push
 # 5. Run
 bun run dev
 
-# 6. (Optional) Auto-serial service
-cd mini-services/auto-serial && bun run dev
+# 6. Auto-serialization runs via the embedded runner, no extra service needed
 ```
 
 Open `http://localhost:3000`. In development, the default admin account is `admin@moli.com` / `admin123`.
@@ -117,7 +116,7 @@ For production, set a unique `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` i
 ### ✅ Completed
 - [x] Three-panel immersive editor + 4 modes
 - [x] AI assistant with 18 presets + streaming output
-- [x] Auto-serialization mini-service
+- [x] Auto-serialization (embedded runner + layered context assembly + guard checks + memory extraction)
 - [x] World-building library + AI auto-generation
 - [x] Publication plaza + reader page
 - [x] Alipay payment integration
@@ -137,7 +136,7 @@ For production, set a unique `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` i
 - [ ] Rich text editor
 - [ ] Character relationship graph visualization
 - [ ] Timeline / event line management
-- [ ] Foreshadowing tracking system
+- [x] Foreshadowing tracking system (plant → advance → resolve state machine, auto-injected into AI context)
 - [ ] Writing template library
 - [ ] Multi-device sync
 - [ ] 2FA authentication
