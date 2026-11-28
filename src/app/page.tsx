@@ -16,7 +16,7 @@ import { ForceChangePasswordDialog } from '@/components/auth/force-change-passwo
 import { OnboardingDialog } from '@/components/onboarding/onboarding-dialog'
 
 export default function Home() {
-  const { view, theme, currentNovelId, user, authLoading, forceChangePassword, restoreFromHistory } = useAppStore()
+  const { view, theme, colorScheme, setColorScheme, currentNovelId, user, authLoading, forceChangePassword, restoreFromHistory } = useAppStore()
   const [mounted] = useState(true)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
 
@@ -87,6 +87,28 @@ export default function Home() {
     if (theme === 'dark') root.classList.add('dark')
     else if (theme === 'eye') root.classList.add('theme-eye')
   }, [theme])
+
+  useEffect(() => {
+    const schemes = ['dawn', 'celadon', 'sunset', 'sakura', 'tide', 'pine'] as const
+    let saved: string | null = null
+    try {
+      saved = localStorage.getItem('moling_color_scheme')
+    } catch {}
+    const initial = schemes.includes(saved as (typeof schemes)[number])
+      ? (saved as (typeof schemes)[number])
+      : 'dawn'
+    setColorScheme(initial)
+  }, [setColorScheme])
+
+  useEffect(() => {
+    if (!colorScheme) return
+    const root = document.documentElement
+    if (colorScheme === 'dawn') root.removeAttribute('data-scheme')
+    else root.setAttribute('data-scheme', colorScheme)
+    try {
+      localStorage.setItem('moling_color_scheme', colorScheme)
+    } catch {}
+  }, [colorScheme])
 
   if (!mounted) return null
 

@@ -76,12 +76,14 @@ function DefaultBookCover({
   category,
   className = '',
   compact = false,
+  landscape = false,
 }: {
   title: string
   author?: string | null
   category?: string
   className?: string
   compact?: boolean
+  landscape?: boolean
 }) {
   const theme = getCoverTheme(title, category)
   const displayTitle = title.length > 10 ? `${title.slice(0, 10)}…` : title
@@ -130,16 +132,16 @@ function DefaultBookCover({
 
       {/* 左上竖排作者 */}
       <div
-        className={`absolute ${compact ? 'top-2.5 left-3.5 text-[9px]' : 'top-4 left-5 text-[11px]'} tracking-widest opacity-80`}
-        style={{ writingMode: 'vertical-rl', color: theme.sub }}
+        className={`absolute ${landscape ? 'left-3 top-2 text-[9px]' : compact ? 'top-2.5 left-3.5 text-[9px]' : 'top-4 left-5 text-[11px]'} tracking-widest opacity-80`}
+        style={{ writingMode: landscape ? 'horizontal-tb' : 'vertical-rl', color: theme.sub }}
       >
         {displayAuthor} — 著
       </div>
 
       {/* 右上竖排书名 */}
       <div
-        className={`absolute ${compact ? 'top-2.5 right-2.5 text-sm' : 'top-4 right-4 text-xl sm:text-[22px]'} font-semibold tracking-[0.18em] leading-snug`}
-        style={{ writingMode: 'vertical-rl' }}
+        className={`absolute ${landscape ? 'left-5 top-1/2 -translate-y-1/2 text-lg sm:text-xl' : compact ? 'top-2.5 right-2.5 text-sm' : 'top-4 right-4 text-xl sm:text-[22px]'} font-semibold tracking-[0.12em] leading-snug`}
+        style={{ writingMode: landscape ? 'horizontal-tb' : 'vertical-rl' }}
       >
         {displayTitle}
       </div>
@@ -231,7 +233,7 @@ export function PlazaView() {
 
   return (
     <div className="studio-plaza flex-1 overflow-auto">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="studio-plaza-content max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {featured && (
           <section className="studio-featured">
             <div className="w-24 sm:w-36 aspect-[3/4] rounded-[10px] overflow-hidden shadow-lg shrink-0">
@@ -246,15 +248,21 @@ export function PlazaView() {
               <h2 className="font-display break-words">{featured.title}</h2>
               <p className="line-clamp-3">{featured.synopsis}</p>
               <p className="text-sm">{featured.user?.penName || featured.user?.name || '匿名'}</p>
-              <Button onClick={() => setReadingId(featured.id)}>阅读作品</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setReadingId(featured.id)} className="studio-featured-primary">阅读作品</Button>
+                <Button variant="outline" onClick={() => handleCollect(featured.id, featured.isCollected)} className="studio-featured-secondary">
+                  <Bookmark className="w-3.5 h-3.5 mr-1.5" />{featured.isCollected ? '已加入书架' : '加入书架'}
+                </Button>
+              </div>
             </div>
           </section>
         )}
         <h1 className="studio-page-title font-display">作品广场</h1>
 
-        {/* 搜索 + 排序 */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[200px]">
+        {/* 搜索、排序和分类 */}
+        <div className="studio-plaza-toolbar">
+          <div className="studio-plaza-toolbar-main">
+          <div className="relative flex-1 min-w-[220px] max-w-[360px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -263,32 +271,31 @@ export function PlazaView() {
               className="pl-9"
             />
           </div>
-          <div className="flex gap-1">
-            <Button size="sm" variant={sort === 'latest' ? 'default' : 'outline'} onClick={() => { setSort('latest'); setPage(1) }}>
+          <div className="flex flex-wrap gap-1">
+            <Button size="sm" variant="outline" className={`studio-plaza-pill ${sort === 'latest' ? 'is-active' : ''}`} onClick={() => { setSort('latest'); setPage(1) }}>
               <Clock className="w-3.5 h-3.5 mr-1" /> 最新
             </Button>
-            <Button size="sm" variant={sort === 'hot' ? 'default' : 'outline'} onClick={() => { setSort('hot'); setPage(1) }}>
+            <Button size="sm" variant="outline" className={`studio-plaza-pill ${sort === 'hot' ? 'is-active' : ''}`} onClick={() => { setSort('hot'); setPage(1) }}>
               <Flame className="w-3.5 h-3.5 mr-1" /> 热门
             </Button>
-            <Button size="sm" variant={sort === 'featured' ? 'default' : 'outline'} onClick={() => { setSort('featured'); setPage(1) }}>
+            <Button size="sm" variant="outline" className={`studio-plaza-pill ${sort === 'featured' ? 'is-active' : ''}`} onClick={() => { setSort('featured'); setPage(1) }}>
               <Star className="w-3.5 h-3.5 mr-1" /> 推荐
             </Button>
           </div>
-        </div>
-
-        {/* 分类标签 */}
-        <div className="flex flex-wrap gap-2">
+          </div>
+          <div className="studio-plaza-categories">
           {CATEGORIES.map((cat) => (
             <Button
               key={cat}
               size="sm"
-              variant={category === cat || (cat === '全部' && !category) ? 'default' : 'outline'}
+              variant="outline"
               onClick={() => { setCategory(cat === '全部' ? '' : cat); setPage(1) }}
-              className="text-xs"
+              className={`studio-plaza-pill text-xs ${category === cat || (cat === '全部' && !category) ? 'is-active' : ''}`}
             >
               {cat}
             </Button>
           ))}
+          </div>
         </div>
 
         {/* 作品网格 */}
@@ -304,14 +311,15 @@ export function PlazaView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="studio-plaza-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {items.map((p) => (
               <Card key={p.id} className="studio-publication group overflow-hidden hover:shadow-md hover:border-[var(--brand-line)] transition cursor-pointer" onClick={() => setReadingId(p.id)}>
-                <div className="aspect-[3/4] relative overflow-hidden">
+                <div className="studio-plaza-cover relative overflow-hidden">
                   <DefaultBookCover
                     title={p.title}
                     author={p.user?.penName || p.user?.name}
                     category={p.category}
+                    landscape
                   />
                   {p.featured && (
                     <Badge className="absolute bottom-2 left-2 bg-amber-500/95 text-white hover:bg-amber-500 text-[10px] px-1.5 py-0.5">
@@ -322,7 +330,7 @@ export function PlazaView() {
                     {p.category}
                   </Badge>
                 </div>
-                <CardContent className="p-3 space-y-2">
+                <CardContent className="studio-publication-content p-3 space-y-2">
                   <h4 className="font-semibold font-display">
                     <button type="button" className="text-left hover:underline" onClick={(event) => {
                       event.stopPropagation()
@@ -496,7 +504,7 @@ function ReaderView({ publicationId, onBack }: { publicationId: string; onBack: 
   const pub = data.publication
 
   return (
-    <div className="flex-1 overflow-auto bg-background">
+    <div className="studio-reader flex-1 overflow-auto bg-background">
       <div className="max-w-3xl mx-auto px-4 py-6">
         {/* 返回 + 标题 */}
         <Button variant="ghost" size="sm" onClick={onBack} className="mb-4 gap-1">

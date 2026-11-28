@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 
 export type ViewType = 'workspace' | 'editor' | 'toolbox' | 'settings' | 'user' | 'admin' | 'login' | 'register' | 'plaza'
+export type ColorScheme = 'dawn' | 'celadon' | 'sunset' | 'sakura' | 'tide' | 'pine'
 
 interface UserPublic {
   id: string
@@ -31,6 +32,7 @@ interface AppState {
   // 编辑器模式
   editorMode: 'normal' | 'focus' | 'typewriter'
   theme: 'light' | 'dark' | 'eye'
+  colorScheme: ColorScheme | null
   leftPanelOpen: boolean
   rightPanelOpen: boolean
 
@@ -50,6 +52,7 @@ interface AppState {
   setCurrentFolder: (id: string | null) => void
   setEditorMode: (m: 'normal' | 'focus' | 'typewriter') => void
   setTheme: (t: 'light' | 'dark' | 'eye') => void
+  setColorScheme: (scheme: ColorScheme) => void
   toggleLeftPanel: () => void
   toggleRightPanel: () => void
   toggleAiPanel: () => void
@@ -107,6 +110,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   editorMode: 'normal',
   theme: 'light',
+  colorScheme: null,
   leftPanelOpen: true,
   rightPanelOpen: true,
 
@@ -131,6 +135,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentFolder: (id) => set({ currentFolderId: id }),
   setEditorMode: (m) => set({ editorMode: m }),
   setTheme: (t) => set({ theme: t }),
+  setColorScheme: (scheme) => set({ colorScheme: scheme }),
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),

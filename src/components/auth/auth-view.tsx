@@ -136,42 +136,41 @@ export function AuthView() {
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-gradient-to-br from-amber-50/70 via-background to-primary/5 dark:from-primary/10 dark:via-background dark:to-background">
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center min-h-[calc(100dvh-3.75rem)]">
-        {/* 左侧介绍 */}
-        <div className="hidden lg:block space-y-6">
+    <div className="studio-auth flex-1 overflow-auto bg-gradient-to-br from-[var(--brand-soft)]/50 via-background to-[#FDF0F5] dark:from-primary/10 dark:via-background dark:to-background">
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-6 lg:gap-8 items-center min-h-[calc(100dvh-3.75rem)]">
+        {/* 左侧品牌 Hero（晨墨渐变 + 玻璃瓷砖） */}
+        <div className="hidden lg:flex auth-hero min-h-[540px]">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="爆更猫AI写作" className="w-12 h-12 rounded-xl shadow-md" />
+            <div className="w-[52px] h-[52px] rounded-[16px] bg-white/20 border border-white/40 backdrop-blur-sm grid place-items-center">
+              <img src="/logo.svg" alt="爆更猫AI写作" className="w-10 h-10" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold font-display">爆更猫AI写作</h1>
-              <p className="text-sm text-muted-foreground">AI 驱动的网文创作平台</p>
+              <h1 className="text-[23px] font-bold font-serif tracking-[0.04em] text-white">爆更猫AI写作</h1>
+              <p className="text-[11px] tracking-[0.25em] text-white/85">AI 驱动的网文创作平台</p>
             </div>
           </div>
 
-          <p className="text-lg leading-relaxed font-display">
-            一句话灵感自动生成简介、大纲、角色。
-            <br />
-            AI 长文本记忆，再不卡文、再不失忆。
-            <br />
-            一键开启自动连载，睡着也在更新。
-          </p>
+          <div className="mt-9">
+            <p className="text-[30px] leading-[1.55] font-bold font-serif tracking-[0.03em] text-white">
+              一句话灵感，<br />AI 帮你生成简介、大纲、<br />核心角色。
+            </p>
+            <p className="mt-4 text-[13px] leading-loose text-white/90 max-w-[430px]">
+              集 AI 写作、章节管理、设定库、长文本记忆于一体的专业网文创作平台。AI 不再失忆，百万字人设不崩。
+            </p>
+          </div>
 
-          <div className="space-y-3">
+          <div className="mt-auto grid grid-cols-3 gap-3 pt-8">
             {[
               { icon: Wand2, title: 'AI 辅助建书', desc: '一句话 → 简介+大纲+三角色' },
-              { icon: BookOpen, title: '沉浸式三栏编辑器', desc: '打字机模式 / 深色 / 护眼' },
+              { icon: BookOpen, title: '沉浸式三栏编辑器', desc: '章节树 / 正文 / AI 并肩协作' },
               { icon: Zap, title: '自动连载', desc: 'AI 定时生成新章节' },
             ].map((f) => {
               const Icon = f.icon
               return (
-                <div key={f.title} className="flex items-start gap-3 p-3 bg-card/50 rounded-lg backdrop-blur-sm border border-border">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-medium">{f.title}</div>
-                    <div className="text-xs text-muted-foreground">{f.desc}</div>
-                  </div>
+                <div key={f.title} className="auth-glass-tile">
+                  <Icon className="w-4.5 h-4.5 text-white/90" />
+                  <div className="text-[13px] font-bold text-white mt-1.5">{f.title}</div>
+                  <div className="text-[10.5px] text-white/85 mt-1.5 leading-[1.7]">{f.desc}</div>
                 </div>
               )
             })}
@@ -179,7 +178,7 @@ export function AuthView() {
         </div>
 
         {/* 右侧表单 */}
-        <Card className="border-border shadow-sm rounded-[14px]">
+        <Card className="border-border shadow-sm rounded-[18px]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display">
               <Sparkles className="w-5 h-5 text-gold" />

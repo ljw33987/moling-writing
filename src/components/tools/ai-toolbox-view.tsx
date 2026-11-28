@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -38,10 +39,12 @@ import {
   Store,
   FileUp,
   Layers,
+  TrendingUp,
 } from 'lucide-react'
 import { api } from '@/lib/helpers'
 import { toast } from 'sonner'
 import { PromptMarketPanel, type AppliedPromptMeta } from './prompt-market-panel'
+import { RankBoardPanel } from './rank-board-panel'
 import { MarkdownRenderer, markdownToPlainText } from '@/components/ai/markdown-renderer'
 
 interface ToolDef {
@@ -138,9 +141,21 @@ const TOOLS: ToolDef[] = [
   },
 ]
 
+// 晨墨分类徽章配色：建书=紫 / 策划·辅助=蓝 / 正文·审稿=金 / 高频=绿 / 拆书=红
+const BADGE_STYLES: Record<string, string> = {
+  建书: 'bg-[var(--brand-soft)] text-[var(--brand)] border-[var(--brand-line)]',
+  策划: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25',
+  正文: 'bg-[var(--amber-10)] text-gold border-[var(--amber-28)]',
+  审稿: 'bg-[var(--amber-10)] text-gold border-[var(--amber-28)]',
+  高频: 'bg-jade/10 text-jade border-jade/30',
+  辅助: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25',
+  拆书: 'bg-cinnabar/10 text-cinnabar border-cinnabar/25',
+}
+
 export function AiToolboxView() {
   const [activeTool, setActiveTool] = useState<ToolDef | null>(TOOLS[0])
-  const [mode, setMode] = useState<'ai' | 'market' | 'txt' | 'cover'>('ai')
+  const [toolDialogOpen, setToolDialogOpen] = useState(false)
+  const [mode, setMode] = useState<'ai' | 'market' | 'txt' | 'cover' | 'rank'>('ai')
   const [prompt, setPrompt] = useState('')
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -378,6 +393,16 @@ export function AiToolboxView() {
     }
   }
 
+  const handleRankDeconstruct = (title: string) => {
+    const tool = TOOLS.find((item) => item.id === 'deconstruct')
+    if (tool) setActiveTool(tool)
+    setMode('ai')
+    setToolDialogOpen(true)
+    setPrompt(`《${title}》`)
+    setOutput('')
+    toast.success('已将书名带入拆书输入框，请补充样章正文后点击生成')
+  }
+
   const handleCopy = async () => {
     if (!output) return
     await navigator.clipboard.writeText(output)
@@ -494,66 +519,69 @@ export function AiToolboxView() {
     }
   }
 
+  const modeItems = [
+    { id: 'ai', label: 'AI 生成与拆书', description: '脑洞、开篇与拆书', icon: Sparkles },
+    { id: 'rank', label: '榜单扫榜', description: '查看作品趋势', icon: TrendingUp },
+    { id: 'market', label: '提示词模板市场', description: '浏览与套用模板', icon: Store },
+    { id: 'cover', label: '原创封面生成', description: '制作作品封面', icon: ImageIcon },
+    { id: 'txt', label: 'TXT 智能导入', description: '识别章节并导入', icon: Upload },
+  ] as const
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-background">
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        {/* 页头 */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="studio-toolbox flex-1 min-h-0 overflow-y-auto bg-background">
+      <div className="studio-toolbox-layout w-full max-w-[1840px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <aside className="studio-toolbox-sidebar" aria-label="AI 工具箱导航">
+          <div className="studio-toolbox-sidebar-heading">
+            <span>工具导航</span>
+            <small>TOOLS</small>
+          </div>
+          <nav className="studio-toolbox-sidebar-nav">
+            {modeItems.map((item) => {
+              const Icon = item.icon
+              const selected = mode === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setMode(item.id)}
+                  className={`studio-toolbox-nav-item ${selected ? 'is-active' : ''}`}
+                >
+                  <Icon className="studio-toolbox-nav-icon" />
+                  <span className="min-w-0">
+                    <span className="studio-toolbox-nav-label">{item.label}</span>
+                    <span className="studio-toolbox-nav-description">{item.description}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
+
+        <div className="studio-toolbox-main min-w-0 space-y-5">
+          {/* 页头（晨墨 Hero 面板） */}
+          <div className="toolbox-hero">
           <div>
-            <h1 className="text-2xl font-bold font-display flex items-center gap-2">
+            <h1 className="text-[22px] font-bold font-display flex items-center gap-2 tracking-[0.04em]">
               <Sparkles className="w-6 h-6 text-gold" />
               AI 网文创作工具箱
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              覆盖“脑洞起名 → 黄金开篇 → 拆书分析 → 编辑审稿 → TXT 智能分章导入”高频创作工具
+            <p className="text-[13px] text-[var(--ink-soft)] mt-1.5 leading-relaxed">
+              覆盖「脑洞起步 → 黄金开篇 → 拆书分析 → 编辑审稿 → TXT 智能分章导入」高频创作工具
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={mode === 'ai' ? 'default' : 'outline'}
-              size="sm"
-              className={mode === 'ai' ? 'bg-primary rounded-full shadow-sm' : ''}
-              onClick={() => setMode('ai')}
-            >
-              AI 生成与拆书
-            </Button>
-            <Button
-              variant={mode === 'market' ? 'default' : 'outline'}
-              size="sm"
-              className={mode === 'market' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
-              onClick={() => setMode('market')}
-            >
-              <Store className="w-3.5 h-3.5" />
-              提示词模板市场
-            </Button>
-            <Button
-              variant={mode === 'txt' ? 'default' : 'outline'}
-              size="sm"
-              className={mode === 'txt' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
-              onClick={() => setMode('txt')}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              TXT 智能分章导入
-            </Button>
-            <Button
-              variant={mode === 'cover' ? 'default' : 'outline'}
-              size="sm"
-              className={mode === 'cover' ? 'bg-primary rounded-full shadow-sm gap-1.5' : 'gap-1.5'}
-              onClick={() => setMode('cover')}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              原创封面生成
-            </Button>
           </div>
         </div>
 
-        {mode === 'market' ? (
+        {mode === 'rank' ? (
+          <RankBoardPanel onDeconstruct={handleRankDeconstruct} />
+        ) : mode === 'market' ? (
           <PromptMarketPanel
             onApplyPrompt={(text, meta) => {
               setPrompt(text)
               setAppliedTemplate(meta)
               setOutput('')
               setMode('ai')
+              setToolDialogOpen(true)
             }}
           />
         ) : mode === 'cover' ? (
@@ -807,7 +835,7 @@ export function AiToolboxView() {
                 </Select>
               </div>
 
-              <span className="text-[11px] text-muted-foreground leading-relaxed">
+              <span className="text-[11px] text-muted-foreground leading-relaxed ml-auto">
                 生成会自动带上该作品的设定集、大纲与时间线
                 {contextChapterId !== 'none' ? '，以及当前章节正文与前情摘要' : ''}
                 ，并按你的文风输出
@@ -815,49 +843,47 @@ export function AiToolboxView() {
             </div>
 
             {/* 顶部 4×2 工具矩阵 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="studio-toolbox-tool-grid">
               {TOOLS.map((tool) => {
                 const selected = activeTool?.id === tool.id
                 return (
                   <button
                     key={tool.id}
                     type="button"
+                    aria-pressed={selected}
                     onClick={() => {
                       setActiveTool(tool)
                       setOutput('')
                       // 切换工具即退出模板模式，避免模板指令与工具预设互相干扰
                       setAppliedTemplate(null)
+                      setToolDialogOpen(true)
                     }}
-                    className={`w-full text-left rounded-[12px] border p-2.5 flex items-center gap-2.5 transition-all bg-card hover:border-[var(--brand-line)] hover:shadow-sm ${
-                      selected
-                        ? 'border-primary bg-primary/8 shadow-xs ring-1 ring-primary/25'
-                        : 'border-border bg-card hover:bg-muted/50 hover:border-primary/30'
-                    }`}
+                    className={`studio-toolbox-tool-card ${selected ? 'is-active' : ''}`}
                   >
-                    <img
-                      src={tool.image}
-                      alt={tool.title}
-                      className="w-9 h-9 rounded-lg shadow-2xs shrink-0 object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className={`text-xs sm:text-[13px] font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
-                          {tool.title}
-                        </span>
-                        <Badge variant={selected ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 shrink-0">
+                    <img src={tool.image} alt="" className="studio-toolbox-tool-image" />
+                    <div className="studio-toolbox-tool-copy">
+                      <div className="studio-toolbox-tool-heading">
+                        <span className="studio-toolbox-tool-title">{tool.title}</span>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${BADGE_STYLES[tool.badge] || 'bg-muted text-muted-foreground border-border'}`}>
                           {tool.badge}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{tool.desc}</p>
+                      <p className="studio-toolbox-tool-description">{tool.desc}</p>
                     </div>
                   </button>
                 )
               })}
             </div>
 
-            {/* 下方全宽左右分屏创作区（左输入 + 右结果） */}
-            {activeTool && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+            {/* 输入和结果在弹窗内并排显示 */}
+            <Dialog open={toolDialogOpen} onOpenChange={setToolDialogOpen}>
+              <DialogContent className="studio-toolbox-dialog w-[94vw] max-w-[1480px] sm:max-w-[1480px] max-h-[92dvh] overflow-y-auto">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>{activeTool?.title || 'AI 写作工具'}</DialogTitle>
+                  <DialogDescription>{activeTool?.desc || '输入创作需求并查看生成结果'}</DialogDescription>
+                </DialogHeader>
+                {activeTool && (
+              <div className="studio-toolbox-dialog-grid grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 {/* 左侧输入区 */}
                 <Card className="lg:col-span-5 shadow-xs border-border/80 flex flex-col">
                   <CardHeader className="pb-3.5 border-b border-border/60 flex flex-row items-center justify-between gap-3 space-y-0">
@@ -870,7 +896,7 @@ export function AiToolboxView() {
                       <div className="min-w-0">
                         <CardTitle className="text-base font-display flex items-center gap-2">
                           <span className="truncate">{activeTool.title}</span>
-                          <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+                          <Badge variant="outline" className={`text-[10px] font-normal shrink-0 ${BADGE_STYLES[activeTool.badge] || 'bg-muted text-muted-foreground border-border'}`}>
                             {activeTool.badge}
                           </Badge>
                         </CardTitle>
@@ -1118,8 +1144,11 @@ export function AiToolboxView() {
                 </Card>
               </div>
             )}
+              </DialogContent>
+            </Dialog>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

@@ -52,20 +52,31 @@ import {
   Trash2,
   Pencil,
   Megaphone,
+  Palette,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DocsView } from './docs-view'
 import { useI18n } from '@/lib/i18n/store'
 import { PlatformConfigTab } from './platform-config-tab'
+import { useAppStore, type ColorScheme } from '@/lib/store'
 
-type AdminTab = 'overview' | 'users' | 'novels' | 'orders' | 'messages' | 'email' | 'redeem' | 'announcements' | 'broadcast' | 'docs' | 'config'
+type AdminTab = 'overview' | 'users' | 'novels' | 'orders' | 'messages' | 'email' | 'redeem' | 'announcements' | 'broadcast' | 'docs' | 'config' | 'palette'
+
+const COLOR_SCHEMES: { id: ColorScheme; name: string; colors: string[]; description: string }[] = [
+  { id: 'dawn', name: '晨墨紫', colors: ['#6D5DF6', '#A56CF0', '#EC6FA8', '#F0921B'], description: '默认暖纸底色与晨紫渐变' },
+  { id: 'celadon', name: '青瓷绿', colors: ['#0EA5A0', '#2DBFA3', '#5ACB8E', '#D9982B'], description: '清透柔和的青绿配色' },
+  { id: 'sunset', name: '赤霞橙', colors: ['#F4606E', '#FF7E63', '#FFA24B', '#FFD27A'], description: '温暖明亮的夕照色调' },
+  { id: 'sakura', name: '樱雪粉', colors: ['#B07CF8', '#D878D0', '#F582B4', '#FFC2A8'], description: '柔和的紫粉渐变色调' },
+  { id: 'tide', name: '靛海蓝', colors: ['#3D6BF5', '#3E8CE8', '#35B8E0', '#FFD86E'], description: '清爽沉静的蓝色调' },
+  { id: 'pine', name: '松烟绿', colors: ['#2F8F6B', '#4BA578', '#82B96B', '#C49A38'], description: '自然稳重的松绿色调' },
+]
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>('overview')
   const { t } = useI18n()
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
+    <div className="studio-admin flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
       <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)} className="flex-1 flex flex-col min-h-0">
         <TabsList className="studio-subnav rounded-none h-[46px] justify-start shrink-0">
           <TabsTrigger value="overview" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
@@ -112,10 +123,14 @@ export function AdminView() {
             <Settings className="w-3.5 h-3.5" />
             {t("ad.config")}
           </TabsTrigger>
+          <TabsTrigger value="palette" className="h-[45px] px-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[13px] gap-1.5 shrink-0">
+            <Palette className="w-3.5 h-3.5" />
+            配色方案
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          <div className="max-w-[1560px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-[10px] ai-brand-mark flex items-center justify-center">
                 <Shield className="w-4 h-4 text-white" />
@@ -159,10 +174,53 @@ export function AdminView() {
             <TabsContent value="config" className="mt-4">
               <PlatformConfigTab />
             </TabsContent>
+            <TabsContent value="palette" className="mt-4">
+              <ColorSchemePanel />
+            </TabsContent>
           </div>
         </div>
       </Tabs>
     </div>
+  )
+}
+
+function ColorSchemePanel() {
+  const colorScheme = useAppStore((state) => state.colorScheme)
+  const setColorScheme = useAppStore((state) => state.setColorScheme)
+  const activeScheme = colorScheme ?? 'dawn'
+
+  return (
+    <Card className="studio-admin-palette">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-display">
+          <Palette className="w-4 h-4 text-primary" />
+          配色方案
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">选择工作台的品牌色与界面底色，设置会保存在当前浏览器。</p>
+      </CardHeader>
+      <CardContent>
+        <div className="studio-scheme-grid">
+          {COLOR_SCHEMES.map((scheme) => {
+            const selected = activeScheme === scheme.id
+            return (
+              <button
+                key={scheme.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setColorScheme(scheme.id)}
+                className={`studio-scheme-card ${selected ? 'is-active' : ''}`}
+              >
+                <span className="studio-scheme-swatches" aria-hidden="true">
+                  {scheme.colors.map((color) => <i key={color} style={{ backgroundColor: color }} />)}
+                </span>
+                <span className="studio-scheme-name">{scheme.name}</span>
+                <span className="studio-scheme-description">{scheme.description}</span>
+              </button>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -208,7 +266,7 @@ function OverviewTab() {
 
   const o = data.overview
   const cards = [
-    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/10' },
+    { label: '注册用户', value: o.totalUsers, icon: Users, color: 'text-brand', bg: 'bg-[var(--violet-soft)]' },
     { label: '作品总数', value: o.totalNovels, icon: BookOpen, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     { label: '章节总数', value: o.totalChapters, icon: FileText, color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { label: 'AI 调用次数', value: o.totalMessages, icon: MessageSquare, color: 'text-pink-500', bg: 'bg-pink-500/10' },
@@ -253,7 +311,7 @@ function OverviewTab() {
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                   <div className="flex items-end gap-0.5 h-24 w-full justify-center">
                     <div
-                      className="w-3 bg-indigo-600 rounded-t"
+                      className="w-3 bg-brand rounded-t"
                       style={{ height: `${(d.users / maxVal) * 100}%` }}
                       title={`新增用户：${d.users}`}
                     />
@@ -270,7 +328,7 @@ function OverviewTab() {
           </div>
           <div className="flex items-center gap-4 mt-3 text-xs">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-indigo-600 rounded-sm" />
+              <span className="w-2 h-2 bg-brand rounded-sm" />
               新增用户
             </span>
             <span className="flex items-center gap-1">
@@ -297,7 +355,7 @@ function OverviewTab() {
             <Button
               size="sm"
               variant="default"
-              className="gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-90"
+              className="gap-1.5 ai-brand-mark hover:opacity-90"
               onClick={() => handleBackup('all')}
             >
               <Download className="w-3.5 h-3.5" />
@@ -444,7 +502,7 @@ function UsersTab() {
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-xs">
+                          <AvatarFallback className="ai-brand-mark text-white text-xs">
                             {(u.penName || u.name || u.email)[0].toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
@@ -452,7 +510,7 @@ function UsersTab() {
                           <div className="font-medium truncate flex items-center gap-1">
                             {u.penName || u.name || '未命名'}
                             {u.role === 'admin' && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-indigo-600 dark:text-indigo-400">
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-brand">
                                 ADMIN
                               </Badge>
                             )}
@@ -501,7 +559,7 @@ function UsersTab() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 text-xs text-indigo-600 dark:text-indigo-400"
+                            className="h-7 text-xs text-brand"
                             onClick={() => handleSetRole(u, 'admin')}
                           >
                             设管理员
@@ -646,8 +704,8 @@ function NovelsTab() {
           <Card key={n.id}>
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-16 rounded bg-gradient-to-br from-indigo-600/30 to-blue-600/30 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                <div className="w-12 h-16 rounded bg-[var(--violet-soft)] flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-brand">
                     {n.title.slice(0, 2)}
                   </span>
                 </div>
@@ -1062,7 +1120,7 @@ function MessagesTab() {
                       m.role === 'user'
                         ? 'text-emerald-600 text-xs'
                         : m.role === 'assistant'
-                          ? 'text-indigo-600 dark:text-indigo-400 text-xs'
+                          ? 'text-brand text-xs'
                           : 'text-slate-500 text-xs'
                     }
                   >
@@ -1834,7 +1892,7 @@ function RedeemCodesTab() {
                       </div>
                     </td>
                     <td className="p-3 text-xs">
-                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-indigo-600 dark:text-indigo-400'}>
+                      <Badge variant="outline" className={c.rewardType === 'token' ? 'text-amber-600' : 'text-brand'}>
                         {c.rewardDesc}
                       </Badge>
                     </td>
@@ -2348,7 +2406,7 @@ function AnnouncementsTab() {
     info: { label: '通知', color: 'text-blue-600', bg: 'bg-blue-500/10' },
     warning: { label: '提醒', color: 'text-amber-600', bg: 'bg-amber-500/10' },
     success: { label: '好消息', color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-    maintenance: { label: '维护', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600/10' },
+    maintenance: { label: '维护', color: 'text-brand', bg: 'bg-[var(--violet-soft)]' },
   }
 
   if (loading && !data) {
@@ -2366,7 +2424,7 @@ function AnnouncementsTab() {
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">总公告</div><div className="text-xl font-bold">{data.stats.total}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">已发布</div><div className="text-xl font-bold text-emerald-600">{data.stats.published}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">草稿</div><div className="text-xl font-bold text-amber-600">{data.stats.draft}</div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{data.stats.pinned}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">置顶</div><div className="text-xl font-bold text-brand">{data.stats.pinned}</div></CardContent></Card>
         </div>
       )}
 
@@ -2387,7 +2445,7 @@ function AnnouncementsTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {item.pinned && <Badge variant="default" className="text-[10px] bg-indigo-600">置顶</Badge>}
+                      {item.pinned && <Badge variant="default" className="text-[10px] bg-brand">置顶</Badge>}
                       <Badge variant="outline" className={`text-xs ${tc.color} ${tc.bg}`}>{tc.label}</Badge>
                       {!item.published && (
                         <Badge variant="outline" className="text-xs text-amber-600">草稿</Badge>
@@ -2616,7 +2674,7 @@ function BroadcastTab() {
 
   const typeConfig: Record<string, { label: string; color: string }> = {
     notice: { label: '通知', color: 'text-blue-600' },
-    system: { label: '系统', color: 'text-indigo-600 dark:text-indigo-400' },
+    system: { label: '系统', color: 'text-brand' },
     warning: { label: '警告', color: 'text-amber-600' },
     reward: { label: '奖励', color: 'text-emerald-600' },
   }
@@ -2754,7 +2812,7 @@ function BroadcastTab() {
                       {item.userId === null ? (
                         <Badge variant="outline" className="text-xs text-blue-600">群发</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-indigo-600 dark:text-indigo-400">单发</Badge>
+                        <Badge variant="outline" className="text-xs text-brand">单发</Badge>
                       )}
                       {item.emailSent && (
                         <Badge variant="outline" className="text-xs text-emerald-600">

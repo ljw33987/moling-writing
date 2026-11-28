@@ -237,7 +237,7 @@ export function UserCenter() {
   ]
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="studio-user flex-1 overflow-auto">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* 顶部用户信息卡（精简） */}
         <Card className="mb-6">
@@ -279,7 +279,7 @@ export function UserCenter() {
         {/* 左侧栏 + 右侧内容区 */}
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
           {/* 左侧栏 */}
-          <nav className="space-y-1 lg:sticky lg:top-4 lg:self-start">
+          <nav className="studio-user-nav space-y-1 lg:sticky lg:top-4 lg:self-start">
             {navs.map((n) => {
               const Icon = n.icon
               const active = section === n.id
@@ -289,11 +289,11 @@ export function UserCenter() {
                   onClick={() => setSection(n.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition ${
                     active
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-[var(--brand-soft)] text-[var(--brand-ink)] border border-[var(--brand-line)] shadow-sm font-semibold'
                       : 'hover:bg-muted text-foreground'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-muted-foreground'}`} />
+                  <Icon className={`w-4 h-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className="flex-1 text-left">{n.label}</span>
                   {n.badge !== undefined && n.badge > 0 && (
                     <Badge

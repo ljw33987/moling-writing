@@ -153,10 +153,10 @@ export function TopBar() {
     return (
       <header className="topbar-shell flex items-center px-4 sm:px-6 z-30 sticky top-0 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
-            BG
+          <div className="w-10 h-10 rounded-[12px] ai-brand-mark flex items-center justify-center text-white font-serif font-black text-[15px]">
+            墨
           </div>
-          <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
+          <span className="studio-brand-copy font-serif font-bold text-[17px] tracking-[0.5px] text-foreground">爆更猫AI写作<small>AI 创作工作台</small></span>
         </div>
         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
       </header>
@@ -168,14 +168,14 @@ export function TopBar() {
     return (
       <header className="topbar-shell flex items-center px-4 sm:px-6 z-30 sticky top-0 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
-            BG
+          <div className="w-10 h-10 rounded-[12px] ai-brand-mark flex items-center justify-center text-white font-serif font-black text-[15px]">
+            墨
           </div>
-          <span className="font-semibold text-[15px] tracking-tight text-foreground">爆更猫AI写作</span>
+          <span className="studio-brand-copy font-serif font-bold text-[17px] tracking-[0.5px] text-foreground">爆更猫AI写作<small>AI 创作工作台</small></span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
-          <Button onClick={() => setView('login')} size="sm" className="gap-1.5 rounded-[9px] px-4">
+          <Button onClick={() => setView('login')} size="sm" className="gap-1.5 rounded-[11px] px-4 ai-brand-mark text-white border-0 hover:opacity-90">
             <PenLine className="w-3.5 h-3.5" />
             登录 / 注册
           </Button>
@@ -189,15 +189,15 @@ export function TopBar() {
   return (
     <header className="topbar-shell flex items-center px-2.5 sm:px-6 gap-1.5 sm:gap-5 z-30 sticky top-0 shrink-0">
       <button onClick={backToWorkspace} className="flex items-center gap-2.5 hover:opacity-85 transition shrink-0">
-        <div className="w-8 h-8 rounded-[9px] ai-brand-mark flex items-center justify-center text-white font-bold text-xs tracking-tight">
-          BG
+        <div className="w-10 h-10 rounded-[12px] ai-brand-mark flex items-center justify-center text-white font-serif font-black text-[15px]">
+          墨
         </div>
-        <span className="font-semibold text-[15px] tracking-tight text-foreground hidden sm:block">爆更猫AI写作</span>
+        <span className="studio-brand-copy font-serif font-bold text-[17px] tracking-[0.5px] text-foreground hidden sm:block">爆更猫AI写作<small>AI 创作工作台</small></span>
       </button>
 
       <div className="h-5 w-px bg-border hidden md:block shrink-0" />
 
-      <nav className="topbar-nav flex flex-1 min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav className="topbar-nav hidden md:flex flex-1 min-w-0 items-center gap-0.5 p-1 rounded-[13px] bg-[var(--surface-2)] border border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {visibleNavs.map((n) => {
           const Icon = n.icon
           const active = view === n.id
@@ -208,14 +208,38 @@ export function TopBar() {
               onClick={() => handleNavClick(n.id)}
               title={n.label}
               aria-label={n.label}
-              className={`h-[34px] px-2.5 xl:px-3 rounded-[9px] shrink-0 inline-flex items-center gap-1.5 text-[13px] transition-colors ${
+              className={`h-[34px] px-3 rounded-[10px] shrink-0 inline-flex items-center gap-1.5 text-[12.5px] whitespace-nowrap border transition-all ${
                 active
-                  ? 'bg-[var(--brand-soft)] text-[var(--brand-ink)] font-semibold'
-                  : 'text-[var(--ink-2)] hover:text-foreground hover:bg-[var(--surface-3)] font-medium'
+                  ? 'ai-brand-mark text-white font-semibold border-transparent'
+                  : 'text-[var(--ink-2)] hover:text-[var(--brand)] hover:bg-[var(--violet-soft)] font-medium border-transparent'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
-              <span className="hidden md:inline whitespace-nowrap">{n.label}</span>
+              <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? 'opacity-100' : 'opacity-70'}`} />
+              <span className="hidden xl:inline">{n.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* 移动端导航（横向滚动胶囊） */}
+      <nav className="topbar-nav flex md:hidden flex-1 min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {visibleNavs.map((n) => {
+          const Icon = n.icon
+          const active = view === n.id
+          return (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => handleNavClick(n.id)}
+              title={n.label}
+              aria-label={n.label}
+              className={`h-[34px] px-2.5 rounded-[10px] shrink-0 inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap transition-all ${
+                active
+                  ? 'ai-brand-mark text-white font-semibold'
+                  : 'text-[var(--ink-2)] hover:text-[var(--brand)]'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
             </button>
           )
         })}
@@ -232,7 +256,7 @@ export function TopBar() {
               input?.focus()
             }, 80)
           }}
-          className="hidden lg:inline-flex items-center gap-2 h-8 w-44 xl:w-52 px-3 rounded-[9px] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-border text-xs text-muted-foreground transition-colors cursor-pointer"
+          className="hidden lg:inline-flex items-center gap-2 h-[38px] w-44 xl:w-52 px-3 rounded-[11px] bg-[var(--surface-2)] hover:bg-white hover:border-[var(--brand-line)] border border-border text-xs text-muted-foreground transition-all cursor-pointer"
         >
           <Search className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">搜索...</span>
@@ -246,7 +270,7 @@ export function TopBar() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-8 w-8 rounded-[9px] text-muted-foreground hover:text-foreground"
+          className="studio-topbar-icon relative h-[38px] w-[38px] rounded-[11px] border border-border bg-[var(--surface-2)] text-muted-foreground hover:text-foreground"
           onClick={() => setMessagesOpen(true)}
           title="平台消息与公告"
           aria-label="平台消息与公告"
@@ -265,10 +289,10 @@ export function TopBar() {
               <button
                 type="button"
                 onClick={() => setView('user')}
-                className="h-8 px-2.5 rounded-[9px] inline-flex items-center gap-1.5 text-xs bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-border transition-colors cursor-pointer"
+                className="studio-token-chip h-[38px] px-3 rounded-[11px] inline-flex items-center gap-1.5 text-xs bg-[var(--amber-10)] hover:bg-[var(--amber-10)] border border-[var(--amber-28)] transition-colors cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="tnum font-semibold text-foreground whitespace-nowrap">
+                <Sparkles className="w-3.5 h-3.5 text-gold shrink-0" />
+                <span className="tnum font-bold text-gold whitespace-nowrap">
                   <span className="hidden sm:inline">剩余 </span>{formatWords(tokens * 3)}字
                 </span>
               </button>
@@ -293,8 +317,8 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:opacity-85 transition">
-              <Avatar className="w-8 h-8 rounded-[9px]">
-                <AvatarFallback className="rounded-[9px] bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] text-white text-xs font-bold">
+              <Avatar className="w-10 h-10 rounded-[12px] border-2 border-white shadow-[var(--shadow-brand)]">
+                <AvatarFallback className="rounded-[12px] ai-brand-mark text-white text-[14px] font-bold">
                   {(user.penName || user.name || user.email)[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
